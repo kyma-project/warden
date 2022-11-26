@@ -1,0 +1,14 @@
+apiVersion: validate.warden.kyma-project.io/v1alpha1
+kind: ImagePolicy
+metadata:
+  labels:
+    app.kubernetes.io/name: imagepolicy
+    app.kubernetes.io/instance: imagepolicy-sample
+    app.kubernetes.io/part-of: warden
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: warden
+  name: imagepolicy-sample
+spec:
+  validator: sample-validator
+  pattern: eu.gcr.io/kyma-project
+  strict: false

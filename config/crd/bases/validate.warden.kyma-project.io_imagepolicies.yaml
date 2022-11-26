@@ -1,0 +1,67 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.9.2
+  creationTimestamp: null
+  name: imagepolicies.validate.warden.kyma-project.io
+spec:
+  group: validate.warden.kyma-project.io
+  names:
+    kind: ImagePolicy
+    listKind: ImagePolicyList
+    plural: imagepolicies
+    singular: imagepolicy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.validator
+      name: validator
+      type: string
+    - jsonPath: .spec.pattern
+      name: pattern
+      type: string
+    - jsonPath: .spec.strict
+      name: strict
+      type: boolean
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: ImagePolicy is the Schema for the imagepolicies API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ImagePolicySpec defines the desired state of ImagePolicy
+            properties:
+              pattern:
+                description: Pattern contains reference to the image that has to be
+                  validated by this policy
+                type: string
+              strict:
+                default: false
+                description: Strict defines, if the policy should warn, or prohibit
+                  scheduling
+                type: boolean
+              validator:
+                type: string
+            required:
+            - pattern
+            - strict
+            - validator
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources: {}

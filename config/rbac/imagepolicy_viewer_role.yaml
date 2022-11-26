@@ -1,0 +1,27 @@
+# permissions for end users to view imagepolicies.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  labels:
+    app.kubernetes.io/name: clusterrole
+    app.kubernetes.io/instance: imagepolicy-viewer-role
+    app.kubernetes.io/component: rbac
+    app.kubernetes.io/created-by: warden
+    app.kubernetes.io/part-of: warden
+    app.kubernetes.io/managed-by: kustomize
+  name: imagepolicy-viewer-role
+rules:
+- apiGroups:
+  - validate.warden.kyma-project.io
+  resources:
+  - imagepolicies
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - validate.warden.kyma-project.io
+  resources:
+  - imagepolicies/status
+  verbs:
+  - get

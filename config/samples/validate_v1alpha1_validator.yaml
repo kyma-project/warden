@@ -1,0 +1,14 @@
+apiVersion: validate.warden.kyma-project.io/v1alpha1
+kind: Validator
+metadata:
+  labels:
+    app.kubernetes.io/name: validator
+    app.kubernetes.io/instance: validator-sample
+    app.kubernetes.io/part-of: warden
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: warden
+  name: validator-sample
+spec:
+  type: notary
+  notaryConfig:
+    url: https://signing-dev.repositories.cloud.sap

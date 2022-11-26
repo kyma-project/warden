@@ -1,0 +1,24 @@
+domain: warden.kyma-project.io
+layout:
+- go.kubebuilder.io/v4-alpha
+projectName: warden
+repo: github.com/kyma-project/warden
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: warden.kyma-project.io
+  group: validate
+  kind: ImagePolicy
+  path: github.com/kyma-project/warden/api/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+  controller: true
+  domain: warden.kyma-project.io
+  group: validate
+  kind: Validator
+  path: github.com/kyma-project/warden/api/v1alpha1
+  version: v1alpha1
+version: "3"
