@@ -60,3 +60,9 @@ func (s *Strings) Has(val string) bool {
 func (s *Strings) String() string {
 	return strings.Join(s.List(), ",")
 }
+
+func (s *Strings) Walk(walkFunc func(string)) {
+	for k := range s.m {
+		walkFunc(k)
+	}
+}

@@ -6,7 +6,6 @@ repo: github.com/kyma-project/warden
 resources:
 - api:
     crdVersion: v1
-    namespaced: true
   controller: true
   domain: warden.kyma-project.io
   group: validate

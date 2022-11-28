@@ -18,7 +18,7 @@ package controllers
 
 import (
 	"context"
-	validatev1alpha1 "github.com/kyma-project/warden/api/v1alpha1"
+	"github.com/kyma-project/warden/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -47,7 +47,7 @@ type ImagePolicyReconciler struct {
 func (r *ImagePolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
-	policy := validatev1alpha1.ImagePolicy{}
+	policy := v1alpha1.ImagePolicy{}
 	err := r.Get(ctx, req.NamespacedName, &policy)
 	if err != nil {
 		l.Error(err, "unable to get ImagePolicy")
@@ -60,6 +60,6 @@ func (r *ImagePolicyReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 // SetupWithManager sets up the controller with the Manager.
 func (r *ImagePolicyReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&validatev1alpha1.ImagePolicy{}).
+		For(&v1alpha1.ImagePolicy{}).
 		Complete(r)
 }

@@ -13,7 +13,7 @@ spec:
     listKind: ValidatorList
     plural: validators
     singular: validator
-  scope: Namespaced
+  scope: Cluster
   versions:
   - additionalPrinterColumns:
     - jsonPath: .status.state
@@ -53,6 +53,10 @@ spec:
                 type: object
               type:
                 description: Type contains the type of the defined validator
+                enum:
+                - notary
+                - allow
+                - deny
                 type: string
             required:
             - notaryConfig
@@ -71,4 +75,5 @@ spec:
         type: object
     served: true
     storage: true
-    subresources: {}
+    subresources:
+      status: {}

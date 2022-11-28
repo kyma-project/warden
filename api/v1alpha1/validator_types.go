@@ -26,10 +26,8 @@ import (
 
 // ValidatorSpec defines the desired state of Validator
 type ValidatorSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
 	// Type contains the type of the defined validator
+	//+kubebuilder:validation:Enum=notary;allow;deny
 	Type string `json:"type"`
 	// NotaryConfig contains specific information for a validator that uses Notary as it's backend
 	NotaryConfig validate.NotaryConfig `json:"notaryConfig"`
@@ -42,14 +40,13 @@ type ValidatorStatus struct {
 	State string `json:"state"`
 }
 
-//+kubebuilder:object:root=true
-//+kubebuilder:subresource:status
+// +kubebuilder:subresource:status
+// +kubebuilder:object:root=true
 //+kubebuilder:resource:scope=Cluster
 
-//+kubebuilder:printcolumn:name=state,type=string,JSONPath=.status.state
-//+kubebuilder:printcolumn:name=age,type=date,JSONPath=.metadata.creationTimestamp
-
 // Validator is the Schema for the validators API
+// +kubebuilder:printcolumn:name=state,type=string,JSONPath=.status.state
+// +kubebuilder:printcolumn:name=age,type=date,JSONPath=.metadata.creationTimestamp
 type Validator struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`

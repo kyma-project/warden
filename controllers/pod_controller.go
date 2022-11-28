@@ -53,6 +53,7 @@ type PodReconciler struct {
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
 
+	// TODO (Ressetkk): find a way to filter requests from non-labeled namespaces
 	var ns corev1.Namespace
 	if err := r.Get(ctx, client.ObjectKey{Name: req.Namespace}, &ns); client.IgnoreNotFound(err) != nil {
 		return ctrl.Result{}, err
@@ -62,8 +63,13 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	var pod corev1.Pod
-	if err := r.Get(ctx, req.NamespacedName, &pod); client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
+	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+	var policies v1alpha1.ImagePolicyList
+
+	if err := r.List(ctx, &policies); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
 	var images sets.Strings
@@ -71,11 +77,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		images.Add(c.Image)
 	}
 
-	// find matching policy in namespaced scope
-	policies := v1alpha1.ImagePolicyList{}
-	if err := r.List(ctx, &policies); client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
-	}
+	matched := make(map[string]string)
+
+	images.Walk(func(s string) {
+		matched[s] = ""
+	})
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Second}
 
@@ -104,7 +110,10 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&corev1.Pod{}).
 		WithEventFilter(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
-				return e.ObjectOld.GetLabels()[PodValidationLabel] != e.ObjectNew.GetLabels()[PodValidationLabel]
+				if e.ObjectOld.GetLabels()[PodValidationLabel] != e.ObjectNew.GetLabels()[PodValidationLabel] {
+					return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+				}
+				return false
 			},
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				return false

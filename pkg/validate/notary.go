@@ -20,12 +20,15 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/client"
+	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
 	"net"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 )
 
@@ -58,7 +61,31 @@ func NewReadOnlyRepo(img string, c NotaryConfig) (client.Repository, error) {
 	th := auth.NewTokenHandler(base, ps, img, "pull")
 	modifier := auth.NewAuthorizer(cm, bh)
 	transport.NewTransport(base, auth.NewAuthorizer(cm, th))
-	return client.NewFileCachedRepository(NotaryDefaultTrustDir, data.GUN(img), c.Url, transport.NewTransport(base, modifier), nil, trustpinning.TrustPinConfig{})
+	return client.NewFileCachedRepository(NotaryDefaultTrustDir, data.GUN(img), c.Url, transport.NewTransport(base, modifier), getPassphraseRetriever(), trustpinning.TrustPinConfig{})
+}
+
+func getPassphraseRetriever() notary.PassRetriever {
+	baseRetriever := passphrase.PromptRetriever()
+	env := map[string]string{
+		"root":       os.Getenv("NOTARY_ROOT_PASSPHRASE"),
+		"targets":    os.Getenv("NOTARY_TARGETS_PASSPHRASE"),
+		"snapshot":   os.Getenv("NOTARY_SNAPSHOT_PASSPHRASE"),
+		"delegation": os.Getenv("NOTARY_DELEGATION_PASSPHRASE"),
+	}
+
+	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
+		if v := env[alias]; v != "" {
+			return v, numAttempts > 1, nil
+		}
+		// For delegation roles, we can also try the "delegation" alias if it is specified
+		// Note that we don't check if the role name is for a delegation to allow for names like "user"
+		// since delegation keys can be shared across repositories
+		// This cannot be a base role or imported key, though.
+		if v := env["delegation"]; !data.IsBaseRole(data.RoleName(alias)) && v != "" {
+			return v, numAttempts > 1, nil
+		}
+		return baseRetriever(keyName, alias, createNew, numAttempts)
+	}
 }
 
 type passwordStore struct {
