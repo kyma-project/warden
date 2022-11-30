@@ -16,6 +16,12 @@ limitations under the License.
 
 package validate
 
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
+
 //go:generate mockery --name=ValidatorService
 type PodValidatorService interface {
 	Validate(image string) error
@@ -41,16 +47,26 @@ func createNotaryValidatorService() PodValidatorService {
 }
 
 func (s *notaryService) Validate(image string) error {
-	return nil
 
-	// TODO implement validation for image
+	if split := strings.Split(image, ":"); len(split) == 2 {
+		imgRepo := split[0]
+		imgTag := split[1]
 
-	//c, err := NewRepo("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
-	//if err != nil {
-	//	t.Error(err)
-	//}
-	//name, err := c.GetTargetByName("PR-6200")
-	//if err != nil {
-	//	t.Error(err)
-	//}
+		c, err := NewRepo(imgRepo, s.NotaryConfig)
+
+		if err != nil {
+			return err
+		}
+
+		// getting sha
+		target, err := c.GetTargetByName(imgTag)
+		if err != nil {
+			return err
+		}
+		fmt.Println(target.Hashes)
+		// TODO next steps ???
+		return nil
+	} else {
+		return errors.New("Docker image name is not formatted correctly.")
+	}
 }

@@ -78,13 +78,13 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	podAdmitResult := ValidationStatusSuccess
 
 	images.Walk(func(s string) {
-		result := r.admitPodImage(s)
+		result, err := r.admitPodImage(s)
 		matched[s] = result
 
 		if result == ValidationStatusFailed {
 			podAdmitResult = ValidationStatusFailed
+			l.Info(err.Error())
 		}
-		l.Info("Image validation result:", s, result)
 	})
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Second}
@@ -124,11 +124,11 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *PodReconciler) admitPodImage(image string) string {
+func (r *PodReconciler) admitPodImage(image string) (string, error) {
 	err := r.Validator.Validate(image)
-
 	if err != nil {
-		return ValidationStatusFailed
+		return ValidationStatusFailed, err
 	}
-	return ValidationStatusSuccess
+
+	return ValidationStatusSuccess, nil
 }
