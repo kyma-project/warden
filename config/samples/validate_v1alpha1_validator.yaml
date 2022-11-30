@@ -1,8 +1,0 @@
-apiVersion: validate.warden.kyma-project.io/v1alpha1
-kind: Validator
-metadata:
-  name: validator-sample
-spec:
-  type: notary
-  notaryConfig:
-    url: https://signing-dev.repositories.cloud.sap

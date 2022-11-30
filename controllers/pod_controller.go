@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"github.com/kyma-project/warden/api/v1alpha1"
 	"github.com/kyma-project/warden/pkg/util/sets"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -64,11 +63,6 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	var pod corev1.Pod
 	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-	var policies v1alpha1.ImagePolicyList
-
-	if err := r.List(ctx, &policies); err != nil {
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
