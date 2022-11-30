@@ -20,15 +20,11 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/theupdateframework/notary"
 	"github.com/theupdateframework/notary/client"
-	"github.com/theupdateframework/notary/passphrase"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
 	"net"
 	"net/http"
-	"net/url"
-	"os"
 	"time"
 )
 
@@ -43,8 +39,7 @@ type NotaryConfig struct {
 type NotaryValidator struct {
 }
 
-func NewReadOnlyRepo(img string, c NotaryConfig) (client.Repository, error) {
-
+func NewRepo(img string, c NotaryConfig) (client.Repository, error) {
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
@@ -55,52 +50,45 @@ func NewReadOnlyRepo(img string, c NotaryConfig) (client.Repository, error) {
 		TLSClientConfig:   nil,
 		DisableKeepAlives: true,
 	}
+	th := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
+		Transport: base,
+		Scopes: []auth.Scope{
+			auth.RepositoryScope{
+				Repository: img,
+				Actions:    []string{"pull"},
+			},
+		},
+	})
+
+	// challenge manager expects to connect to /v2/ endpoint to obtain the challenges:
+	// https://github.com/notaryproject/notary/blob/master/vendor/github.com/docker/distribution/registry/client/auth/session.go#L75
+	u := c.Url + "/v2/"
+	pingClient := &http.Client{
+		Transport: base,
+		Timeout:   15 * time.Second,
+	}
+	req, err := http.NewRequest("GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := pingClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	// non-nil err means we must close body
+	defer resp.Body.Close()
+	if (resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices) &&
+		resp.StatusCode != http.StatusUnauthorized {
+		// If we didn't get a 2XX range or 401 status code, we're not talking to a notary server.
+		// The http client should be configured to handle redirects so at this point, 3XX is
+		// not a valid status code.
+		return nil, err
+	}
+
 	cm := challenge.NewSimpleManager()
-	ps := passwordStore{anonymous: true}
-	bh := auth.NewBasicHandler(ps)
-	th := auth.NewTokenHandler(base, ps, img, "pull")
-	modifier := auth.NewAuthorizer(cm, bh)
-	transport.NewTransport(base, auth.NewAuthorizer(cm, th))
-	return client.NewFileCachedRepository(NotaryDefaultTrustDir, data.GUN(img), c.Url, transport.NewTransport(base, modifier), getPassphraseRetriever(), trustpinning.TrustPinConfig{})
-}
-
-func getPassphraseRetriever() notary.PassRetriever {
-	baseRetriever := passphrase.PromptRetriever()
-	env := map[string]string{
-		"root":       os.Getenv("NOTARY_ROOT_PASSPHRASE"),
-		"targets":    os.Getenv("NOTARY_TARGETS_PASSPHRASE"),
-		"snapshot":   os.Getenv("NOTARY_SNAPSHOT_PASSPHRASE"),
-		"delegation": os.Getenv("NOTARY_DELEGATION_PASSPHRASE"),
+	if err = cm.AddResponse(resp); err != nil {
+		return nil, err
 	}
-
-	return func(keyName string, alias string, createNew bool, numAttempts int) (string, bool, error) {
-		if v := env[alias]; v != "" {
-			return v, numAttempts > 1, nil
-		}
-		// For delegation roles, we can also try the "delegation" alias if it is specified
-		// Note that we don't check if the role name is for a delegation to allow for names like "user"
-		// since delegation keys can be shared across repositories
-		// This cannot be a base role or imported key, though.
-		if v := env["delegation"]; !data.IsBaseRole(data.RoleName(alias)) && v != "" {
-			return v, numAttempts > 1, nil
-		}
-		return baseRetriever(keyName, alias, createNew, numAttempts)
-	}
+	modifier := auth.NewAuthorizer(cm, th)
+	return client.NewFileCachedRepository(NotaryDefaultTrustDir, data.GUN(img), c.Url, transport.NewTransport(base, modifier), nil, trustpinning.TrustPinConfig{})
 }
-
-type passwordStore struct {
-	anonymous bool
-}
-
-func (p passwordStore) Basic(url *url.URL) (string, string) {
-	//if p.anonymous {
-	//	return "", ""
-	//}
-	return "", ""
-}
-
-func (p passwordStore) RefreshToken(url *url.URL, s string) string {
-	return ""
-}
-
-func (p passwordStore) SetRefreshToken(realm *url.URL, service, token string) {}
