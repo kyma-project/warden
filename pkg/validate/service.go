@@ -16,11 +16,41 @@ limitations under the License.
 
 package validate
 
-type Service struct {
+//go:generate mockery --name=ValidatorService
+type PodValidatorService interface {
+	Validate(image string) error
+}
+
+type notaryService struct {
 	Type         string       `json:"type"`
 	NotaryConfig NotaryConfig `json:"notaryConfig"`
 }
 
-func (s Service) GetValidator() {
+func GetPodValidatorService() PodValidatorService {
+	return createNotaryValidatorService()
+}
 
+func createNotaryValidatorService() PodValidatorService {
+
+	return &notaryService{
+		Type: "",
+		NotaryConfig: NotaryConfig{
+			Url: "https://signing-dev.repositories.cloud.sap",
+		},
+	}
+}
+
+func (s *notaryService) Validate(image string) error {
+	return nil
+
+	// TODO implement validation for image
+
+	//c, err := NewRepo("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
+	//if err != nil {
+	//	t.Error(err)
+	//}
+	//name, err := c.GetTargetByName("PR-6200")
+	//if err != nil {
+	//	t.Error(err)
+	//}
 }

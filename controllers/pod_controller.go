@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"github.com/kyma-project/warden/pkg/util/sets"
+	"github.com/kyma-project/warden/pkg/validate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,7 +41,8 @@ const (
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme    *runtime.Scheme
+	Validator validate.PodValidatorService
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;create;update;patch
@@ -73,14 +75,21 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	matched := make(map[string]string)
 
+	podAdmitResult := ValidationStatusSuccess
+
 	images.Walk(func(s string) {
-		matched[s] = ""
+		result := r.admitPodImage(s)
+		matched[s] = result
+
+		if result == ValidationStatusFailed {
+			podAdmitResult = ValidationStatusFailed
+		}
+		l.Info("Image validation result:", s, result)
 	})
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Second}
 
-	admitResult := admitPod(&pod)
-	switch admitResult {
+	switch podAdmitResult {
 	case ValidationStatusSuccess:
 		l.Info("pod validated without errors")
 		shouldRetry = ctrl.Result{}
@@ -91,7 +100,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		shouldRetry = ctrl.Result{}
 		break
 	}
-	pod.Labels[PodValidationLabel] = admitResult
+	pod.Labels[PodValidationLabel] = podAdmitResult
 	if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
 		return ctrl.Result{}, err
 	}
@@ -115,6 +124,11 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func admitPod(pod *corev1.Pod) string {
+func (r *PodReconciler) admitPodImage(image string) string {
+	err := r.Validator.Validate(image)
+
+	if err != nil {
+		return ValidationStatusFailed
+	}
 	return ValidationStatusSuccess
 }
