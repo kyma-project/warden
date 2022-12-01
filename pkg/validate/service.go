@@ -17,9 +17,17 @@ limitations under the License.
 package validate
 
 import (
+	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"strings"
+)
+
+const (
+	tagDelim = ":"
 )
 
 //go:generate mockery --name=ValidatorService
@@ -28,7 +36,6 @@ type PodValidatorService interface {
 }
 
 type notaryService struct {
-	Type         string       `json:"type"`
 	NotaryConfig NotaryConfig `json:"notaryConfig"`
 }
 
@@ -39,7 +46,6 @@ func GetPodValidatorService() PodValidatorService {
 func createNotaryValidatorService() PodValidatorService {
 
 	return &notaryService{
-		Type: "",
 		NotaryConfig: NotaryConfig{
 			Url: "https://signing-dev.repositories.cloud.sap",
 		},
@@ -48,25 +54,89 @@ func createNotaryValidatorService() PodValidatorService {
 
 func (s *notaryService) Validate(image string) error {
 
-	if split := strings.Split(image, ":"); len(split) == 2 {
-		imgRepo := split[0]
-		imgTag := split[1]
+	split := strings.Split(image, tagDelim)
 
-		c, err := NewRepo(imgRepo, s.NotaryConfig)
-
-		if err != nil {
-			return err
-		}
-
-		// getting sha
-		target, err := c.GetTargetByName(imgTag)
-		if err != nil {
-			return err
-		}
-		fmt.Println(target.Hashes)
-		// TODO next steps ???
-		return nil
-	} else {
-		return errors.New("Docker image name is not formatted correctly.")
+	if len(split) != 2 {
+		return errors.New("image name is not formatted correctly")
 	}
+
+	imgRepo := split[0]
+	imgTag := split[1]
+
+	expectedShaBytes, err := s.getNotaryImageDigestHash(imgRepo, imgTag)
+	if err != nil {
+		return err
+	}
+
+	shaBytes, err := s.getImageDigestHash(image)
+	if err != nil {
+		return err
+	}
+
+	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
+		return errors.New("image hash does not match with notary value")
+	}
+
+	return nil
+}
+
+func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
+	if len(image) == 0 {
+		return []byte{}, errors.New("empty image provided")
+	}
+
+	ref, err := name.ParseReference(image)
+	if err != nil {
+		return []byte{}, fmt.Errorf("ref parse: %w", err)
+	}
+	i, err := remote.Image(ref)
+	if err != nil {
+		return []byte{}, fmt.Errorf("get image: %w", err)
+	}
+	m, err := i.Manifest()
+	if err != nil {
+		return []byte{}, fmt.Errorf("image manifest: %w", err)
+	}
+
+	fmt.Printf("Sha img: %s \n", m.Config.Digest.Hex)
+	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
+
+	if err != nil {
+		return []byte{}, fmt.Errorf("checksum error: %w", err)
+	}
+
+	return bytes, nil
+}
+
+func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte, error) {
+	if len(imgRepo) == 0 || len(imgTag) == 0 {
+		return []byte{}, errors.New("empty arguments provided")
+	}
+
+	c, err := NewRepo(imgRepo, s.NotaryConfig)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	target, err := c.GetTargetByName(imgTag)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if len(target.Hashes) == 0 {
+		return []byte{}, errors.New("image hash is missing")
+	}
+
+	if len(target.Hashes) > 1 {
+		return []byte{}, errors.New("more than one hash for image")
+	}
+
+	key := ""
+	for i := range target.Hashes {
+		key = i
+	}
+
+	fmt.Printf("Sha exp: %s \n", hex.EncodeToString(target.Hashes[key]))
+
+	return target.Hashes[key], nil
 }
