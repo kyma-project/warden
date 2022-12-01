@@ -113,7 +113,8 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 				// trigger, only if validation label is failed or missing
-				if e.ObjectNew.GetLabels()[PodValidationLabel] != ValidationStatusSuccess {
+				if e.ObjectOld.GetLabels()[PodValidationLabel] != ValidationStatusSuccess ||
+					e.ObjectNew.GetLabels()[PodValidationLabel] != ValidationStatusSuccess {
 					return true
 				}
 				return false
