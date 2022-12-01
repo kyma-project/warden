@@ -82,9 +82,11 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		l.Info("pod validated failed")
 		break
 	}
-	pod.Labels[PodValidationLabel] = admitResult
-	if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
+	if pod.Labels[PodValidationLabel] != admitResult {
+		pod.Labels[PodValidationLabel] = admitResult
+		if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	return shouldRetry, nil
 }
