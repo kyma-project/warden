@@ -1,0 +1,7 @@
+The workload is available in {{ .Release.Namespace }} namespace.
+
+You can list all information in this pod using kubectl:
+
+kubectl get all -n {{ .Release.Namespace }}
+
+If you find any bugs or you have feature requests, open an issue in https://github.com/kyma-project/warden/issues/new
