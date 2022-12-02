@@ -4,7 +4,7 @@
 
 replicaCount: 3
 
-image: europe-docker.pkg.dev/kyma-project/dev/warden:dev
+image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221202-9f54ee5
 notaryUrl: "https://signing-dev.repositories.cloud.sap"
 allowedRegistries: []
 
