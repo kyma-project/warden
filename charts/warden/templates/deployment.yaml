@@ -41,6 +41,9 @@ spec:
             {{- with .Values.notaryUrl }}
             - --notary-url={{ . }}
             {{- end }}
+            {{- range .Values.allowedRegistries }}
+            - --allowed-registry={{ . }}
+            {{- end }}
           ports:
             - containerPort: {{ .Values.service.port }}
               name: https
