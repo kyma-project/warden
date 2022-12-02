@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"github.com/kyma-project/warden/pkg/util/sets"
+	"github.com/kyma-project/warden/pkg/validate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
@@ -41,7 +42,8 @@ const (
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
+	Scheme    *runtime.Scheme
+	Validator validate.PodValidatorService
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
@@ -64,29 +66,39 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	matched := make(map[string]string)
 
+	admitResult := ValidationStatusSuccess
+
 	images.Walk(func(s string) {
-		matched[s] = ""
+		result, err := r.admitPodImage(s)
+		matched[s] = result
+
+		if result == ValidationStatusFailed {
+			admitResult = ValidationStatusFailed
+			l.Info(err.Error())
+		}
 	})
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
 
-	admitResult := admitPod(&pod)
 	switch admitResult {
 	case ValidationStatusSuccess:
-		l.Info("pod validated is successful")
+		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
 		break
 	case ValidationStatusFailed:
 		//TODO this should return some kind of error
-		l.Info("pod validated failed")
+		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
 		break
 	}
+
 	if pod.Labels[PodValidationLabel] != admitResult {
-		pod.Labels[PodValidationLabel] = admitResult
-		if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
+		out := pod.DeepCopy()
+		out.Labels[PodValidationLabel] = admitResult
+		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
 	}
+
 	return shouldRetry, nil
 }
 
@@ -145,6 +157,11 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	return true
 }
 
-func admitPod(pod *corev1.Pod) string {
-	return ValidationStatusSuccess
+func (r *PodReconciler) admitPodImage(image string) (string, error) {
+	err := r.Validator.Validate(image)
+	if err != nil {
+		return ValidationStatusFailed, err
+	}
+
+	return ValidationStatusSuccess, nil
 }

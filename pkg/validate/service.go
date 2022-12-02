@@ -16,11 +16,128 @@ limitations under the License.
 
 package validate
 
-type Service struct {
-	Type         string       `json:"type"`
+import (
+	"crypto/subtle"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"github.com/google/go-containerregistry/pkg/name"
+	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"strings"
+)
+
+const (
+	tagDelim = ":"
+)
+
+//go:generate mockery --name=ValidatorService
+type PodValidatorService interface {
+	Validate(image string) error
+}
+
+type ServiceConfig struct {
+	NotaryConfig
+}
+
+type notaryService struct {
 	NotaryConfig NotaryConfig `json:"notaryConfig"`
 }
 
-func (s Service) GetValidator() {
+func GetPodValidatorService(sc *ServiceConfig) PodValidatorService {
+	return createNotaryValidatorService(sc)
+}
 
+func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
+
+	return &notaryService{
+		NotaryConfig: NotaryConfig{
+			Url: c.NotaryConfig.Url,
+		},
+	}
+}
+
+func (s *notaryService) Validate(image string) error {
+
+	split := strings.Split(image, tagDelim)
+
+	if len(split) != 2 {
+		return errors.New("image name is not formatted correctly")
+	}
+
+	imgRepo := split[0]
+	imgTag := split[1]
+
+	expectedShaBytes, err := s.getNotaryImageDigestHash(imgRepo, imgTag)
+	if err != nil {
+		return err
+	}
+
+	shaBytes, err := s.getImageDigestHash(image)
+	if err != nil {
+		return err
+	}
+
+	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
+		return errors.New("unexpected image hash value")
+	}
+
+	return nil
+}
+
+func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
+	if len(image) == 0 {
+		return []byte{}, errors.New("empty image provided")
+	}
+
+	ref, err := name.ParseReference(image)
+	if err != nil {
+		return []byte{}, fmt.Errorf("ref parse: %w", err)
+	}
+	i, err := remote.Image(ref)
+	if err != nil {
+		return []byte{}, fmt.Errorf("get image: %w", err)
+	}
+	m, err := i.Manifest()
+	if err != nil {
+		return []byte{}, fmt.Errorf("image manifest: %w", err)
+	}
+
+	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
+
+	if err != nil {
+		return []byte{}, fmt.Errorf("checksum error: %w", err)
+	}
+
+	return bytes, nil
+}
+
+func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte, error) {
+	if len(imgRepo) == 0 || len(imgTag) == 0 {
+		return []byte{}, errors.New("empty arguments provided")
+	}
+
+	c, err := NewRepo(imgRepo, s.NotaryConfig)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	target, err := c.GetTargetByName(imgTag)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	if len(target.Hashes) == 0 {
+		return []byte{}, errors.New("image hash is missing")
+	}
+
+	if len(target.Hashes) > 1 {
+		return []byte{}, errors.New("more than one hash for image")
+	}
+
+	key := ""
+	for i := range target.Hashes {
+		key = i
+	}
+
+	return target.Hashes[key], nil
 }

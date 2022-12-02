@@ -5,6 +5,7 @@
 replicaCount: 1
 
 image: europe-docker.pkg.dev/kyma-project/dev/warden:dev
+notaryUrl: "https://signing-dev.repositories.cloud.sap"
 imagePullPolicy: Always
 
 imagePullSecrets: []
@@ -39,10 +40,10 @@ service:
 resources:
    limits:
      cpu: 500m
-     memory: 256Mi
+     memory: 512Mi
    requests:
-     cpu: 10m
-     memory: 64Mi
+     cpu: 256m
+     memory: 128Mi
 
 autoscaling:
   enabled: false
