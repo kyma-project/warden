@@ -27,8 +27,7 @@ import (
 )
 
 const (
-	tagDelim  = ":"
-	notaryURL = "https://signing-dev.repositories.cloud.sap"
+	tagDelim = ":"
 )
 
 //go:generate mockery --name=ValidatorService
@@ -36,19 +35,23 @@ type PodValidatorService interface {
 	Validate(image string) error
 }
 
+type ServiceConfig struct {
+	NotaryConfig
+}
+
 type notaryService struct {
 	NotaryConfig NotaryConfig `json:"notaryConfig"`
 }
 
-func GetPodValidatorService() PodValidatorService {
-	return createNotaryValidatorService()
+func GetPodValidatorService(sc *ServiceConfig) PodValidatorService {
+	return createNotaryValidatorService(sc)
 }
 
-func createNotaryValidatorService() PodValidatorService {
+func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
 
 	return &notaryService{
 		NotaryConfig: NotaryConfig{
-			Url: notaryURL,
+			Url: c.NotaryConfig.Url,
 		},
 	}
 }
