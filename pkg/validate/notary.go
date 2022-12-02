@@ -33,7 +33,8 @@ const (
 )
 
 type NotaryConfig struct {
-	Url string `json:"url"`
+	Url               string   `json:"url"`
+	AllowedRegistries []string `json:"allowedRegistries"`
 }
 
 type NotaryValidator struct {

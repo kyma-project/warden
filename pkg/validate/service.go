@@ -36,7 +36,8 @@ type PodValidatorService interface {
 }
 
 type ServiceConfig struct {
-	NotaryConfig
+	NotaryConfig      NotaryConfig
+	AllowedRegistries []string
 }
 
 type notaryService struct {
@@ -48,10 +49,10 @@ func GetPodValidatorService(sc *ServiceConfig) PodValidatorService {
 }
 
 func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
-
 	return &notaryService{
 		NotaryConfig: NotaryConfig{
-			Url: c.NotaryConfig.Url,
+			Url:               c.NotaryConfig.Url,
+			AllowedRegistries: c.AllowedRegistries,
 		},
 	}
 }
@@ -66,7 +67,12 @@ func (s *notaryService) Validate(image string) error {
 
 	imgRepo := split[0]
 	imgTag := split[1]
-
+	for _, allowed := range s.NotaryConfig.AllowedRegistries {
+		// repository is in allowed list
+		if strings.HasPrefix(imgRepo, allowed) {
+			return nil
+		}
+	}
 	expectedShaBytes, err := s.getNotaryImageDigestHash(imgRepo, imgTag)
 	if err != nil {
 		return err
