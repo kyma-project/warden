@@ -82,12 +82,12 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	switch admitResult {
 	case ValidationStatusSuccess:
-		l.Info("pod validated is successful", "name", pod.Name, "namespace", pod.Namespace)
+		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
 		break
 	case ValidationStatusFailed:
 		//TODO this should return some kind of error
-		l.Info("pod validated failed", "name", pod.Name, "namespace", pod.Namespace)
+		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
 		break
 	}
 
