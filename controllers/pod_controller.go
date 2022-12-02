@@ -94,7 +94,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	if pod.Labels[PodValidationLabel] != admitResult {
 		out := pod.DeepCopy()
 		out.Labels[PodValidationLabel] = admitResult
-		if err := r.Update(ctx, out); client.IgnoreNotFound(err) != nil {
+		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
 	}
