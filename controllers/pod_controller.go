@@ -82,27 +82,23 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	switch admitResult {
 	case ValidationStatusSuccess:
-		l.Info("pod validated is successful")
+		l.Info("pod validated is successful", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
 		break
 	case ValidationStatusFailed:
 		//TODO this should return some kind of error
-		l.Info("pod validated failed")
+		l.Info("pod validated failed", "name", pod.Name, "namespace", pod.Namespace)
 		break
 	}
 
 	if pod.Labels[PodValidationLabel] != admitResult {
-
-		// fetch pod data again to avoid updating obsolete version and Reconcile error
-		if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
-			return ctrl.Result{}, client.IgnoreNotFound(err)
-		}
-
-		pod.Labels[PodValidationLabel] = admitResult
-		if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
+		out := pod.DeepCopy()
+		out.Labels[PodValidationLabel] = admitResult
+		if err := r.Update(ctx, out); client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
 	}
+
 	return shouldRetry, nil
 }
 
