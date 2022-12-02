@@ -44,9 +44,8 @@ type PodReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-//+kubebuilder:rbac:groups=validate.warden.kyma-project.io,resources=imagepolicies,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
