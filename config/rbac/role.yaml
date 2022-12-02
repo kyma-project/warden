@@ -18,16 +18,7 @@ rules:
   resources:
   - pods
   verbs:
-  - create
-  - get
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - validate.warden.kyma-project.io
-  resources:
-  - imagepolicies
-  verbs:
-  - get
   - list
+  - get
+  - update
   - watch

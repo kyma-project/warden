@@ -22,6 +22,7 @@ import (
 	"github.com/kyma-project/warden/pkg/validate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -45,23 +46,13 @@ type PodReconciler struct {
 	Validator validate.PodValidatorService
 }
 
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;watch;create;update;patch
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-//+kubebuilder:rbac:groups=validate.warden.kyma-project.io,resources=imagepolicies,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	l := log.FromContext(ctx)
-
-	// TODO (Ressetkk): find a way to filter requests from non-labeled namespaces
-	var ns corev1.Namespace
-	if err := r.Get(ctx, client.ObjectKey{Name: req.Namespace}, &ns); client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
-	}
-	if ns.GetLabels()[NamespaceValidationLabel] != "enabled" {
-		return ctrl.Result{}, nil
-	}
 
 	var pod corev1.Pod
 	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
@@ -75,34 +66,35 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	matched := make(map[string]string)
 
-	podAdmitResult := ValidationStatusSuccess
+	admitResult := ValidationStatusSuccess
 
 	images.Walk(func(s string) {
 		result, err := r.admitPodImage(s)
 		matched[s] = result
 
 		if result == ValidationStatusFailed {
-			podAdmitResult = ValidationStatusFailed
+			admitResult = ValidationStatusFailed
 			l.Info(err.Error())
 		}
 	})
 
-	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Second}
+	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
 
-	switch podAdmitResult {
+	switch admitResult {
 	case ValidationStatusSuccess:
-		l.Info("pod validated without errors")
+		l.Info("pod validated is successful")
 		shouldRetry = ctrl.Result{}
 		break
 	case ValidationStatusFailed:
 		//TODO this should return some kind of error
-		l.Info("pod validated with errors")
-		shouldRetry = ctrl.Result{}
+		l.Info("pod validated failed")
 		break
 	}
-	pod.Labels[PodValidationLabel] = podAdmitResult
-	if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
-		return ctrl.Result{}, err
+	if pod.Labels[PodValidationLabel] != admitResult {
+		pod.Labels[PodValidationLabel] = admitResult
+		if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
+			return ctrl.Result{}, err
+		}
 	}
 	return shouldRetry, nil
 }
@@ -112,17 +104,56 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Pod{}).
 		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				return r.isValidationEnabledForNS(e.Object.GetNamespace())
+			},
 			UpdateFunc: func(e event.UpdateEvent) bool {
-				if e.ObjectOld.GetLabels()[PodValidationLabel] != e.ObjectNew.GetLabels()[PodValidationLabel] {
-					return e.ObjectOld.GetGeneration() != e.ObjectNew.GetGeneration()
+				// don't trigger if there is no change
+				if e.ObjectOld.GetResourceVersion() == e.ObjectNew.GetResourceVersion() {
+					return false
+				}
+				// don't trigger if namespace validation is not enabled
+				if !r.isValidationEnabledForNS(e.ObjectNew.GetNamespace()) {
+					return false
+				}
+				// trigger, if there is container images including init container changes
+				if r.areImagesChanged(e.ObjectOld.DeepCopyObject(), e.ObjectNew.DeepCopyObject()) {
+					return true
+				}
+				// trigger, only if validation label is failed or missing
+				if e.ObjectOld.GetLabels()[PodValidationLabel] != ValidationStatusSuccess ||
+					e.ObjectNew.GetLabels()[PodValidationLabel] != ValidationStatusSuccess {
+					return true
 				}
 				return false
 			},
 			DeleteFunc: func(e event.DeleteEvent) bool {
 				return false
-			}}).
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+		}).
 		Complete(r)
 }
+
+func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
+	oldPod := oldObject.(*corev1.Pod)
+	newPod := newObject.(*corev1.Pod)
+	return !reflect.DeepEqual(oldPod.Spec.InitContainers, newPod.Spec.InitContainers) || !reflect.DeepEqual(oldPod.Spec.Containers, newPod.Spec.Containers)
+}
+
+func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
+	var ns corev1.Namespace
+	if err := r.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
+		return false
+	}
+	if ns.GetLabels()[NamespaceValidationLabel] != "enabled" {
+		return false
+	}
+	return true
+}
+
 
 func (r *PodReconciler) admitPodImage(image string) (string, error) {
 	err := r.Validator.Validate(image)
