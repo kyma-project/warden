@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	NotaryDefaultTrustDir = ".notary"
+	NotaryDefaultTrustDir = "/tmp/.notary"
 )
 
 type NotaryConfig struct {
