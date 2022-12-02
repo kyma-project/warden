@@ -90,7 +90,14 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		l.Info("pod validated failed")
 		break
 	}
+
 	if pod.Labels[PodValidationLabel] != admitResult {
+
+		// fetch pod data again to avoid updating obsolete version and Reconcile error
+		if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
+			return ctrl.Result{}, client.IgnoreNotFound(err)
+		}
+
 		pod.Labels[PodValidationLabel] = admitResult
 		if err := r.Update(ctx, &pod); client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
@@ -153,7 +160,6 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	}
 	return true
 }
-
 
 func (r *PodReconciler) admitPodImage(image string) (string, error) {
 	err := r.Validator.Validate(image)
