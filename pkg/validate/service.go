@@ -27,7 +27,8 @@ import (
 )
 
 const (
-	tagDelim = ":"
+	tagDelim  = ":"
+	notaryURL = "https://signing-dev.repositories.cloud.sap"
 )
 
 //go:generate mockery --name=ValidatorService
@@ -47,7 +48,7 @@ func createNotaryValidatorService() PodValidatorService {
 
 	return &notaryService{
 		NotaryConfig: NotaryConfig{
-			Url: "https://signing-dev.repositories.cloud.sap",
+			Url: notaryURL,
 		},
 	}
 }
@@ -74,7 +75,7 @@ func (s *notaryService) Validate(image string) error {
 	}
 
 	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
-		return errors.New("image hash does not match with notary value")
+		return errors.New("unexpected image hash value")
 	}
 
 	return nil
@@ -98,7 +99,6 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 		return []byte{}, fmt.Errorf("image manifest: %w", err)
 	}
 
-	fmt.Printf("Sha img: %s \n", m.Config.Digest.Hex)
 	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
 
 	if err != nil {
@@ -135,8 +135,6 @@ func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte
 	for i := range target.Hashes {
 		key = i
 	}
-
-	fmt.Printf("Sha exp: %s \n", hex.EncodeToString(target.Hashes[key]))
 
 	return target.Hashes[key], nil
 }
