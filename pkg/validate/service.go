@@ -59,6 +59,8 @@ func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
 
 func (s *notaryService) Validate(image string) error {
 
+	fmt.Printf("Validate admitted image %s \n", image)
+
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
@@ -103,17 +105,20 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 	if err != nil {
 		return []byte{}, fmt.Errorf("get image: %w", err)
 	}
-	m, err := i.Manifest()
+
+	hash, err := i.Digest()
+
 	if err != nil {
-		return []byte{}, fmt.Errorf("image manifest: %w", err)
+		return []byte{}, fmt.Errorf("image digest: %w", err)
 	}
 
-	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
+	fmt.Printf("Sha of admitted docker image   : %s \n", hash.Hex)
+
+	bytes, err := hex.DecodeString(hash.Hex)
 
 	if err != nil {
 		return []byte{}, fmt.Errorf("checksum error: %w", err)
 	}
-
 	return bytes, nil
 }
 
@@ -144,6 +149,8 @@ func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte
 	for i := range target.Hashes {
 		key = i
 	}
+
+	fmt.Printf("Sha received from Notary server: %s \n", hex.EncodeToString(target.Hashes[key]))
 
 	return target.Hashes[key], nil
 }
