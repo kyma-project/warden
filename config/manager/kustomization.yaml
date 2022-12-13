@@ -4,5 +4,5 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 images:
 - name: controller
-  newName: kind.local/warden-b549753711da9c8482c5cc2addafe5bb
-  newTag: 6cb7eecb2842d91e8645c2f63d85976eee5444afae5965a6e48dbdc211dae109
+  newName: controller
+  newTag: latest
