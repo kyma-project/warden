@@ -11,7 +11,7 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      control-plane: controller-manager
+      app: warden
   template:
     metadata:
       {{- with .Values.podAnnotations }}
