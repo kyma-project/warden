@@ -21,9 +21,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
+
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
-	"strings"
 )
 
 const (
@@ -84,7 +85,7 @@ func (s *notaryService) Validate(image string) error {
 	}
 
 	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
-		return errors.New("unexpected image hash value")
+		return fmt.Errorf("unexpected image hash value: %s != %s", hex.EncodeToString(shaBytes), hex.EncodeToString(expectedShaBytes))
 	}
 
 	return nil
