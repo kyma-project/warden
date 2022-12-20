@@ -28,9 +28,9 @@ spec:
       serviceAccountName: {{ include "warden.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      { { - if or .Values.imageRenderer.priorityClassName .Values.global.priorityClassName } }
-      priorityClassName: { { coalesce .Values.imageRenderer.priorityClassName .Values.global.priorityClassName } }
-      { { - end } }
+      {{- if or .Values.imageRenderer.priorityClassName .Values.global.priorityClassName }}
+      priorityClassName: {{ coalesce .Values.imageRenderer.priorityClassName .Values.global.priorityClassName }}
+      {{- end }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
