@@ -1,0 +1,23 @@
+apiGroup: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: warden-webhook
+  containers:
+    template:
+      metadata:
+        app: warden-webhook
+      spec:
+          name: webhook
+          image: {{ .Values.global.webhook.image }}
+          volumeMounts:
+            - name: serverless-webhook
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+        volumes:
+          - name: serverless-webhook
+            secret:
+              secretName: {{ .Chart.Name }}

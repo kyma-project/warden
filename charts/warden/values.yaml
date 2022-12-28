@@ -4,7 +4,7 @@
 
 replicaCount: 1
 
-image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221206-86f7fa7
+#TODO: group it under notary
 notaryUrl: "https://signing-dev.repositories.cloud.sap"
 allowedRegistries: []
 
@@ -14,6 +14,20 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+#Service configuration
+global:
+  controller:
+    image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221206-86f7fa7
+
+  webhook:
+#    image: europe-docker.pkg.dev/kyma-project/prod/warden-webhook:alpha
+    image: warden-webhook
+    service:
+      name: warden-webhook
+
+
+
+#TODO: group k8s related settings under kubernetes?
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
@@ -59,7 +73,5 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
-
-global: {}
 
 imageRenderer: {}
