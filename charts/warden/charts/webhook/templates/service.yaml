@@ -10,4 +10,4 @@ spec:
       protocol: TCP
       targetPort: 8443
   selector:
-    app: warden-webhook
+    app: {{ .Chart.Name }}

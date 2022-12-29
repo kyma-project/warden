@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/webhook"
 	"github.com/kyma-project/warden/internal/webhook/certs"
 	"github.com/kyma-project/warden/internal/webhook/defaulting"
+	"github.com/kyma-project/warden/internal/webhook/validation"
 	"github.com/vrischmann/envconfig"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -20,13 +22,17 @@ var (
 )
 
 func main() {
-	logger, err := zap.NewDevelopment()
+	tmpLog, err := zap.NewDevelopment()
 	if err != nil {
-		panic(err)
+		fmt.Println("failed to start controller-manager", err.Error())
+		os.Exit(1)
 	}
+	logger := tmpLog.Sugar()
+
 	cfg := &webhook.Config{}
 	if err := envconfig.InitWithPrefix(cfg, "WEBHOOK"); err != nil {
-		panic(err)
+		logger.Error("failed to start controller-manager", err.Error())
+		os.Exit(1)
 	}
 
 	if err := certs.SetupCertSecret(
@@ -34,12 +40,12 @@ func main() {
 		cfg.SecretName,
 		cfg.SystemNamespace,
 		cfg.ServiceName,
-		logger.Sugar()); err != nil {
-		logger.Sugar().Error("failed to setup certificates and webhook secret", err.Error())
+		logger); err != nil {
+		logger.Error("failed to setup certificates and webhook secret", err.Error())
 		os.Exit(1)
 	}
 
-	logrZap := zapr.NewLogger(logger)
+	logrZap := zapr.NewLogger(logger.Desugar())
 
 	mgr, err := manager.New(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:             scheme,
@@ -47,6 +53,11 @@ func main() {
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
+
+	if err := certs.SetupResourcesController(context.TODO(), mgr, cfg.ServiceName, cfg.SystemNamespace, cfg.SecretName, logger); err != nil {
+		logger.Error("failed to setup webhook resource controller ", err.Error())
+		os.Exit(5)
+	}
 
 	logger.Info("setting up webhook server")
 	// webhook server setup
@@ -58,9 +69,9 @@ func main() {
 		Handler: defaulting.NewWebhook(mgr.GetClient()),
 	})
 
-	//whs.Register(resources.FunctionValidationWebhookPath, &ctrlwebhook.Admission{
-	//	Handler: webhook.NewValidatingHook(validationConfigv1alpha1, validationConfigv1alpha2, mgr.GetClient()),
-	//})
+	whs.Register(validation.WebhookPath, &ctrlwebhook.Admission{
+		Handler: validation.NewWebhook(mgr.GetClient()),
+	})
 
 	logrZap.Info("starting the controller-manager")
 	// start the server manager

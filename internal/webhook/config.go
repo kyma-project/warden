@@ -1,7 +1,7 @@
 package webhook
 
 type Config struct {
-	SystemNamespace string `envconfig:"default=kyma-system"`
+	SystemNamespace string `envconfig:"default=default"`
 	ServiceName     string `envconfig:"default=warden-webhook"`
 	SecretName      string `envconfig:"default=warden-webhook"`
 	Port            int    `envconfig:"default=8443"`

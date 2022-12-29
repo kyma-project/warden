@@ -1,4 +1,4 @@
-apiGroup: apps/v1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
@@ -7,17 +7,22 @@ spec:
   selector:
     matchLabels:
       app: warden-webhook
-  containers:
-    template:
-      metadata:
+  template:
+    metadata:
+      labels:
         app: warden-webhook
-      spec:
-          name: webhook
+    spec:
+      serviceAccountName: {{ .Chart.Name }}
+      containers:
+        - name: webhook
+          imagePullPolicy: IfNotPresent
           image: {{ .Values.global.webhook.image }}
           volumeMounts:
             - name: serverless-webhook
               mountPath: /tmp/k8s-webhook-server/serving-certs
-        volumes:
-          - name: serverless-webhook
-            secret:
-              secretName: {{ .Chart.Name }}
+
+      volumes:
+        - name: serverless-webhook
+          secret:
+            secretName: {{ .Chart.Name }}
+

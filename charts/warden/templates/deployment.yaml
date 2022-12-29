@@ -35,7 +35,7 @@ spec:
         - name: {{ .Chart.Name }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.controller.image }}"
+          image: "{{ .Values.global.controller.image }}"
           imagePullPolicy: {{ .Values.imagePullPolicy }}
           args:
             - --health-probe-bind-address=:8081

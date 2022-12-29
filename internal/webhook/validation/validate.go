@@ -1,4 +1,4 @@
-package defaulting
+package validation
 
 import (
 	"context"
@@ -8,26 +8,26 @@ import (
 )
 
 const (
-	WebhookPath = "/defaulting/pods"
+	WebhookPath = "/validation/pods"
 )
 
-type DefaultingWebHook struct {
+type ValidationWebhook struct {
 	client  ctrlclient.Client
 	decoder *admission.Decoder
 }
 
-func NewWebhook(client ctrlclient.Client) *DefaultingWebHook {
-	return &DefaultingWebHook{
+func NewWebhook(client ctrlclient.Client) *ValidationWebhook {
+	return &ValidationWebhook{
 		client: client,
 	}
 }
 
-func (w *DefaultingWebHook) Handle(_ context.Context, req admission.Request) admission.Response {
+func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) admission.Response {
 	fmt.Println(req.Name, req.Kind.String())
 	return admission.Allowed("nothing to do")
 }
 
-func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
+func (w *ValidationWebhook) InjectDecoder(decoder *admission.Decoder) error {
 	w.decoder = decoder
 	return nil
 }

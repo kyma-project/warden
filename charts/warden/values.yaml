@@ -22,9 +22,6 @@ global:
   webhook:
 #    image: europe-docker.pkg.dev/kyma-project/prod/warden-webhook:alpha
     image: warden-webhook
-    service:
-      name: warden-webhook
-
 
 
 #TODO: group k8s related settings under kubernetes?
