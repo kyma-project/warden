@@ -4,10 +4,10 @@ metadata:
   name: {{ .Chart.Name }}-role
 rules:
   - apiGroups:
-      - "admissionregistration.k8s.io/v1"
+      - admissionregistration.k8s.io
     resources:
-      - ValidatingWebhookConfiguration
-      - MutatingWebhookConfiguration
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
     verbs:
       - get
       - patch

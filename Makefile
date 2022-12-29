@@ -171,7 +171,8 @@ install-webhook-k3d: build-webhook
 ## Install
 
 install:
-	 helm upgrade -i warden ./charts/warden/
+	$(eval HASH_TAG=$(shell docker images $(WEBHOOK_NAME):latest --quiet))
+	 helm upgrade -i warden ./charts/warden/ --set global.webhook.image=$(WEBHOOK_NAME):$(HASH_TAG)
 
 uninstall:
 	helm uninstall warden

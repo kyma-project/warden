@@ -10,7 +10,7 @@ webhooks:
       service:
         name: {{ .Chart.Name }}
         namespace: {{ .Release.Namespace }}
-    failurePolicy: Fail
+    failurePolicy: Ignore
     sideEffects: None
     matchPolicy: Exact
     timeoutSeconds: 15
@@ -28,7 +28,7 @@ webhooks:
       service:
         name: {{ .Chart.Name }}
         namespace: {{ .Release.Namespace }}
-    failurePolicy: Fail
+    failurePolicy: Ignore
     sideEffects: None
     matchPolicy: Exact
     timeoutSeconds: 15

@@ -2,8 +2,6 @@ package certs
 
 import (
 	"context"
-	"fmt"
-	"github.com/docker/go/canonical/json"
 	"github.com/kyma-project/warden/internal/webhook/defaulting"
 	"reflect"
 
@@ -48,8 +46,6 @@ func ensureMutatingWebhookConfigFor(ctx context.Context, client ctlrclient.Clien
 		return errors.Wrapf(err, "failed to get defaulting MutatingWebhookConfiguration: %s", DefaultingWebhookName)
 	}
 	ensuredMwhc := createMutatingWebhookConfiguration(config)
-	out, _ := json.MarshalIndent(*ensuredMwhc, "", "  ")
-	fmt.Printf("%s\n", out)
 
 	if !reflect.DeepEqual(ensuredMwhc.Webhooks, mwhc.Webhooks) {
 		ensuredMwhc.ObjectMeta = *mwhc.ObjectMeta.DeepCopy()
@@ -132,7 +128,7 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 }
 
 func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregistrationv1.ValidatingWebhookConfiguration {
-	failurePolicy := admissionregistrationv1.Fail
+	failurePolicy := admissionregistrationv1.Ignore
 	matchPolicy := admissionregistrationv1.Exact
 	scope := admissionregistrationv1.AllScopes
 	sideEffects := admissionregistrationv1.SideEffectClassNone
@@ -172,7 +168,6 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 						Operations: []admissionregistrationv1.OperationType{
 							admissionregistrationv1.Create,
 							admissionregistrationv1.Update,
-							admissionregistrationv1.Delete,
 						}},
 				},
 
