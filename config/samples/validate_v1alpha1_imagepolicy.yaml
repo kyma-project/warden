@@ -1,8 +1,0 @@
-apiVersion: validate.warden.kyma-project.io/v1alpha1
-kind: ImagePolicy
-metadata:
-  name: imagepolicy-sample
-spec:
-  validator: sample-validator
-  pattern: eu.gcr.io/kyma-project
-  strict: false

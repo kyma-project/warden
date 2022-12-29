@@ -18,7 +18,10 @@ package main
 
 import (
 	"flag"
+	"github.com/kyma-project/warden/pkg/validate"
 	"os"
+	"strings"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -30,7 +33,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	validatev1alpha1 "github.com/kyma-project/warden/api/v1alpha1"
 	"github.com/kyma-project/warden/controllers"
 	//+kubebuilder:scaffold:imports
 )
@@ -43,16 +45,30 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(validatev1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
+}
+
+type regs []string
+
+func (s *regs) Set(val string) error {
+	*s = append(*s, val)
+	return nil
+}
+
+func (s *regs) String() string {
+	return strings.Join(*s, ", ")
 }
 
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
+	var notaryURL string
+	var allowedRegistries regs
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&notaryURL, "notary-url", "https://signing-dev.repositories.cloud.sap", "URL to notary signing service")
+	flag.Var(&allowedRegistries, "allowed-registry", "")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -88,25 +104,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	//if err = (&controllers.ImagePolicyReconciler{
-	//	Client: mgr.GetClient(),
-	//	Scheme: mgr.GetScheme(),
-	//}).SetupWithManager(mgr); err != nil {
-	//	setupLog.Error(err, "unable to create controller", "controller", "ImagePolicy")
-	//	os.Exit(1)
-	//}
 	if err = (&controllers.PodReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		Validator: validate.GetPodValidatorService(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
-	}
-	if err = (&controllers.ValidatorReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Validator")
 		os.Exit(1)
 	}
 	//+kubebuilder:scaffold:builder
