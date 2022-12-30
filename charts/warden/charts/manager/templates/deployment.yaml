@@ -4,7 +4,7 @@ metadata:
   name: {{ include "warden.fullname" . }}
   namespace: {{ .Release.Namespace }}
   labels:
-    {{- include "warden.labels" . | nindent 4 }}
+    role: manager
 spec:
   {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}

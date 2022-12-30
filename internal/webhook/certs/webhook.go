@@ -23,7 +23,6 @@ const (
 
 	DefaultingWebhookName = "defaulting.webhook.warden.kyma-project.io"
 	ValidationWebhookName = "validation.webhook.warden.kyma-project.io"
-	ConvertingWebHookName = "converting.webhook.warden.kyma-project.io"
 
 	WebhookTimeout = 15
 
