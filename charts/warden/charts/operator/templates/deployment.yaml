@@ -9,11 +9,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: warden
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: warden
+        app: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:

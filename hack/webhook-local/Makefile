@@ -1,12 +1,14 @@
 .DEFAULT=local-webhook-k3d
 ADMISSION_PROXY_NAME=admission-proxy
 WEBHOOK_NAMESPACE=default
+
+ADMISSION_DEPLOYMENT=warden-admission
 local-webhook-k3d:
 	$(call check-var,IP_ADDR)
 
 	@echo "export IP_ADDR of your computer before executing"
 	./get-webhook-certs.sh
-	kubectl scale deployment --namespace $(WEBHOOK_NAMESPACE) warden-webhook --replicas=0
+	kubectl scale deployment --namespace $(WEBHOOK_NAMESPACE) $(ADMISSION_DEPLOYMENT) --replicas=0
 
 	cat haproxy.cfg.tpl | envsubst > haproxy.cfg
 
@@ -27,5 +29,5 @@ haproxy-config:
 check-var = $(if $(strip $($1)),,$(error "$1" is not defined))
 
 undo-local-webhook-k3d:
-	kubectl scale deployment --namespace $(WEBHOOK_NAMESPACE) warden-webhook --replicas=1
+	kubectl scale deployment --namespace $(WEBHOOK_NAMESPACE) $(ADMISSION_DEPLOYMENT) --replicas=1
 	kubectl delete pod -n $(WEBHOOK_NAMESPACE) webhook-proxy
