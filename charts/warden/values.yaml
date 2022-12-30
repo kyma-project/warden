@@ -11,7 +11,7 @@ fullnameOverride: ""
 
 #Service configuration
 global:
-  controller:
+  operator:
     image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221206-86f7fa7
 
   admission:

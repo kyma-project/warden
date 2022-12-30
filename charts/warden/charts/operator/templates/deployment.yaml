@@ -20,7 +20,7 @@ spec:
         - name: operator
           securityContext:
             {{- toYaml .Values.global.securityContext | nindent 12 }}
-          image: "{{ .Values.global.controller.image }}"
+          image: "{{ .Values.global.operator.image }}"
           imagePullPolicy: IfNotPresent
           args:
             - --health-probe-bind-address=:8081
