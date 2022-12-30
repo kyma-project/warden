@@ -102,22 +102,23 @@ ifndef ignore-not-found
   ignore-not-found = false
 endif
 
-.PHONY: install
-install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+#TODO: clean this, we don't have custom CRD
+#.PHONY: install
+#install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
+#	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+#
+#.PHONY: uninstall
+#uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+#	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
-.PHONY: uninstall
-uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-.PHONY: deploy
-deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-	$(KUSTOMIZE) build config/default | kubectl apply -f -
-
-.PHONY: undeploy
-undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
+#.PHONY: deploy
+#deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
+#	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
+#	$(KUSTOMIZE) build config/default | kubectl apply -f -
+#
+#.PHONY: undeploy
+#undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
+#	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Build Dependencies
 
@@ -150,3 +151,28 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+## Manager
+
+## Webhook
+
+WEBHOOK_NAME = warden-webhook
+
+build-webhook:
+	docker build -t $(WEBHOOK_NAME) -f ./docker/webhook/Dockerfile .
+
+install-webhook-k3d: build-webhook
+	$(eval HASH_TAG=$(shell docker images $(WEBHOOK_NAME):latest --quiet))
+	docker tag $(WEBHOOK_NAME) $(WEBHOOK_NAME):$(HASH_TAG)
+
+	k3d image import $(WEBHOOK_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment warden-webhook -n default webhook=$(WEBHOOK_NAME):$(HASH_TAG)
+
+## Install
+
+install:
+	$(eval HASH_TAG=$(shell docker images $(WEBHOOK_NAME):latest --quiet))
+	 helm upgrade -i warden ./charts/warden/ --set global.webhook.image=$(WEBHOOK_NAME):$(HASH_TAG)
+
+uninstall:
+	helm uninstall warden

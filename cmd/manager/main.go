@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"github.com/kyma-project/warden/internal/controllers"
 	"github.com/kyma-project/warden/pkg/validate"
 	"os"
 	"strings"
@@ -32,8 +33,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
-	"github.com/kyma-project/warden/controllers"
 	//+kubebuilder:scaffold:imports
 )
 
