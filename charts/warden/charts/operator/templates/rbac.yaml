@@ -1,7 +1,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "warden.fullname" . }}-role
+  name: {{ .Chart.Name }}-role
 rules:
   - apiGroups:
       - ""
@@ -25,12 +25,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "warden.fullname" . }}-rolebinding
+  name: {{ .Chart.Name }}-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "warden.fullname" . }}-role
+  name: {{ .Chart.Name }}
 subjects:
   - kind: ServiceAccount
-    name: {{ include "warden.serviceAccountName" . }}
+    name: {{ .Chart.Name }}
     namespace: {{ .Release.Namespace }}

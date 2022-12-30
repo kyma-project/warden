@@ -9,17 +9,24 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-notary:
-  URL: "https://signing-dev.repositories.cloud.sap"
-  allowedRegistries: []
 #Service configuration
 global:
   controller:
     image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221206-86f7fa7
 
-  webhook:
-#    image: europe-docker.pkg.dev/kyma-project/prod/warden-webhook:alpha
-    image: warden-webhook
+  admission:
+#    image: europe-docker.pkg.dev/kyma-project/prod/warden-admission:alpha
+    image: warden-admission
+  notary:
+    URL: "https://signing-dev.repositories.cloud.sap"
+    allowedRegistries: [ ]
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
 
 
 #TODO: group k8s related settings under kubernetes?
@@ -33,16 +40,6 @@ serviceAccount:
   name: "warden-controller-manager"
 
 podAnnotations: {}
-
-podSecurityContext: {}
-  # fsGroup: 2000
-
-securityContext:
-   runAsNonRoot: true
-   runAsUser: 1000
-   capabilities:
-     drop:
-       - ALL
 
 service:
   type: ClusterIP

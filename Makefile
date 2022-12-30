@@ -152,27 +152,39 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-## Manager
+## Operator
 
-## Webhook
+OPERATOR_NAME = warden-operator
 
-WEBHOOK_NAME = warden-webhook
+build-operator:
+	docker build -t $(OPERATOR_NAME) -f ./docker/operator/Dockerfile .
 
-build-webhook:
-	docker build -t $(WEBHOOK_NAME) -f ./docker/webhook/Dockerfile .
+install-operator-k3d: build-operator
+	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
+	docker tag $(OPERATOR_NAME) $(OPERATOR_NAME):$(HASH_TAG)
 
-install-webhook-k3d: build-webhook
-	$(eval HASH_TAG=$(shell docker images $(WEBHOOK_NAME):latest --quiet))
-	docker tag $(WEBHOOK_NAME) $(WEBHOOK_NAME):$(HASH_TAG)
+	k3d image import $(OPERATOR_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment warden-operator -n default operator=$(OPERATOR_NAME):$(HASH_TAG)
 
-	k3d image import $(WEBHOOK_NAME):$(HASH_TAG) -c kyma
-	kubectl set image deployment warden-webhook -n default webhook=$(WEBHOOK_NAME):$(HASH_TAG)
+## Admission
+
+ADMISSION_NAME = warden-admission
+
+build-admission:
+	docker build -t $(ADMISSION_NAME) -f ./docker/admission/Dockerfile .
+
+install-admission-k3d: build-admission
+	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
+	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
+
+	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
 
 ## Install
 
 install:
-	$(eval HASH_TAG=$(shell docker images $(WEBHOOK_NAME):latest --quiet))
-	 helm upgrade -i warden ./charts/warden/ --set global.webhook.image=$(WEBHOOK_NAME):$(HASH_TAG)
+	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
+	 helm upgrade -i warden ./charts/warden/ --set global.admission.image=$(ADMISSION_NAME):$(HASH_TAG)
 
 uninstall:
 	helm uninstall warden

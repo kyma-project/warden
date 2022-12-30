@@ -1,54 +1,37 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "warden.fullname" . }}
+  name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
     role: manager
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
   selector:
     matchLabels:
       app: warden
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
         app: warden
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "warden.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if or .Values.imageRenderer.priorityClassName .Values.global.priorityClassName }}
-      priorityClassName: {{ coalesce .Values.imageRenderer.priorityClassName .Values.global.priorityClassName }}
-      {{- end }}
+      serviceAccountName: {{ .Chart.Name }}
       containers:
-        - name: {{ .Chart.Name }}
+        - name: operator
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
           image: "{{ .Values.global.controller.image }}"
-          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          imagePullPolicy: IfNotPresent
           args:
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=127.0.0.1:8080
             - --leader-elect
-            {{- with .Values.notaryUrl }}
-            - --notary-url={{ . }}
-            {{- end }}
-            {{- range .Values.allowedRegistries }}
+            - --notary-url={{ .Values.global.notary }}
+            {{- range .Values.global.notary.allowedRegistries }}
             - --allowed-registry={{ . }}
             {{- end }}
           ports:
-            - containerPort: {{ .Values.service.port }}
+            - containerPort: 8443
               name: https
               protocol: TCP
           livenessProbe:
@@ -59,17 +42,3 @@ spec:
             httpGet:
               path: /readyz
               port: 8081
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
