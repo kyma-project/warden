@@ -1,4 +1,4 @@
 apiVersion: v1
 description: A Helm subchart for warden webhook
-name: warden-webhook
+name: warden-admission
 version: 0.0.1

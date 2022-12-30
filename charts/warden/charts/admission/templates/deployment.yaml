@@ -6,11 +6,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: warden-webhook
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: warden-webhook
+        app: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
