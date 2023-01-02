@@ -1,4 +1,0 @@
-apiVersion: v1
-description: A Helm subchart for warden webhook
-name: warden-webhook
-version: 0.0.1

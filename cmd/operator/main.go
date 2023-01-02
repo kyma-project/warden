@@ -19,7 +19,7 @@ package main
 import (
 	"flag"
 	"github.com/kyma-project/warden/internal/controllers"
-	"github.com/kyma-project/warden/pkg/validate"
+	validate2 "github.com/kyma-project/warden/internal/validate"
 	"os"
 	"strings"
 
@@ -106,7 +106,7 @@ func main() {
 	if err = (&controllers.PodReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		Validator: validate.GetPodValidatorService(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}),
+		Validator: validate2.GetPodValidatorService(&validate2.ServiceConfig{NotaryConfig: validate2.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)

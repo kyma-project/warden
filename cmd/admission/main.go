@@ -10,6 +10,8 @@ import (
 	"github.com/kyma-project/warden/internal/webhook/validation"
 	"github.com/vrischmann/envconfig"
 	"go.uber.org/zap"
+	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -20,6 +22,13 @@ import (
 var (
 	scheme = runtime.NewScheme()
 )
+
+// nolint
+func init() {
+	_ = admissionregistrationv1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
+	// +kubebuilder:scaffold:scheme
+}
 
 func main() {
 	tmpLog, err := zap.NewDevelopment()

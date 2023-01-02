@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    role: manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      serviceAccountName: {{ .Chart.Name }}
+      containers:
+        - name: operator
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          image: "{{ .Values.global.operator.image }}"
+          imagePullPolicy: IfNotPresent
+          args:
+            - --health-probe-bind-address=:8081
+            - --metrics-bind-address=127.0.0.1:8080
+            - --leader-elect
+            - --notary-url={{ .Values.global.notary }}
+            {{- range .Values.global.notary.allowedRegistries }}
+            - --allowed-registry={{ . }}
+            {{- end }}
+          ports:
+            - containerPort: 8443
+              name: https
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8081

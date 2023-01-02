@@ -47,5 +47,5 @@ roleRef:
   name: {{ include "warden.fullname" . }}-leader-election-role
 subjects:
   - kind: ServiceAccount
-    name: {{ include "warden.serviceAccountName" . }}
+    name: {{ .Chart.Name }}
     namespace: {{ .Release.Namespace }}

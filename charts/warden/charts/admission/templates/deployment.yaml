@@ -6,29 +6,31 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: warden-webhook
+      app: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: warden-webhook
+        app: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
-        - name: webhook
+        - name: admission
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
           imagePullPolicy: IfNotPresent
-          image: {{ .Values.global.webhook.image }}
+          image: "{{ .Values.global.admission.image }}"
           ports:
-            - name: https-webhook
+            - name: https-admission
               containerPort: 8443
             - name: http-metrics
               containerPort: 9090
             - name: http-profiling
               containerPort: 8008
           volumeMounts:
-            - name: serverless-webhook
+            - name: certs
               mountPath: /tmp/k8s-webhook-server/serving-certs
       volumes:
-        - name: serverless-webhook
+        - name: certs
           secret:
-            secretName: {{ .Chart.Name }}
+            secretName: {{ .Chart.Name }}-cert
 

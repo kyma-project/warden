@@ -23,7 +23,6 @@ const (
 
 	DefaultingWebhookName = "defaulting.webhook.warden.kyma-project.io"
 	ValidationWebhookName = "validation.webhook.warden.kyma-project.io"
-	ConvertingWebHookName = "converting.webhook.warden.kyma-project.io"
 
 	WebhookTimeout = 15
 
@@ -82,7 +81,7 @@ func createMutatingWebhookConfiguration(config WebhookConfig) *admissionregistra
 }
 
 func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1.MutatingWebhook {
-	failurePolicy := admissionregistrationv1.Fail
+	failurePolicy := admissionregistrationv1.Ignore
 	matchPolicy := admissionregistrationv1.Exact
 	reinvocationPolicy := admissionregistrationv1.NeverReinvocationPolicy
 	scope := admissionregistrationv1.AllScopes

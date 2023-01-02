@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    app: warden-webhook
+    app: warden-admission
   name: webhook-proxy
   namespace: default
 spec:

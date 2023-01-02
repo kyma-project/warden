@@ -18,8 +18,8 @@ package controllers
 
 import (
 	"context"
-	"github.com/kyma-project/warden/pkg/util/sets"
-	"github.com/kyma-project/warden/pkg/validate"
+	"github.com/kyma-project/warden/internal/util/sets"
+	"github.com/kyma-project/warden/internal/validate"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
