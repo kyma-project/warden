@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/kyma-project/warden/internal/util/sets"
 	"github.com/kyma-project/warden/internal/validate"
+	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"reflect"
@@ -29,14 +30,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"time"
-)
-
-const (
-	NamespaceValidationLabel = "namespaces.warden.kyma-project.io/validate"
-	PodValidationLabel       = "pods.warden.kyma-project.io/validate"
-	ValidationStatusPending  = "pending"
-	ValidationStatusSuccess  = "success"
-	ValidationStatusFailed   = "failed"
 )
 
 // PodReconciler reconciles a Pod object
@@ -66,14 +59,14 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 
 	matched := make(map[string]string)
 
-	admitResult := ValidationStatusSuccess
+	admitResult := pkg.ValidationStatusSuccess
 
 	images.Walk(func(s string) {
 		result, err := r.admitPodImage(s)
 		matched[s] = result
 
-		if result == ValidationStatusFailed {
-			admitResult = ValidationStatusFailed
+		if result == pkg.ValidationStatusFailed {
+			admitResult = pkg.ValidationStatusFailed
 			l.Info(err.Error())
 		}
 	})
@@ -81,19 +74,22 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
 
 	switch admitResult {
-	case ValidationStatusSuccess:
+	case pkg.ValidationStatusSuccess:
 		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
 		break
-	case ValidationStatusFailed:
+	case pkg.ValidationStatusFailed:
 		//TODO this should return some kind of error
 		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
 		break
 	}
 
-	if pod.Labels[PodValidationLabel] != admitResult {
+	if pod.Labels[pkg.PodValidationLabel] != admitResult {
 		out := pod.DeepCopy()
-		out.Labels[PodValidationLabel] = admitResult
+		if out.ObjectMeta.Labels == nil {
+			out.ObjectMeta.Labels = map[string]string{}
+		}
+		out.Labels[pkg.PodValidationLabel] = admitResult
 		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
 			return ctrl.Result{}, err
 		}
@@ -124,8 +120,8 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return true
 				}
 				// trigger, only if validation label is failed or missing
-				if e.ObjectOld.GetLabels()[PodValidationLabel] != ValidationStatusSuccess ||
-					e.ObjectNew.GetLabels()[PodValidationLabel] != ValidationStatusSuccess {
+				if e.ObjectOld.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess ||
+					e.ObjectNew.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess {
 					return true
 				}
 				return false
@@ -151,7 +147,7 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	if err := r.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
 		return false
 	}
-	if ns.GetLabels()[NamespaceValidationLabel] != "enabled" {
+	if ns.GetLabels()[pkg.NamespaceValidationLabel] != "enabled" {
 		return false
 	}
 	return true
@@ -160,8 +156,8 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 func (r *PodReconciler) admitPodImage(image string) (string, error) {
 	err := r.Validator.Validate(image)
 	if err != nil {
-		return ValidationStatusFailed, err
+		return pkg.ValidationStatusFailed, err
 	}
 
-	return ValidationStatusSuccess, nil
+	return pkg.ValidationStatusSuccess, nil
 }
