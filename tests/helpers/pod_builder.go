@@ -15,7 +15,7 @@ func (tc *testContext) Pod() *PodBuilder {
 		tc: tc,
 		pod: &corev1.Pod{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      tc.UniqueName(),
+				Name:      tc.NameWithTime(),
 				Namespace: tc.namespaceName,
 			},
 		},

@@ -15,7 +15,7 @@ func (tc *testContext) Namespace() *NamespaceBuilder {
 		tc: tc,
 		namespace: &corev1.Namespace{
 			ObjectMeta: v1.ObjectMeta{
-				Name: tc.UniqueName(),
+				Name: tc.NameWithTime(),
 			},
 		},
 	}

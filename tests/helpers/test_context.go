@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"context"
-	"github.com/google/uuid"
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
@@ -28,7 +28,7 @@ func NewTestContext(t *testing.T, namePrefix string) *testContext {
 		validationEnabled: false,
 		namePrefix:        namePrefix,
 	}
-	tc.namespaceName = tc.UniqueName()
+	tc.namespaceName = tc.NameWithTime()
 	return &tc
 }
 
@@ -51,8 +51,9 @@ func (tc *testContext) Destroy() {
 	}
 }
 
-func (tc *testContext) UniqueName() string {
-	return tc.namePrefix + "-" + uuid.New().String()
+func (tc *testContext) NameWithTime() string {
+	now := time.Now()
+	return tc.namePrefix + fmt.Sprintf("-%02d-%02d-%02d", now.Hour(), now.Minute(), now.Second())
 }
 
 func (tc *testContext) CreateNamespace() {
@@ -91,13 +92,23 @@ func (tc *testContext) Delete(obj ctrlclient.Object) error {
 }
 
 func (tc *testContext) GetPodWhenReady(src, dest *v1.Pod) error {
-	for i := 0; i < 10; i++ {
+	lastResourceVersion := ""
+	theSameResourceVersionCnt := 0
+	for i := 0; i < 20; i++ {
 		time.Sleep(time.Second)
 		err := tc.Get(src, dest)
 		if err != nil {
 			return err
 		}
-		if dest.Status.Phase == v1.PodRunning {
+
+		resourceVersion := dest.ObjectMeta.ResourceVersion
+		if resourceVersion == lastResourceVersion {
+			theSameResourceVersionCnt++
+		} else {
+			theSameResourceVersionCnt = 0
+			lastResourceVersion = resourceVersion
+		}
+		if dest.Status.Phase == v1.PodRunning && theSameResourceVersionCnt == 5 {
 			return nil
 		}
 	}
