@@ -26,7 +26,7 @@ spec:
             - --health-probe-bind-address=:8081
             - --metrics-bind-address=127.0.0.1:8080
             - --leader-elect
-            - --notary-url={{ .Values.global.notary }}
+            - --notary-url={{ .Values.global.notary.URL }}
             {{- range .Values.global.notary.allowedRegistries }}
             - --allowed-registry={{ . }}
             {{- end }}
