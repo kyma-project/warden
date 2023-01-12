@@ -30,6 +30,7 @@ const (
 	tagDelim = ":"
 )
 
+//go:generate mockgen github.com/theupdateframework/notary/client notaryService
 //go:generate mockery --name=ValidatorService
 type PodValidatorService interface {
 	Validate(image string) error
@@ -42,6 +43,7 @@ type ServiceConfig struct {
 
 type notaryService struct {
 	NotaryConfig NotaryConfig `json:"notaryConfig"`
+	RepoFactory  RepoFactory
 }
 
 func GetPodValidatorService(sc *ServiceConfig) PodValidatorService {
@@ -54,6 +56,7 @@ func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
 			Url:               c.NotaryConfig.Url,
 			AllowedRegistries: c.AllowedRegistries,
 		},
+		RepoFactory: NotaryRepoFactory{},
 	}
 }
 
@@ -122,7 +125,7 @@ func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte
 		return []byte{}, errors.New("empty arguments provided")
 	}
 
-	c, err := NewRepo(imgRepo, s.NotaryConfig)
+	c, err := s.RepoFactory.NewRepo(imgRepo, s.NotaryConfig)
 	if err != nil {
 		return []byte{}, err
 	}

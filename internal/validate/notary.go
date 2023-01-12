@@ -40,7 +40,14 @@ type NotaryConfig struct {
 type NotaryValidator struct {
 }
 
-func NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+type RepoFactory interface {
+	NewRepo(string, NotaryConfig) (client.Repository, error)
+}
+
+type NotaryRepoFactory struct {
+}
+
+func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
