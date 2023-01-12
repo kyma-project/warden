@@ -5,6 +5,7 @@ import (
 	"github.com/theupdateframework/notary/client/changelist"
 	"github.com/theupdateframework/notary/tuf/data"
 	"github.com/theupdateframework/notary/tuf/signed"
+	"net"
 )
 
 type MockNotaryClientRepository struct {
@@ -115,4 +116,20 @@ func (f MockNotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repos
 	r := MockNotaryClientRepository{}
 	r.GetTargetByNameFunc = *f.GetTargetByNameFunc
 	return r, nil
+}
+
+type MockNotaryRepoFactoryNoSuchHost struct {
+	GetTargetByNameFunc *func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
+}
+
+func (f MockNotaryRepoFactoryNoSuchHost) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+	return nil, &net.OpError{
+		Op:  "dial",
+		Net: "tcp",
+		Err: &net.DNSError{
+			Err:        "no such host",
+			Name:       c.Url,
+			IsNotFound: true,
+		},
+	}
 }
