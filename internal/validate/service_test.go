@@ -82,7 +82,8 @@ func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
 	err := s.Validate("some.unknown.registry/kyma-project/function-controller:unknown")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "lookup some.unknown.registry: no such host")
+	require.ErrorContains(t, err, "no such host")
+	require.ErrorContains(t, err, "lookup some.unknown.registry")
 }
 
 func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testing.T) {
