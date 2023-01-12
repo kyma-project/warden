@@ -8,6 +8,8 @@ import (
 	"net"
 )
 
+// MOCK NOTARY CLIENT REPOSITORY
+
 type MockNotaryClientRepository struct {
 	GetTargetByNameFunc func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
 }
@@ -108,6 +110,8 @@ func (m MockNotaryClientRepository) GetCryptoService() signed.CryptoService {
 	panic("implement me")
 }
 
+// MOCK NOTARY REPO FACTORY
+
 type MockNotaryRepoFactory struct {
 	GetTargetByNameFunc *func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
 }
@@ -117,6 +121,8 @@ func (f MockNotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repos
 	r.GetTargetByNameFunc = *f.GetTargetByNameFunc
 	return r, nil
 }
+
+// MOCK NOTARY REPO FACTORY - NO SUCH HOST
 
 type MockNotaryRepoFactoryNoSuchHost struct {
 	GetTargetByNameFunc *func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
@@ -132,4 +138,82 @@ func (f MockNotaryRepoFactoryNoSuchHost) NewRepo(img string, c NotaryConfig) (cl
 			IsNotFound: true,
 		},
 	}
+}
+
+// MOCK NOTARY SERVICE BUILDER
+
+type MockNotaryServiceBuilder struct {
+	NotaryService notaryService
+}
+
+func NewDefaultMockNotaryService() *MockNotaryServiceBuilder {
+	f := NewDefaultMockNotaryFunction().Build()
+	s := notaryService{
+		NotaryConfig: NotaryConfig{},
+		RepoFactory: MockNotaryRepoFactory{
+			GetTargetByNameFunc: &f,
+		},
+	}
+	return &MockNotaryServiceBuilder{
+		NotaryService: s,
+	}
+}
+
+func (b *MockNotaryServiceBuilder) WithConfig(c NotaryConfig) *MockNotaryServiceBuilder {
+	b.NotaryService.NotaryConfig = c
+	return b
+}
+
+func (b *MockNotaryServiceBuilder) WithRepoFactory(f RepoFactory) *MockNotaryServiceBuilder {
+	b.NotaryService.RepoFactory = f
+	return b
+}
+
+func (b *MockNotaryServiceBuilder) WithFunc(f func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)) *MockNotaryServiceBuilder {
+	b.NotaryService.RepoFactory = MockNotaryRepoFactory{
+		GetTargetByNameFunc: &f,
+	}
+	return b
+}
+
+func (b *MockNotaryServiceBuilder) WithHash(h []byte) *MockNotaryServiceBuilder {
+	f := NewDefaultMockNotaryFunction().WithHash(h).Build()
+	b.NotaryService.RepoFactory = MockNotaryRepoFactory{
+		GetTargetByNameFunc: &f,
+	}
+	return b
+}
+
+func (b *MockNotaryServiceBuilder) Build() notaryService {
+	return b.NotaryService
+}
+
+// MOCK NOTARY FUNCTION BUILDER
+
+type MockNotaryFunctionBuilder struct {
+	Hash []byte
+}
+
+func NewDefaultMockNotaryFunction() *MockNotaryFunctionBuilder {
+	return &MockNotaryFunctionBuilder{
+		Hash: []byte{1, 2, 3, 4},
+	}
+}
+
+func (b *MockNotaryFunctionBuilder) WithHash(h []byte) *MockNotaryFunctionBuilder {
+	b.Hash = h
+	return b
+}
+
+func (b *MockNotaryFunctionBuilder) Build() func(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {
+	f := func(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {
+		return &client.TargetWithRole{
+			Target: client.Target{
+				Name:   "ignored",
+				Hashes: map[string][]byte{"ignored": b.Hash},
+				Length: 1,
+			},
+		}, nil
+	}
+	return f
 }
