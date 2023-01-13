@@ -2,7 +2,7 @@ package certs
 
 import (
 	"context"
-	"github.com/kyma-project/warden/internal/webhook/defaulting"
+	"github.com/kyma-project/warden/internal/admission"
 	"reflect"
 
 	"github.com/pkg/errors"
@@ -98,7 +98,7 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 			Service: &admissionregistrationv1.ServiceReference{
 				Namespace: config.ServiceNamespace,
 				Name:      config.ServiceName,
-				Path:      pointer.String(defaulting.WebhookPath),
+				Path:      pointer.String(admission.DefaultingPath),
 				Port:      pointer.Int32(443),
 			},
 		},

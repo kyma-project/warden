@@ -183,8 +183,18 @@ install-admission-k3d: build-admission
 ## Install
 
 install:
-	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
-	 helm upgrade -i warden ./charts/warden/ --set global.admission.image=$(ADMISSION_NAME):$(HASH_TAG)
+	 helm upgrade -i warden ./charts/warden/
 
 uninstall:
 	helm uninstall warden
+
+compile:
+	go build -a -o admission ./cmd/admission/main.go
+	go build -a -o operator ./cmd/operator/main.go
+
+clean:
+	rm admission
+	rm operator
+
+run-integration-tests:
+	( cd ./tests && go test ./ )

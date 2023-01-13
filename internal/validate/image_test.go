@@ -131,7 +131,7 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s.NotaryConfig.AllowedRegistries = tt.allowedRegistries
+			s.AllowedRegistries = tt.allowedRegistries
 			err := s.Validate(tt.imageName)
 			require.NoError(t, err)
 		})
