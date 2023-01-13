@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/tuf/data"
@@ -117,7 +118,7 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 		},
 	}
 	f := func(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {
-		panic("it shouldn't be called")
+		return nil, errors.New("it shouldn't be called")
 	}
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
 	for _, tt := range tests {
