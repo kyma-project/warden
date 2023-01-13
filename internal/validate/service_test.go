@@ -26,16 +26,24 @@ func Test_Validate_ProperImage_ShouldPass(t *testing.T) {
 
 func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 	tests := []struct {
-		name      string
-		imageName string
+		name           string
+		imageName      string
+		expectedErrMsg string
 	}{
 		{
-			name:      "image name without semicolon",
-			imageName: "makapaka",
+			name:           "image name without semicolon",
+			imageName:      "makapaka",
+			expectedErrMsg: "image name is not formatted correctly",
 		},
 		{
-			name:      "image name with more than one semicolon", //TODO: IMO it's proper image name, but now is not allowed
-			imageName: "repo:port/image-name:tag",
+			name:           "",
+			imageName:      ":",
+			expectedErrMsg: "empty arguments provided",
+		},
+		{
+			name:           "image name with more than one semicolon", //TODO: IMO it's proper image name, but now is not allowed
+			imageName:      "repo:port/image-name:tag",
+			expectedErrMsg: "image name is not formatted correctly",
 		},
 	}
 	s := NewDefaultMockNotaryService().Build()
@@ -43,7 +51,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Validate(tt.imageName)
 			require.Error(t, err)
-			require.EqualError(t, err, "image name is not formatted correctly")
+			require.EqualError(t, err, tt.expectedErrMsg)
 		})
 	}
 }
