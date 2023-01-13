@@ -12,11 +12,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden:v20221206-86f7fa7
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-22
 
   admission:
-#    image: europe-docker.pkg.dev/kyma-project/prod/warden-admission:alpha
-    image: warden-admission
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-22
   notary:
     URL: "https://signing-dev.repositories.cloud.sap"
     allowedRegistries: [ ]
