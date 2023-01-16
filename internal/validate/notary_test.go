@@ -9,7 +9,8 @@ func TestNewReadOnlyRepo(t *testing.T) {
 	nc := NotaryConfig{
 		Url: "https://signing-dev.repositories.cloud.sap",
 	}
-	c, err := NewRepo("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
+	f := NotaryRepoFactory{}
+	c, err := f.NewRepo("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
 	if err != nil {
 		t.Error(err)
 	}
