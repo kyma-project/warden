@@ -2,7 +2,6 @@ package validate
 
 import (
 	"context"
-	"github.com/kyma-project/warden/internal/util/sets"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -52,11 +51,11 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	}
 	matched := make(map[string]ValidationResult)
 
-	images := GetAllImages(pod)
+	images := getAllImages(pod)
 
 	admitResult := Valid
 
-	images.Walk(func(s string) {
+	for s, _ := range images {
 		result, err := a.validateImage(s)
 		matched[s] = result
 
@@ -64,7 +63,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 			admitResult = Invalid
 			l.Info(err.Error())
 		}
-	})
+	}
 
 	return admitResult, nil
 }
@@ -82,10 +81,11 @@ func (a *podValidator) validateImage(image string) (ValidationResult, error) {
 	return Valid, nil
 }
 
-func GetAllImages(pod *corev1.Pod) *sets.Strings {
-	var images sets.Strings
+// TODO: use map instead of array
+func getAllImages(pod *corev1.Pod) map[string]struct{} {
+	images := map[string]struct{}{}
 	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
-		images.Add(c.Image)
+		images[c.Image] = struct{}{}
 	}
-	return &images
+	return images
 }

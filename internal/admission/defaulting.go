@@ -90,7 +90,7 @@ func LabelForValidationResult(result validate.ValidationResult) string {
 	case validate.NoAction:
 		return ""
 	case validate.Invalid:
-		return pkg.ValidationStatusFailed
+		return pkg.ValidationStatusReject
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess
 	case validate.ServiceUnAvailable:
