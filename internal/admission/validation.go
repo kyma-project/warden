@@ -47,6 +47,7 @@ func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) adm
 
 	}
 
+	//TODO: improve this err message with information which image failed.
 	return admission.Denied("Pod images validation failed")
 }
 
