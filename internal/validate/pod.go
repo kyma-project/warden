@@ -19,6 +19,7 @@ const (
 	NoAction
 )
 
+//go:generate mockery --name PodValidator
 type PodValidator interface {
 	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error)
 }
@@ -46,7 +47,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 		return Invalid, errors.New("pod namespace mismatch with given namespace")
 	}
 
-	if enabled := a.IsValidationEnabledForNS(ns); !enabled {
+	if enabled := IsValidationEnabledForNS(ns); !enabled {
 		return NoAction, nil
 	}
 	matched := make(map[string]ValidationResult)
@@ -56,7 +57,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	admitResult := Valid
 
 	images.Walk(func(s string) {
-		result, err := a.admitPodImage(s)
+		result, err := a.validateImage(s)
 		matched[s] = result
 
 		if result == Invalid {
@@ -68,11 +69,11 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	return admitResult, nil
 }
 
-func (a *podValidator) IsValidationEnabledForNS(ns *corev1.Namespace) bool {
+func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
-func (a *podValidator) admitPodImage(image string) (ValidationResult, error) {
+func (a *podValidator) validateImage(image string) (ValidationResult, error) {
 	err := a.Validator.Validate(image)
 	if err != nil {
 		return Invalid, err

@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -19,12 +19,12 @@ const (
 
 type DefaultingWebHook struct {
 	validationSvc validate.PodValidator
-	client        ctrlclient.Client
+	client        k8sclient.Client
 	decoder       *admission.Decoder
 	logger        *zap.SugaredLogger
 }
 
-func NewDefaultingWebhook(client ctrlclient.Client, ValidationSvc validate.PodValidator, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
@@ -40,19 +40,24 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 
 	pod := &corev1.Pod{}
 	if err := w.decoder.Decode(req, pod); err != nil {
-		admission.Errored(http.StatusInternalServerError, err)
+		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	patchedPod, err := w.checkPod(ctx, pod)
+	ns := &corev1.Namespace{}
+	if err := w.client.Get(ctx, k8sclient.ObjectKey{Name: pod.Namespace}, ns); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
-		admission.Errored(http.StatusInternalServerError, err)
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+	if result == validate.NoAction {
+		return admission.Allowed("validation is not enabled for pod")
 	}
 
-	if patchedPod == nil {
-		admission.Allowed("Pod shouldn't be validated")
-	}
-
-	fBytes, err := json.Marshal(patchedPod)
+	labeledPod := labelPod(result, pod)
+	fBytes, err := json.Marshal(labeledPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -66,34 +71,18 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 	return nil
 }
 
-func (w DefaultingWebHook) checkPod(ctx context.Context, pod *corev1.Pod) (*corev1.Pod, error) {
-	ns := &corev1.Namespace{}
-	if err := w.client.Get(context.TODO(), ctrlclient.ObjectKey{Name: pod.Namespace}, ns); err != nil {
-		return nil, err
-	}
-
-	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
-	if err != nil {
-		return nil, err
-	}
+func labelPod(result validate.ValidationResult, pod *corev1.Pod) *corev1.Pod {
 	labelToApply := LabelForValidationResult(result)
 	if labelToApply == "" {
-		return nil, nil
+		return pod
 	}
-
 	labeledPod := pod.DeepCopy()
-	labeledPod.ObjectMeta.Labels = w.labelPod(labeledPod.ObjectMeta.Labels, pkg.PodValidationLabel, labelToApply)
-	return labeledPod, nil
-}
-
-func (w *DefaultingWebHook) labelPod(labels map[string]string, labelKey, labelValue string) map[string]string {
-
-	if labels == nil {
-		labels = map[string]string{}
+	if labeledPod.Labels == nil {
+		labeledPod.Labels = map[string]string{}
 	}
-	labels[labelKey] = labelValue
 
-	return labels
+	labeledPod.Labels[pkg.PodValidationLabel] = labelToApply
+	return labeledPod
 }
 
 func LabelForValidationResult(result validate.ValidationResult) string {
