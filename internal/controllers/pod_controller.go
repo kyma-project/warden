@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"github.com/kyma-project/warden/internal/admission"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -130,7 +129,7 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (string, 
 		return "", err
 	}
 
-	resultLabelValue := admission.LabelForValidationResult(result)
+	resultLabelValue := labelForValidationResult(result)
 	if resultLabelValue == "" {
 		return "", nil
 	}
@@ -150,4 +149,19 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 		return false
 	}
 	return validate.IsValidationEnabledForNS(&ns)
+}
+
+func labelForValidationResult(result validate.ValidationResult) string {
+	switch result {
+	case validate.NoAction:
+		return ""
+	case validate.Invalid:
+		return pkg.ValidationStatusFailed
+	case validate.Valid:
+		return pkg.ValidationStatusSuccess
+	case validate.ServiceUnAvailable:
+		return pkg.ValidationStatusPending
+	default:
+		return pkg.ValidationStatusPending
+	}
 }
