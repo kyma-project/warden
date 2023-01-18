@@ -81,9 +81,8 @@ func (a *podValidator) validateImage(image string) (ValidationResult, error) {
 	return Valid, nil
 }
 
-// TODO: use map instead of array
 func getAllImages(pod *corev1.Pod) map[string]struct{} {
-	images := map[string]struct{}{}
+	images := make(map[string]struct{})
 	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
 		images[c.Image] = struct{}{}
 	}
