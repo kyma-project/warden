@@ -7,7 +7,7 @@ import (
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -32,7 +32,7 @@ func TestName(t *testing.T) {
 	podValidator := validate.NewPodValidator(imageValidator)
 
 	validatableNs := "warden-enabled"
-	ns := v1.Namespace{ObjectMeta: metav1.ObjectMeta{
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: validatableNs,
 		Labels: map[string]string{
 			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
@@ -46,63 +46,62 @@ func TestName(t *testing.T) {
 		Validator: podValidator,
 	}
 
-	t.Run("Success", func(t *testing.T) {
-		//GIVEN
-		validPod := "valid-pod"
-		pod := v1.Pod{ObjectMeta: metav1.ObjectMeta{
-			Namespace: validatableNs,
-			Name:      validPod},
-			Spec: v1.PodSpec{Containers: []v1.Container{{Image: validImage, Name: "container"}}},
-		}
-		require.NoError(t, k8sClient.Create(context.TODO(), &pod))
-		//defer require.NoError(t, k8sClient.Delete(context.TODO(), &pod))
-		req := reconcile.Request{
-			NamespacedName: types.NamespacedName{
+	testCases := []struct {
+		name          string
+		pod           corev1.Pod
+		expectedLabel string
+	}{
+		{
+			name: "Success",
+			pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 				Namespace: validatableNs,
-				Name:      validPod,
+				Name:      "valid-pod"},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}},
 			},
-		}
-		//WHEN
-		_, err := ctrl.Reconcile(context.TODO(), req)
-		//THEN
-		require.NoError(t, err)
-		key := ctrlclient.ObjectKeyFromObject(&pod)
-
-		finalPod := v1.Pod{}
-		require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
-
-		labeValue, ok := finalPod.Labels[pkg.PodValidationLabel]
-		require.True(t, ok)
-		require.Equal(t, pkg.ValidationStatusSuccess, labeValue)
-	})
-
-	t.Run("Image is not valid", func(t *testing.T) {
-		//GIVEN
-		invalidPod := "invalid-pod"
-		pod := v1.Pod{ObjectMeta: metav1.ObjectMeta{
-			Namespace: validatableNs,
-			Name:      invalidPod},
-			Spec: v1.PodSpec{Containers: []v1.Container{{Image: invalidImage, Name: "container"}}},
-		}
-		require.NoError(t, k8sClient.Create(context.TODO(), &pod))
-
-		req := reconcile.Request{
-			NamespacedName: types.NamespacedName{
+			expectedLabel: pkg.ValidationStatusSuccess,
+		},
+		{
+			name: "Image is not valid and have pending label",
+			pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 				Namespace: validatableNs,
-				Name:      invalidPod,
+				Name:      "invalid-pod-pending",
+				Labels:    map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
 			},
-		}
-		//WHEN
-		_, err := ctrl.Reconcile(context.TODO(), req)
-		//THEN
-		require.NoError(t, err)
-		key := ctrlclient.ObjectKeyFromObject(&pod)
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: invalidImage, Name: "container"}}},
+			},
+			expectedLabel: pkg.ValidationStatusFailed,
+		},
+		{
+			name: "Image is not valid",
+			pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				Namespace: validatableNs,
+				Name:      "invalid-pod"},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: invalidImage, Name: "container"}}},
+			},
+			expectedLabel: pkg.ValidationStatusFailed,
+		},
+	}
 
-		finalPod := v1.Pod{}
-		require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			//GIVEN
+			require.NoError(t, k8sClient.Create(context.TODO(), &tc.pod))
+			req := reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: validatableNs,
+				Name:      tc.pod.Name},
+			}
+			//WHEN
+			_, err := ctrl.Reconcile(context.TODO(), req)
+			//THEN
+			require.NoError(t, err)
+			key := ctrlclient.ObjectKeyFromObject(&tc.pod)
 
-		labeValue, ok := finalPod.Labels[pkg.PodValidationLabel]
-		require.True(t, ok)
-		require.Equal(t, pkg.ValidationStatusFailed, labeValue)
-	})
+			finalPod := corev1.Pod{}
+			require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
+
+			labeValue, ok := finalPod.Labels[pkg.PodValidationLabel]
+			require.True(t, ok)
+			require.Equal(t, tc.expectedLabel, labeValue)
+		})
+	}
 }
