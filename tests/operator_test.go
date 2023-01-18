@@ -36,7 +36,7 @@ func Test_SimplePodWithImage_ShouldBeCreated(t *testing.T) {
 	defer tc.Delete(pod)
 }
 
-func Test_PodInsideVerifiedNamespaceWithUntrustedImage_ShouldBeRejecteed(t *testing.T) {
+func Test_PodInsideVerifiedNamespaceWithUntrustedImage_ShouldBeRejected(t *testing.T) {
 	tc := th.NewTestContext(t, "warden-verified-namespace-untrusted-image").
 		ValidationEnabled(true).
 		Initialize()
@@ -84,7 +84,7 @@ func Test_PodInsideNotVerifiedNamespaceWithTrustedImage_ShouldBeCreatedWithoutVa
 	require.NotContains(t, existingPod.ObjectMeta.Labels, pkg.PodValidationLabel)
 }
 
-func Test_PodInsideVerifiedNamespaceWithTrustedImage_ShouldBeUpdatedWithProperValidationLabel(t *testing.T) {
+func Test_UpdateVerifiedPodWithUntrustedImage_ShouldBeRejected(t *testing.T) {
 	tc := th.NewTestContext(t, "warden").ValidationEnabled(true).Initialize()
 	defer tc.Destroy()
 

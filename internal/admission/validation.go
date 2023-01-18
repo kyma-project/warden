@@ -2,12 +2,11 @@ package admission
 
 import (
 	"context"
-	"fmt"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -16,26 +15,26 @@ const (
 )
 
 type ValidationWebhook struct {
-	client  ctrlclient.Client
 	decoder *admission.Decoder
 }
 
-func NewValidationWebhook(client ctrlclient.Client) *ValidationWebhook {
-	return &ValidationWebhook{
-		client: client,
-	}
+func NewValidationWebhook() *ValidationWebhook {
+	return &ValidationWebhook{}
 }
 
 func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) admission.Response {
-	fmt.Println(req.Name, req.Kind.String())
-	if req.Resource.Resource != corev1.ResourcePods.String() {
+	if req.Operation == admissionv1.Delete {
+		return admission.Allowed("")
+	}
+
+	if req.Kind.Kind != corev1.ResourcePods.String() {
 		return admission.Errored(http.StatusBadRequest,
 			errors.Errorf("Invalid request kind :%s, expected: %s", req.Resource.Resource, corev1.ResourcePods.String()))
 	}
 
 	pod := &corev1.Pod{}
 	if err := w.decoder.Decode(req, pod); err != nil {
-		admission.Errored(http.StatusInternalServerError, err)
+		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
 	if pod.Labels == nil {
@@ -47,7 +46,6 @@ func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) adm
 
 	}
 
-	//TODO: improve this err message with information which image failed.
 	return admission.Denied("Pod images validation failed")
 }
 
