@@ -36,7 +36,7 @@ import (
 type PodReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	Validator validate.PodValidatorService
+	Validator validate.ImageValidatorService
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
@@ -77,11 +77,9 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	case pkg.ValidationStatusSuccess:
 		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
-		break
 	case pkg.ValidationStatusFailed:
 		//TODO this should return some kind of error
 		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
-		break
 	}
 
 	if pod.Labels[pkg.PodValidationLabel] != admitResult {
@@ -136,6 +134,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+// TODO: This function should check images not the whole spec.
 func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
 	oldPod := oldObject.(*corev1.Pod)
 	newPod := newObject.(*corev1.Pod)

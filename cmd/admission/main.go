@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/zapr"
+	"github.com/kyma-project/warden/internal/admission"
+	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"github.com/kyma-project/warden/internal/webhook/certs"
-	"github.com/kyma-project/warden/internal/webhook/defaulting"
-	"github.com/kyma-project/warden/internal/webhook/validation"
 	"github.com/vrischmann/envconfig"
 	"go.uber.org/zap"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -62,11 +62,22 @@ func main() {
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
+	if err != nil {
+		logger.Error("failed to start manager", err.Error())
+		os.Exit(2)
+	}
 
 	if err := certs.SetupResourcesController(context.TODO(), mgr, cfg.ServiceName, cfg.SystemNamespace, cfg.SecretName, logger); err != nil {
 		logger.Error("failed to setup webhook resource controller ", err.Error())
 		os.Exit(5)
 	}
+
+	validatorSvcConfig := validate.ServiceConfig{
+		NotaryConfig:      validate.NotaryConfig{Url: cfg.NotaryURL},
+		AllowedRegistries: nil,
+	}
+	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig)
+	validatorSvc := validate.NewPodValidator(podValidatorSvc)
 
 	logger.Info("setting up webhook server")
 	// webhook server setup
@@ -74,12 +85,12 @@ func main() {
 	whs.CertName = certs.CertFile
 	whs.KeyName = certs.KeyFile
 
-	whs.Register(defaulting.WebhookPath, &ctrlwebhook.Admission{
-		Handler: defaulting.NewWebhook(mgr.GetClient()),
+	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
+		Handler: admission.NewValidationWebhook(mgr.GetClient()),
 	})
 
-	whs.Register(validation.WebhookPath, &ctrlwebhook.Admission{
-		Handler: validation.NewWebhook(mgr.GetClient()),
+	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

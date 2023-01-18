@@ -1,4 +1,4 @@
-package validation
+package admission
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	WebhookPath = "/validation/pods"
+	ValidationPath = "/validation/pods"
 )
 
 type ValidationWebhook struct {
@@ -16,7 +16,7 @@ type ValidationWebhook struct {
 	decoder *admission.Decoder
 }
 
-func NewWebhook(client ctrlclient.Client) *ValidationWebhook {
+func NewValidationWebhook(client ctrlclient.Client) *ValidationWebhook {
 	return &ValidationWebhook{
 		client: client,
 	}

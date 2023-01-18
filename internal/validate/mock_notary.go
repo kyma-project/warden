@@ -149,7 +149,9 @@ type MockNotaryServiceBuilder struct {
 func NewDefaultMockNotaryService() *MockNotaryServiceBuilder {
 	f := NewDefaultMockNotaryFunction().Build()
 	s := notaryService{
-		NotaryConfig: NotaryConfig{},
+		ServiceConfig: ServiceConfig{
+			NotaryConfig: NotaryConfig{},
+		},
 		RepoFactory: MockNotaryRepoFactory{
 			GetTargetByNameFunc: &f,
 		},

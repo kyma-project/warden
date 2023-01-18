@@ -30,9 +30,8 @@ const (
 	tagDelim = ":"
 )
 
-//go:generate mockgen github.com/theupdateframework/notary/client notaryService
-//go:generate mockery --name=ValidatorService
-type PodValidatorService interface {
+//go:generate mockery --name=ImageValidatorService
+type ImageValidatorService interface {
 	Validate(image string) error
 }
 
@@ -42,19 +41,15 @@ type ServiceConfig struct {
 }
 
 type notaryService struct {
-	NotaryConfig NotaryConfig `json:"notaryConfig"`
-	RepoFactory  RepoFactory
+	ServiceConfig
+	RepoFactory RepoFactory
 }
 
-func GetPodValidatorService(sc *ServiceConfig) PodValidatorService {
-	return createNotaryValidatorService(sc)
-}
-
-func createNotaryValidatorService(c *ServiceConfig) PodValidatorService {
+func NewImageValidator(sc *ServiceConfig) ImageValidatorService {
 	return &notaryService{
-		NotaryConfig: NotaryConfig{
-			Url:               c.NotaryConfig.Url,
-			AllowedRegistries: c.AllowedRegistries,
+		ServiceConfig: ServiceConfig{
+			NotaryConfig:      sc.NotaryConfig,
+			AllowedRegistries: sc.AllowedRegistries,
 		},
 		RepoFactory: NotaryRepoFactory{},
 	}
@@ -70,12 +65,11 @@ func (s *notaryService) Validate(image string) error {
 
 	imgRepo := split[0]
 	imgTag := split[1]
-	for _, allowed := range s.NotaryConfig.AllowedRegistries {
-		// repository is in allowed list
-		if strings.HasPrefix(imgRepo, allowed) {
-			return nil
-		}
+
+	if allowed := s.isImageAllowed(imgRepo); allowed {
+		return nil
 	}
+
 	expectedShaBytes, err := s.getNotaryImageDigestHash(imgRepo, imgTag)
 	if err != nil {
 		return err
@@ -91,6 +85,16 @@ func (s *notaryService) Validate(image string) error {
 	}
 
 	return nil
+}
+
+func (s *notaryService) isImageAllowed(imgRepo string) bool {
+	for _, allowed := range s.AllowedRegistries {
+		// repository is in allowed list
+		if strings.HasPrefix(imgRepo, allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
