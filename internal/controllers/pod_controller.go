@@ -51,7 +51,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	var images map[string]struct{}
+	images := map[string]struct{}{}
 	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
 		images[c.Image] = struct{}{}
 	}
@@ -59,7 +59,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	matched := make(map[string]string)
 
 	admitResult := pkg.ValidationStatusSuccess
-	for s, _ := range images {
+	for s := range images {
 		result, err := r.admitPodImage(s)
 		matched[s] = result
 

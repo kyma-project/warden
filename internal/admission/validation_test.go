@@ -65,7 +65,7 @@ func TestValidationWebhook(t *testing.T) {
 		{
 			name: "Pod should be allowed, no label",
 			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pod"g},
+				ObjectMeta: metav1.ObjectMeta{Name: "test-pod"},
 			},
 			expectedStatus:  int32(http.StatusOK),
 			expectedMessage: "nothing to do",

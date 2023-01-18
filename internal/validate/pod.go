@@ -55,7 +55,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 
 	admitResult := Valid
 
-	for s, _ := range images {
+	for s := range images {
 		result, err := a.validateImage(s)
 		matched[s] = result
 
