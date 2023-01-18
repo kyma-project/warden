@@ -197,4 +197,4 @@ clean:
 	rm operator
 
 run-integration-tests:
-	( cd ./tests && go test ./ )
+	( cd ./tests && go test -count=1 -v ./ )
