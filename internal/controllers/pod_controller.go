@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/kyma-project/warden/internal/admission"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -35,63 +36,7 @@ import (
 type PodReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	Validator validate.ImageValidatorService
-}
-
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	l := log.FromContext(ctx)
-
-	var pod corev1.Pod
-	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
-	}
-
-	images := map[string]struct{}{}
-	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
-		images[c.Image] = struct{}{}
-	}
-
-	matched := make(map[string]string)
-
-	admitResult := pkg.ValidationStatusSuccess
-	for s := range images {
-		result, err := r.admitPodImage(s)
-		matched[s] = result
-
-		if result == pkg.ValidationStatusFailed {
-			admitResult = pkg.ValidationStatusFailed
-			l.Info(err.Error())
-		}
-	}
-
-	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
-
-	switch admitResult {
-	case pkg.ValidationStatusSuccess:
-		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
-		shouldRetry = ctrl.Result{}
-	case pkg.ValidationStatusFailed:
-		//TODO this should return some kind of error
-		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
-	}
-
-	if pod.Labels[pkg.PodValidationLabel] != admitResult {
-		out := pod.DeepCopy()
-		if out.ObjectMeta.Labels == nil {
-			out.ObjectMeta.Labels = map[string]string{}
-		}
-		out.Labels[pkg.PodValidationLabel] = admitResult
-		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
-			return ctrl.Result{}, err
-		}
-	}
-
-	return shouldRetry, nil
+	Validator validate.PodValidator
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -132,6 +77,66 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	l := log.FromContext(ctx)
+
+	var pod corev1.Pod
+	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	resultLabelValue, err := r.checkPod(ctx, &pod)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
+	switch resultLabelValue {
+	case pkg.ValidationStatusSuccess:
+		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
+		shouldRetry = ctrl.Result{}
+	case pkg.ValidationStatusFailed:
+		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
+		shouldRetry = ctrl.Result{}
+	}
+
+	if pod.Labels[pkg.PodValidationLabel] != resultLabelValue {
+		out := pod.DeepCopy()
+		if out.ObjectMeta.Labels == nil {
+			out.ObjectMeta.Labels = map[string]string{}
+		}
+		out.Labels[pkg.PodValidationLabel] = resultLabelValue
+		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
+			return ctrl.Result{}, err
+		}
+	}
+
+	return shouldRetry, nil
+}
+
+func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (string, error) {
+	var ns corev1.Namespace
+	if err := r.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
+		return "", err
+	}
+
+	result, err := r.Validator.ValidatePod(ctx, pod, &ns)
+	if err != nil {
+		return "", err
+	}
+
+	resultLabelValue := admission.LabelForValidationResult(result)
+	if resultLabelValue == "" {
+		return "", nil
+	}
+	return resultLabelValue, nil
+}
+
 // TODO: This function should check images not the whole spec.
 func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
 	oldPod := oldObject.(*corev1.Pod)
@@ -144,17 +149,5 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	if err := r.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
 		return false
 	}
-	if ns.GetLabels()[pkg.NamespaceValidationLabel] != "enabled" {
-		return false
-	}
-	return true
-}
-
-func (r *PodReconciler) admitPodImage(image string) (string, error) {
-	err := r.Validator.Validate(image)
-	if err != nil {
-		return pkg.ValidationStatusFailed, err
-	}
-
-	return pkg.ValidationStatusSuccess, nil
+	return validate.IsValidationEnabledForNS(&ns)
 }

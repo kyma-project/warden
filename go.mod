@@ -6,8 +6,6 @@ require (
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/go-logr/zapr v1.2.3
 	github.com/google/go-containerregistry v0.12.1
-	github.com/onsi/ginkgo/v2 v2.1.6
-	github.com/onsi/gomega v1.20.1
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.0
 	github.com/theupdateframework/notary v0.7.0
