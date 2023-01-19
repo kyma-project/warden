@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/go-logr/zapr"
-	"github.com/kyma-project/warden/internal"
 	"github.com/kyma-project/warden/internal/admission"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
@@ -41,14 +40,8 @@ func main() {
 
 	cfg := &webhook.Config{}
 	if err := envconfig.InitWithPrefix(cfg, "WEBHOOK"); err != nil {
-		logger.Error("failed to start admission", err.Error())
+		logger.Error("failed to get admission config", err.Error())
 		os.Exit(1)
-	}
-
-	notaryCfg := &internal.Config{}
-	if err := envconfig.InitWithPrefix(notaryCfg, "WEBHOOK"); err != nil {
-		logger.Error("failed to start admission", err.Error())
-		os.Exit(2)
 	}
 
 	if err := certs.SetupCertSecret(
@@ -79,11 +72,13 @@ func main() {
 		os.Exit(5)
 	}
 
+	repoFactory := validate.NotaryRepoFactory{Timeout: cfg.NotaryTimeout}
+
 	validatorSvcConfig := validate.ServiceConfig{
 		NotaryConfig:      validate.NotaryConfig{Url: cfg.NotaryURL},
 		AllowedRegistries: nil,
 	}
-	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig)
+	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
 	validatorSvc := validate.NewPodValidator(podValidatorSvc)
 
 	logger.Info("setting up webhook server")
@@ -97,7 +92,7 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, notaryCfg.Timeout, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, cfg.Timeout, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

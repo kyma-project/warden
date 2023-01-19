@@ -36,6 +36,27 @@ func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodVal
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
+	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
+	defer cancel()
+
+	var resp admission.Response
+	done := make(chan bool)
+	go func() {
+		resp = w.handle(ctxTimeout, req)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	case <-ctxTimeout.Done():
+		if err := ctxTimeout.Err(); err != nil {
+			return admission.Errored(http.StatusRequestTimeout, err)
+		}
+	}
+	return resp
+}
+
+func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Kind.Kind != corev1.ResourcePods.String() {
 		return admission.Errored(http.StatusBadRequest,
 			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, corev1.ResourcePods.String()))
@@ -51,22 +72,7 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
-	defer cancel()
-
-	done := make(chan bool)
-	var result validate.ValidationResult
-	var err error
-	go func() {
-		result, err = w.validationSvc.ValidatePod(ctxTimeout, pod, ns)
-		done <- true
-	}()
-
-	select {
-	case <-done:
-	case <-ctxTimeout.Done():
-		return admission.Errored(http.StatusGatewayTimeout, ctxTimeout.Err())
-	}
+	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -111,7 +117,7 @@ func LabelForValidationResult(result validate.ValidationResult) string {
 		return pkg.ValidationStatusReject
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess
-	case validate.ServiceUnAvailable:
+	case validate.ServiceUnavailable:
 		return pkg.ValidationStatusPending
 	default:
 		return pkg.ValidationStatusPending

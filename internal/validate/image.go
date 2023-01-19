@@ -33,8 +33,7 @@ const (
 
 //go:generate mockery --name=ImageValidatorService
 type ImageValidatorService interface {
-	Validate(image string) error
-	Validate2(ctx context.Context, image string) error
+	Validate(ctx context.Context, image string) error
 }
 
 type ServiceConfig struct {
@@ -57,7 +56,7 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 	}
 }
 
-func (s *notaryService) Validate2(ctx context.Context, image string) error {
+func (s *notaryService) Validate(ctx context.Context, image string) error {
 
 	split := strings.Split(image, tagDelim)
 
@@ -87,10 +86,6 @@ func (s *notaryService) Validate2(ctx context.Context, image string) error {
 	}
 
 	return nil
-}
-
-func (s *notaryService) Validate(image string) error {
-	return s.Validate2(context.TODO(), image)
 }
 
 func (s *notaryService) isImageAllowed(imgRepo string) bool {
@@ -135,16 +130,11 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 		return []byte{}, errors.New("empty arguments provided")
 	}
 
-	c, err := s.RepoFactory.NewClient(imgRepo, s.NotaryConfig)
+	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
 	if err != nil {
 		return []byte{}, err
 	}
 
-	//switch  {
-	//case :
-	//case  <-ctx.Done():
-	//
-	//}
 	target, err := c.GetTargetByName(imgTag)
 	if err != nil {
 		return []byte{}, err

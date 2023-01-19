@@ -22,6 +22,7 @@ import (
 	"github.com/kyma-project/warden/internal/validate"
 	"os"
 	"strings"
+	"time"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -63,6 +64,8 @@ func main() {
 	var enableLeaderElection bool
 	var probeAddr string
 	var notaryURL string
+	//TODO: It will be unified in another PR
+	notaryTimeout := time.Second * 30
 	var allowedRegistries regs
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -102,7 +105,11 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	imageValidator := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries})
+
+	repoFactory := validate.NotaryRepoFactory{Timeout: notaryTimeout}
+	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}
+
+	imageValidator := validate.NewImageValidator(notaryConfig, repoFactory)
 	podValidator := validate.NewPodValidator(imageValidator)
 
 	if err = (&controllers.PodReconciler{

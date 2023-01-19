@@ -14,7 +14,7 @@ func TestNewReadOnlyRepo(t *testing.T) {
 		Url: "https://signing-dev.repositories.cloud.sap",
 	}
 	f := NotaryRepoFactory{}
-	c, err := f.NewClient("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
+	c, err := f.NewRepoClient("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
 	require.NoError(t, err)
 
 	name, err := c.GetTargetByName("PR-6200")
@@ -22,10 +22,14 @@ func TestNewReadOnlyRepo(t *testing.T) {
 	fmt.Println(name)
 }
 
-func TestTimeout(t *testing.T) {
+func TestNotaryHTTPTimeout(t *testing.T) {
 	//GIVEN
+	//The minimum value is 1 seconds everything less than it
+	timeout := time.Millisecond * 1000
+	start := time.Now()
+
 	h := func(writer http.ResponseWriter, request *http.Request) {
-		time.Sleep(40 * time.Second)
+		time.Sleep(2 * timeout)
 	}
 	handler := http.HandlerFunc(h)
 
@@ -35,13 +39,14 @@ func TestTimeout(t *testing.T) {
 	nc := NotaryConfig{
 		Url: testServer.URL,
 	}
-	f := NotaryRepoFactory{}
-	c, err := f.NewClient("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
-	require.NoError(t, err)
+	f := NotaryRepoFactory{Timeout: time.Second}
+
 	//WHEN
-	name, err := c.GetTargetByName("PR-6200")
+	_, err := f.NewRepoClient("europe-docker.pkg.dev/kyma-project/dev/bootstrap", nc)
 
 	//THEn
-	require.NoError(t, err)
-	fmt.Println(name)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "context deadline exceeded")
+	require.InDelta(t, timeout.Milliseconds(), time.Since(start).Milliseconds(), 100, "timeout duration is not respected")
+
 }

@@ -3,7 +3,8 @@
 package mocks
 
 import (
-	"context"
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -12,18 +13,13 @@ type ImageValidatorService struct {
 	mock.Mock
 }
 
-func (_m *ImageValidatorService) Validate2(ctx context.Context, image string) error {
-	//TODO implement me
-	panic("implement me")
-}
-
-// Validate provides a mock function with given fields: image
-func (_m *ImageValidatorService) Validate(image string) error {
-	ret := _m.Called(image)
+// Validate provides a mock function with given fields: ctx, image
+func (_m *ImageValidatorService) Validate(ctx context.Context, image string) error {
+	ret := _m.Called(ctx, image)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(image)
+	if rf, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = rf(ctx, image)
 	} else {
 		r0 = ret.Error(0)
 	}

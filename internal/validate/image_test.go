@@ -1,8 +1,8 @@
 package validate
 
 import (
-	"fmt"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/tuf/data"
@@ -24,7 +24,7 @@ var (
 
 func Test_Validate_ProperImage_ShouldPass(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithHash(TrustedImageHash).Build()
-	err := s.Validate(TrustedImageName)
+	err := s.Validate(context.TODO(), TrustedImageName)
 	require.NoError(t, err)
 }
 
@@ -53,7 +53,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := s.Validate(tt.imageName)
+			err := s.Validate(context.TODO(), tt.imageName)
 			require.Error(t, err)
 			require.EqualError(t, err, tt.expectedErrMsg)
 		})
@@ -62,7 +62,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 
 func Test_Validate_ImageWithDifferentHashInNotary_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
-	err := s.Validate(TrustedImageName)
+	err := s.Validate(context.TODO(), TrustedImageName)
 	require.Error(t, err)
 	require.EqualError(t, err, "unexpected image hash value")
 }
@@ -72,28 +72,28 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 		return nil, client.ErrRepositoryNotExist{}
 	}
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
-	err := s.Validate(UntrustedImageName)
+	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "does not have trust data for")
 }
 
 func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
-	err := s.Validate("eu.gcr.io/kyma-project/function-controller:unknown")
+	err := s.Validate(context.TODO(), "eu.gcr.io/kyma-project/function-controller:unknown")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "MANIFEST_UNKNOWN: Failed to fetch")
 }
 
 func Test_Validate_WhenNotaryNotResponding_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithRepoFactory(MockNotaryRepoFactoryNoSuchHost{}).Build()
-	err := s.Validate(TrustedImageName)
+	err := s.Validate(context.TODO(), TrustedImageName)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "no such host")
 }
 
 func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
-	err := s.Validate("some.unknown.registry/kyma-project/function-controller:unknown")
+	err := s.Validate(context.TODO(), "some.unknown.registry/kyma-project/function-controller:unknown")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "no such host")
 	require.ErrorContains(t, err, "lookup some.unknown.registry")
@@ -136,18 +136,21 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s.AllowedRegistries = tt.allowedRegistries
-			err := s.Validate(tt.imageName)
+			err := s.Validate(context.TODO(), tt.imageName)
 			require.NoError(t, err)
 		})
 	}
 }
 
-func TestTimeoutContext(t *testing.T) {
+func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T) {
 	//GIVEN
-	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	timeout := time.Second * 1
+	start := time.Now()
+
+	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
 	defer cancel()
 	h := func(writer http.ResponseWriter, request *http.Request) {
-		time.Sleep(6 * time.Second)
+		time.Sleep(2 * timeout)
 	}
 	handler := http.HandlerFunc(h)
 
@@ -159,44 +162,23 @@ func TestTimeoutContext(t *testing.T) {
 			Url: testServer.URL,
 		},
 	}
-	f := NotaryRepoFactory{}
+	f := NotaryRepoFactory{timeout}
 	validator := NewImageValidator(sc, f)
 
 	//WHEN
-	err := validator.Validate2(ctx, "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
+	err := validator.Validate(ctx, "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
 
-	//THEn
+	//THEN
 	require.Error(t, err)
-	ok := <-ctx.Done()
-	fmt.Println(ok)
+	assert.ErrorContains(t, err, "context deadline exceeded")
+	require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
 }
-
-// TODO: now there is no timeout support
-func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T) {
-	t.Skip("now there is no timeout support")
-	f := func(name string, roles ...data.RoleName) (*client.TargetWithRole, error) {
-		time.Sleep(time.Second * 10)
-		return &client.TargetWithRole{
-			Target: client.Target{
-				Name:   "ignored",
-				Hashes: map[string][]byte{"ignored": TrustedImageHash},
-				Length: 1,
-			},
-		}, nil
-	}
-	s := NewDefaultMockNotaryService().WithFunc(f).Build()
-	err := s.Validate(TrustedImageName)
-	require.Error(t, err)
-	require.EqualError(t, err, "some timeout error")
-}
-
-// TODO: registry respond after long time
 
 func Test_Validate_DEV(t *testing.T) {
-	t.Skip("for testing and degugging real notary service")
+	t.Skip("for testing and debugging real notary service")
 	s := NewDefaultMockNotaryService().WithRepoFactory(NotaryRepoFactory{}).Build()
 	s.NotaryConfig.Url = "https://signing-dev.repositories.cloud.sap"
-	err := s.Validate(UntrustedImageName)
+	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.Error(t, err)
 	require.EqualError(t, err, "something")
 }
