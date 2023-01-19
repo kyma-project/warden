@@ -116,7 +116,7 @@ type MockNotaryRepoFactory struct {
 	GetTargetByNameFunc *func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
 }
 
-func (f MockNotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+func (f MockNotaryRepoFactory) NewClient(img string, c NotaryConfig) (client.Repository, error) {
 	r := MockNotaryClientRepository{}
 	r.GetTargetByNameFunc = *f.GetTargetByNameFunc
 	return r, nil
@@ -128,7 +128,7 @@ type MockNotaryRepoFactoryNoSuchHost struct {
 	GetTargetByNameFunc *func(name string, roles ...data.RoleName) (*client.TargetWithRole, error)
 }
 
-func (f MockNotaryRepoFactoryNoSuchHost) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+func (f MockNotaryRepoFactoryNoSuchHost) NewClient(img string, c NotaryConfig) (client.Repository, error) {
 	return nil, &net.OpError{
 		Op:  "dial",
 		Net: "tcp",

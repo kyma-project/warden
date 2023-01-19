@@ -1,10 +1,14 @@
 package validate
 
 import (
+	"fmt"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/tuf/data"
+	"golang.org/x/net/context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -136,6 +140,35 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestTimeoutContext(t *testing.T) {
+	//GIVEN
+	ctx, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+	h := func(writer http.ResponseWriter, request *http.Request) {
+		time.Sleep(6 * time.Second)
+	}
+	handler := http.HandlerFunc(h)
+
+	testServer := httptest.NewServer(handler)
+	defer testServer.Close()
+
+	sc := &ServiceConfig{
+		NotaryConfig: NotaryConfig{
+			Url: testServer.URL,
+		},
+	}
+	f := NotaryRepoFactory{}
+	validator := NewImageValidator(sc, f)
+
+	//WHEN
+	err := validator.Validate2(ctx, "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
+
+	//THEn
+	require.Error(t, err)
+	ok := <-ctx.Done()
+	fmt.Println(ok)
 }
 
 // TODO: now there is no timeout support

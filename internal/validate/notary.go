@@ -40,21 +40,20 @@ type NotaryValidator struct {
 }
 
 type RepoFactory interface {
-	NewRepo(string, NotaryConfig) (client.Repository, error)
+	NewClient(string, NotaryConfig) (client.Repository, error)
 }
 
 type NotaryRepoFactory struct {
 }
 
-func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+func (f NotaryRepoFactory) NewClient(img string, c NotaryConfig) (client.Repository, error) {
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
+			Timeout:   3 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
-		TLSClientConfig:   nil,
 		DisableKeepAlives: true,
 	}
 	th := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
@@ -72,7 +71,7 @@ func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repositor
 	u := c.Url + "/v2/"
 	pingClient := &http.Client{
 		Transport: base,
-		Timeout:   15 * time.Second,
+		Timeout:   5 * time.Second,
 	}
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {

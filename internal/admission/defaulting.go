@@ -11,6 +11,7 @@ import (
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"time"
 )
 
 const (
@@ -19,23 +20,25 @@ const (
 
 type DefaultingWebHook struct {
 	validationSvc validate.PodValidator
+	timeout       time.Duration
 	client        k8sclient.Client
 	decoder       *admission.Decoder
 	logger        *zap.SugaredLogger
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
 		logger:        logger,
+		timeout:       timeout,
 	}
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
-	if req.Resource.Resource != corev1.ResourcePods.String() {
+	if req.Kind.Kind != corev1.ResourcePods.String() {
 		return admission.Errored(http.StatusBadRequest,
-			errors.Errorf("Invalid request kind:%s, expected:%s", req.Resource.Resource, corev1.ResourcePods.String()))
+			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, corev1.ResourcePods.String()))
 	}
 
 	pod := &corev1.Pod{}
@@ -48,7 +51,22 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
+	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
+	defer cancel()
+
+	done := make(chan bool)
+	var result validate.ValidationResult
+	var err error
+	go func() {
+		result, err = w.validationSvc.ValidatePod(ctxTimeout, pod, ns)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	case <-ctxTimeout.Done():
+		return admission.Errored(http.StatusGatewayTimeout, ctxTimeout.Err())
+	}
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
