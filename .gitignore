@@ -23,6 +23,3 @@ vendor
 *.swo
 *~
 *.DS_Store
-
-operator
-admission

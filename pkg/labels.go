@@ -10,4 +10,5 @@ const (
 	ValidationStatusPending = "pending"
 	ValidationStatusSuccess = "success"
 	ValidationStatusFailed  = "failed"
+	ValidationStatusReject  = "reject"
 )

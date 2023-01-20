@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"github.com/kyma-project/warden/internal/util/sets"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -52,16 +51,15 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	var images sets.Strings
+	images := map[string]struct{}{}
 	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
-		images.Add(c.Image)
+		images[c.Image] = struct{}{}
 	}
 
 	matched := make(map[string]string)
 
 	admitResult := pkg.ValidationStatusSuccess
-
-	images.Walk(func(s string) {
+	for s := range images {
 		result, err := r.admitPodImage(s)
 		matched[s] = result
 
@@ -69,7 +67,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 			admitResult = pkg.ValidationStatusFailed
 			l.Info(err.Error())
 		}
-	})
+	}
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
 

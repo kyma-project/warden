@@ -189,12 +189,12 @@ uninstall:
 	helm uninstall warden
 
 compile:
-	go build -a -o admission ./cmd/admission/main.go
-	go build -a -o operator ./cmd/operator/main.go
+	go build -a -o bin/admission ./cmd/admission/main.go
+	go build -a -o bin/operator ./cmd/operator/main.go
 
 clean:
-	rm admission
-	rm operator
+	rm bin/admission
+	rm bin/operator
 
 run-integration-tests:
 	( cd ./tests && go test -count=1 -v ./ )
