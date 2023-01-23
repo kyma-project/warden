@@ -35,7 +35,7 @@ func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodVal
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
 	if req.Resource.Resource != corev1.ResourcePods.String() {
 		return admission.Errored(http.StatusBadRequest,
-			errors.Errorf("Invalid request kind :%s, expected: %s", req.Resource.Resource, corev1.ResourcePods.String()))
+			errors.Errorf("Invalid request kind:%s, expected:%s", req.Resource.Resource, corev1.ResourcePods.String()))
 	}
 
 	pod := &corev1.Pod{}
