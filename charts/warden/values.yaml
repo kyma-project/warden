@@ -1,3 +1,4 @@
+
 # Default values for warden.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
@@ -12,10 +13,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-25
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-27
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-25
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-27
   notary:
     URL: "https://signing-dev.repositories.cloud.sap"
     allowedRegistries: [ ]
