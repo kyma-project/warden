@@ -80,8 +80,8 @@ func TestValidationWebhook(t *testing.T) {
 
 			req := admission.Request{
 				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: rawPod},
+					Resource: metav1.GroupVersionResource{Resource: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
+					Object:   runtime.RawExtension{Raw: rawPod},
 				}}
 
 			//WHEN
