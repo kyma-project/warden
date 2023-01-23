@@ -111,16 +111,16 @@ func TestValidationWebhook_Errors(t *testing.T) {
 		name: "Decode fails",
 		req: admission.Request{
 			AdmissionRequest: admissionv1.AdmissionRequest{
-				Kind:   metav1.GroupVersionKind{Kind: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
-				Object: runtime.RawExtension{Raw: []byte("")},
+				Resource: metav1.GroupVersionResource{Resource: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
+				Object:   runtime.RawExtension{Raw: []byte("")},
 			}},
 		expectedStatus: int32(http.StatusInternalServerError),
 	},
 		{name: "Invalid request kind",
 			req: admission.Request{
 				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: corev1.ResourceCPU.String(), Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: []byte("")},
+					Resource: metav1.GroupVersionResource{Resource: corev1.ResourceCPU.String(), Version: corev1.SchemeGroupVersion.Version},
+					Object:   runtime.RawExtension{Raw: []byte("")},
 				}},
 			expectedStatus: int32(http.StatusBadRequest)}}
 
