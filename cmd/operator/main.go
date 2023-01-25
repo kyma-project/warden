@@ -102,11 +102,13 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+	imageValidator := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries})
+	podValidator := validate.NewPodValidator(imageValidator)
 
 	if err = (&controllers.PodReconciler{
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
-		Validator: validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}),
+		Validator: podValidator,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)

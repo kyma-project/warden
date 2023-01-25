@@ -35,7 +35,7 @@ import (
 type PodReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
-	Validator validate.ImageValidatorService
+	Validator validate.PodValidator
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
@@ -51,46 +51,24 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	images := map[string]struct{}{}
-	for _, c := range append(pod.Spec.Containers, pod.Spec.InitContainers...) {
-		images[c.Image] = struct{}{}
-	}
-
-	matched := make(map[string]string)
-
-	admitResult := pkg.ValidationStatusSuccess
-	for s := range images {
-		result, err := r.admitPodImage(s)
-		matched[s] = result
-
-		if result == pkg.ValidationStatusFailed {
-			admitResult = pkg.ValidationStatusFailed
-			l.Info(err.Error())
-		}
+	result, err := r.checkPod(ctx, &pod)
+	if err != nil {
+		return ctrl.Result{}, err
 	}
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
-
-	switch admitResult {
-	case pkg.ValidationStatusSuccess:
+	switch result {
+	case validate.Valid:
 		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
-	case pkg.ValidationStatusFailed:
-		//TODO this should return some kind of error
+	case validate.Invalid:
 		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
+		shouldRetry = ctrl.Result{}
 	}
-
-	if pod.Labels[pkg.PodValidationLabel] != admitResult {
-		out := pod.DeepCopy()
-		if out.ObjectMeta.Labels == nil {
-			out.ObjectMeta.Labels = map[string]string{}
-		}
-		out.Labels[pkg.PodValidationLabel] = admitResult
-		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
-			return ctrl.Result{}, err
-		}
+	if err := r.labelPod(ctx, pod, result); err != nil {
+		l.Info("pod labeling failed", "name", pod.Name, "namespace", pod.Namespace, "err", err.Error())
+		shouldRetry.Requeue = true
 	}
-
 	return shouldRetry, nil
 }
 
@@ -132,6 +110,39 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate.ValidationResult, error) {
+	var ns corev1.Namespace
+	if err := r.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
+		return validate.NoAction, err
+	}
+
+	result, err := r.Validator.ValidatePod(ctx, pod, &ns)
+	if err != nil {
+		return validate.NoAction, err
+	}
+
+	return result, nil
+}
+
+func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result validate.ValidationResult) error {
+
+	resultLabel := labelForValidationResult(result)
+	if resultLabel == "" {
+		return nil
+	}
+	if pod.Labels[pkg.PodValidationLabel] != resultLabel {
+		out := pod.DeepCopy()
+		if out.ObjectMeta.Labels == nil {
+			out.ObjectMeta.Labels = map[string]string{}
+		}
+		out.Labels[pkg.PodValidationLabel] = resultLabel
+		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // TODO: This function should check images not the whole spec.
 func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
 	oldPod := oldObject.(*corev1.Pod)
@@ -144,17 +155,20 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	if err := r.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
 		return false
 	}
-	if ns.GetLabels()[pkg.NamespaceValidationLabel] != "enabled" {
-		return false
-	}
-	return true
+	return validate.IsValidationEnabledForNS(&ns)
 }
 
-func (r *PodReconciler) admitPodImage(image string) (string, error) {
-	err := r.Validator.Validate(image)
-	if err != nil {
-		return pkg.ValidationStatusFailed, err
+func labelForValidationResult(result validate.ValidationResult) string {
+	switch result {
+	case validate.NoAction:
+		return ""
+	case validate.Invalid:
+		return pkg.ValidationStatusFailed
+	case validate.Valid:
+		return pkg.ValidationStatusSuccess
+	case validate.ServiceUnAvailable:
+		return pkg.ValidationStatusPending
+	default:
+		return pkg.ValidationStatusPending
 	}
-
-	return pkg.ValidationStatusSuccess, nil
 }
