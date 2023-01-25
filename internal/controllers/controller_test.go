@@ -21,7 +21,7 @@ const (
 	invalidImage = "invalid"
 )
 
-func TestName(t *testing.T) {
+func Test_PodReconcile(t *testing.T) {
 	testEnv, k8sClient := Setup(t)
 	defer TearDown(t, testEnv)
 

@@ -51,32 +51,24 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	resultLabelValue, err := r.checkPod(ctx, &pod)
+	result, err := r.checkPod(ctx, &pod)
 	if err != nil {
 		return ctrl.Result{}, err
 	}
 
 	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
-	switch resultLabelValue {
-	case pkg.ValidationStatusSuccess:
+	switch result {
+	case validate.Valid:
 		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
-	case pkg.ValidationStatusFailed:
+	case validate.Invalid:
 		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
 		shouldRetry = ctrl.Result{}
 	}
-
-	if pod.Labels[pkg.PodValidationLabel] != resultLabelValue {
-		out := pod.DeepCopy()
-		if out.ObjectMeta.Labels == nil {
-			out.ObjectMeta.Labels = map[string]string{}
-		}
-		out.Labels[pkg.PodValidationLabel] = resultLabelValue
-		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
-			return ctrl.Result{}, err
-		}
+	if err := r.labelPod(ctx, pod, result); err != nil {
+		l.Info("pod labeling failed", "name", pod.Name, "namespace", pod.Namespace, "err", err.Error())
+		shouldRetry.Requeue = true
 	}
-
 	return shouldRetry, nil
 }
 
@@ -118,22 +110,37 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (string, error) {
+func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate.ValidationResult, error) {
 	var ns corev1.Namespace
 	if err := r.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
-		return "", err
+		return validate.NoAction, err
 	}
 
 	result, err := r.Validator.ValidatePod(ctx, pod, &ns)
 	if err != nil {
-		return "", err
+		return validate.NoAction, err
 	}
 
-	resultLabelValue := labelForValidationResult(result)
-	if resultLabelValue == "" {
-		return "", nil
+	return result, nil
+}
+
+func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result validate.ValidationResult) error {
+
+	resultLabel := labelForValidationResult(result)
+	if resultLabel == "" {
+		return nil
 	}
-	return resultLabelValue, nil
+	if pod.Labels[pkg.PodValidationLabel] != resultLabel {
+		out := pod.DeepCopy()
+		if out.ObjectMeta.Labels == nil {
+			out.ObjectMeta.Labels = map[string]string{}
+		}
+		out.Labels[pkg.PodValidationLabel] = resultLabel
+		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // TODO: This function should check images not the whole spec.
