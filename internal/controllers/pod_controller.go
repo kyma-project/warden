@@ -38,44 +38,6 @@ type PodReconciler struct {
 	Validator validate.PodValidator
 }
 
-// SetupWithManager sets up the controller with the Manager.
-func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Pod{}).
-		WithEventFilter(predicate.Funcs{
-			CreateFunc: func(e event.CreateEvent) bool {
-				return r.isValidationEnabledForNS(e.Object.GetNamespace())
-			},
-			UpdateFunc: func(e event.UpdateEvent) bool {
-				// don't trigger if there is no change
-				if e.ObjectOld.GetResourceVersion() == e.ObjectNew.GetResourceVersion() {
-					return false
-				}
-				// don't trigger if namespace validation is not enabled
-				if !r.isValidationEnabledForNS(e.ObjectNew.GetNamespace()) {
-					return false
-				}
-				// trigger, if there is container images including init container changes
-				if r.areImagesChanged(e.ObjectOld.DeepCopyObject(), e.ObjectNew.DeepCopyObject()) {
-					return true
-				}
-				// trigger, only if validation label is failed or missing
-				if e.ObjectOld.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess ||
-					e.ObjectNew.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess {
-					return true
-				}
-				return false
-			},
-			DeleteFunc: func(e event.DeleteEvent) bool {
-				return false
-			},
-			GenericFunc: func(genericEvent event.GenericEvent) bool {
-				return false
-			},
-		}).
-		Complete(r)
-}
-
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
 
@@ -116,6 +78,44 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	}
 
 	return shouldRetry, nil
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Pod{}).
+		WithEventFilter(predicate.Funcs{
+			CreateFunc: func(e event.CreateEvent) bool {
+				return r.isValidationEnabledForNS(e.Object.GetNamespace())
+			},
+			UpdateFunc: func(e event.UpdateEvent) bool {
+				// don't trigger if there is no change
+				if e.ObjectOld.GetResourceVersion() == e.ObjectNew.GetResourceVersion() {
+					return false
+				}
+				// don't trigger if namespace validation is not enabled
+				if !r.isValidationEnabledForNS(e.ObjectNew.GetNamespace()) {
+					return false
+				}
+				// trigger, if there is container images including init container changes
+				if r.areImagesChanged(e.ObjectOld.DeepCopyObject(), e.ObjectNew.DeepCopyObject()) {
+					return true
+				}
+				// trigger, only if validation label is failed or missing
+				if e.ObjectOld.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess ||
+					e.ObjectNew.GetLabels()[pkg.PodValidationLabel] != pkg.ValidationStatusSuccess {
+					return true
+				}
+				return false
+			},
+			DeleteFunc: func(e event.DeleteEvent) bool {
+				return false
+			},
+			GenericFunc: func(genericEvent event.GenericEvent) bool {
+				return false
+			},
+		}).
+		Complete(r)
 }
 
 func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (string, error) {
