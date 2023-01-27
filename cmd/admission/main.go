@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/admission"
@@ -82,8 +81,8 @@ func main() {
 	}
 
 	repoFactory := validate.NotaryRepoFactory{Timeout: envConfig.NotaryTimeout}
-	allowedRegistries := strings.Split(config.Notary.AllowedRegistries, ",")
-	
+	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
+
 	validatorSvcConfig := validate.ServiceConfig{
 		NotaryConfig:      validate.NotaryConfig{Url: config.Notary.URL},
 		AllowedRegistries: allowedRegistries,
