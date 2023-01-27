@@ -22,8 +22,10 @@ global:
     filename: config.yaml
     configmapName: warden-config
     data:
+      timeout: 2s
       notary:
         URL: "https://signing-dev.repositories.cloud.sap"
+        timeout: 30s
         # list of comma-separated registries addresses
         allowedRegistries: ""
 
