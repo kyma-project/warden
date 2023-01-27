@@ -43,13 +43,6 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-type flags struct {
-	metricsAddr          string
-	enableLeaderElection bool
-	probeAddr            string
-	configPath           string
-}
-
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
@@ -57,22 +50,17 @@ func init() {
 }
 
 func main() {
-	var flags flags
-	flag.StringVar(&flags.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&flags.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&flags.configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
-	flag.BoolVar(&flags.enableLeaderElection, "leader-elect", false,
-		"Enable leader election for controller manager. "+
-			"Enabling this will ensure there is only one active controller manager.")
+	var configPath string
+	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	opts := zap.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	config, err := config.Load(flags.configPath)
+	config, err := config.Load(configPath)
 	if err != nil {
-		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", flags.configPath))
+		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
 		os.Exit(1)
 	}
 
@@ -80,10 +68,10 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     flags.metricsAddr,
+		MetricsBindAddress:     config.Operator.MetricsBindAddress,
 		Port:                   9443,
-		HealthProbeBindAddress: flags.probeAddr,
-		LeaderElection:         flags.enableLeaderElection,
+		HealthProbeBindAddress: config.Operator.HealthProbeBindAddress,
+		LeaderElection:         config.Operator.LeaderElect,
 		LeaderElectionID:       "c3790980.warden.kyma-project.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the

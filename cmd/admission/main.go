@@ -24,14 +24,6 @@ var (
 	scheme = runtime.NewScheme()
 )
 
-type flags struct {
-	systemNamespace string
-	serviceName     string
-	secretName      string
-	port            int
-	configPath      string
-}
-
 // nolint
 func init() {
 	_ = admissionregistrationv1.AddToScheme(scheme)
@@ -40,12 +32,8 @@ func init() {
 }
 
 func main() {
-	var flags flags
-	flag.StringVar(&flags.systemNamespace, "system-namespace", "default", "The namespace where component is deployed.")
-	flag.StringVar(&flags.serviceName, "service-name", "warden-admission", "The warden's service name.")
-	flag.StringVar(&flags.secretName, "secret-name", "warden-admission-cert", "The name of the secret with credentials.")
-	flag.IntVar(&flags.port, "port", 8443, "The port where the webhook will listen on.")
-	flag.StringVar(&flags.configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
+	var configPath string
+	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	flag.Parse()
 
 	tmpLog, err := zap.NewDevelopment()
@@ -55,19 +43,19 @@ func main() {
 	}
 	logger := tmpLog.Sugar()
 
-	if err := certs.SetupCertSecret(
-		context.Background(),
-		flags.secretName,
-		flags.systemNamespace,
-		flags.serviceName,
-		logger); err != nil {
-		logger.Error("failed to setup certificates and webhook secret", err.Error())
+	config, err := config.Load(configPath)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
 		os.Exit(1)
 	}
 
-	config, err := config.Load(flags.configPath)
-	if err != nil {
-		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", flags.configPath))
+	if err := certs.SetupCertSecret(
+		context.Background(),
+		config.Admission.SecretName,
+		config.Admission.SystemNamespace,
+		config.Admission.ServiceName,
+		logger); err != nil {
+		logger.Error("failed to setup certificates and webhook secret", err.Error())
 		os.Exit(1)
 	}
 
@@ -75,7 +63,7 @@ func main() {
 
 	mgr, err := manager.New(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:             scheme,
-		Port:               flags.port,
+		Port:               config.Admission.Port,
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
@@ -84,7 +72,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := certs.SetupResourcesController(context.TODO(), mgr, flags.serviceName, flags.systemNamespace, flags.secretName, logger); err != nil {
+	if err := certs.SetupResourcesController(context.TODO(), mgr,
+		config.Admission.ServiceName,
+		config.Admission.SystemNamespace,
+		config.Admission.SecretName,
+		logger); err != nil {
+
 		logger.Error("failed to setup webhook resource controller ", err.Error())
 		os.Exit(5)
 	}
@@ -110,7 +103,7 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, config.Timeout, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, config.Admission.Timeout, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

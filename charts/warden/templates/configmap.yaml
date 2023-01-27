@@ -4,4 +4,4 @@ metadata:
   name: {{ .Values.global.config.configmapName }}
   namespace: {{ .Release.Namespace }}
 data:
-  {{ .Values.global.config.filename }}: {{ toYaml .Values.global.config.data | quote  }}
+  {{ .Values.global.config.filename }}: {{ tpl ( toYaml .Values.global.config.data ) . | quote  }}
