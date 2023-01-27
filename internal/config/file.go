@@ -19,7 +19,11 @@ type config struct {
 func Load(path string) (*config, error) {
 	var config config
 
-	sanitizedPath := filepath.Clean(path)
+	sanitizedPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, err
+	}
+
 	yamlFile, err := os.ReadFile(sanitizedPath)
 	if err != nil {
 		return nil, err
