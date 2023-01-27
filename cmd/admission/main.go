@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/admission"
+	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"github.com/kyma-project/warden/internal/webhook/certs"
@@ -13,7 +16,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -38,19 +40,25 @@ func main() {
 	}
 	logger := tmpLog.Sugar()
 
-	cfg := &webhook.Config{}
-	if err := envconfig.InitWithPrefix(cfg, "WEBHOOK"); err != nil {
+	envConfig := &webhook.Config{}
+	if err := envconfig.InitWithPrefix(envConfig, "WEBHOOK"); err != nil {
 		logger.Error("failed to get admission config", err.Error())
 		os.Exit(1)
 	}
 
 	if err := certs.SetupCertSecret(
 		context.Background(),
-		cfg.SecretName,
-		cfg.SystemNamespace,
-		cfg.ServiceName,
+		envConfig.SecretName,
+		envConfig.SystemNamespace,
+		envConfig.ServiceName,
 		logger); err != nil {
 		logger.Error("failed to setup certificates and webhook secret", err.Error())
+		os.Exit(1)
+	}
+
+	config, err := config.Load(envConfig.ConfigPath)
+	if err != nil {
+		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", envConfig.ConfigPath))
 		os.Exit(1)
 	}
 
@@ -58,7 +66,7 @@ func main() {
 
 	mgr, err := manager.New(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:             scheme,
-		Port:               cfg.Port,
+		Port:               envConfig.Port,
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
@@ -67,16 +75,17 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := certs.SetupResourcesController(context.TODO(), mgr, cfg.ServiceName, cfg.SystemNamespace, cfg.SecretName, logger); err != nil {
+	if err := certs.SetupResourcesController(context.TODO(), mgr, envConfig.ServiceName, envConfig.SystemNamespace, envConfig.SecretName, logger); err != nil {
 		logger.Error("failed to setup webhook resource controller ", err.Error())
 		os.Exit(5)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: cfg.NotaryTimeout}
+	repoFactory := validate.NotaryRepoFactory{Timeout: envConfig.NotaryTimeout}
+	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
 
 	validatorSvcConfig := validate.ServiceConfig{
-		NotaryConfig:      validate.NotaryConfig{Url: cfg.NotaryURL},
-		AllowedRegistries: nil,
+		NotaryConfig:      validate.NotaryConfig{Url: config.Notary.URL},
+		AllowedRegistries: allowedRegistries,
 	}
 	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
 	validatorSvc := validate.NewPodValidator(podValidatorSvc)
@@ -92,7 +101,7 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, cfg.Timeout, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, envConfig.Timeout, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

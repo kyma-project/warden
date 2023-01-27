@@ -18,11 +18,14 @@ package main
 
 import (
 	"flag"
-	"github.com/kyma-project/warden/internal/controllers"
-	"github.com/kyma-project/warden/internal/validate"
+	"fmt"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/kyma-project/warden/internal/config"
+	"github.com/kyma-project/warden/internal/controllers"
+	"github.com/kyma-project/warden/internal/validate"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -63,14 +66,12 @@ func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
-	var notaryURL string
+	var configPath string
 	//TODO: It will be unified in another PR
 	notaryTimeout := time.Second * 30
-	var allowedRegistries regs
 	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&notaryURL, "notary-url", "https://signing-dev.repositories.cloud.sap", "URL to notary signing service")
-	flag.Var(&allowedRegistries, "allowed-registry", "")
+	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
@@ -79,6 +80,12 @@ func main() {
 	}
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
+
+	config, err := config.Load(configPath)
+	if err != nil {
+		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
+		os.Exit(1)
+	}
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
@@ -107,7 +114,9 @@ func main() {
 	}
 
 	repoFactory := validate.NotaryRepoFactory{Timeout: notaryTimeout}
-	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: notaryURL}, AllowedRegistries: allowedRegistries}
+	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
+
+	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: config.Notary.URL}, AllowedRegistries: allowedRegistries}
 
 	imageValidator := validate.NewImageValidator(notaryConfig, repoFactory)
 	podValidator := validate.NewPodValidator(imageValidator)

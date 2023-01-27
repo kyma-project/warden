@@ -1,0 +1,6 @@
+notary:
+  URL: "https://signing-dev.repositories.cloud.sap"
+  allowedRegistries: |-
+    test1,
+    test2,
+    test3
