@@ -8,6 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testURL               = "https://signing-dev.repositories.cloud.sap"
+	testAllowedRegistries = "test1,\ntest2,\ntest3"
+)
+
 func TestLoad(t *testing.T) {
 	t.Run("Load test config from absolute path", func(t *testing.T) {
 		wd, err := os.Getwd()
@@ -16,8 +21,8 @@ func TestLoad(t *testing.T) {
 
 		cfg, err := Load(path)
 		require.NoError(t, err)
-		require.Empty(t, cfg.Notary.AllowedRegistries)
-		require.NotEmpty(t, cfg.Notary.URL)
+		require.Equal(t, testAllowedRegistries, cfg.Notary.AllowedRegistries)
+		require.Equal(t, testURL, cfg.Notary.URL)
 	})
 
 	t.Run("Load test config from relative path", func(t *testing.T) {
@@ -25,8 +30,8 @@ func TestLoad(t *testing.T) {
 
 		cfg, err := Load(path)
 		require.NoError(t, err)
-		require.Empty(t, cfg.Notary.AllowedRegistries)
-		require.NotEmpty(t, cfg.Notary.URL)
+		require.Equal(t, testAllowedRegistries, cfg.Notary.AllowedRegistries)
+		require.Equal(t, testURL, cfg.Notary.URL)
 	})
 
 	t.Run("Path does not exist error", func(t *testing.T) {

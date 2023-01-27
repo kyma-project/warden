@@ -115,6 +115,7 @@ func main() {
 
 	repoFactory := validate.NotaryRepoFactory{Timeout: notaryTimeout}
 	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
+
 	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: config.Notary.URL}, AllowedRegistries: allowedRegistries}
 
 	imageValidator := validate.NewImageValidator(notaryConfig, repoFactory)
