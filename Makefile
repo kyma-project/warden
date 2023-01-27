@@ -183,10 +183,10 @@ install-admission-k3d: build-admission
 ## Install
 
 install:
-	 helm upgrade -i warden ./charts/warden/
+	 helm upgrade --install --wait warden ./charts/warden/
 
 uninstall:
-	helm uninstall warden
+	helm uninstall warden --wait
 
 compile:
 	go build -a -o bin/admission ./cmd/admission/main.go
