@@ -16,9 +16,16 @@ global:
 
   admission:
     image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-27
-  notary:
-    URL: "https://signing-dev.repositories.cloud.sap"
-    allowedRegistries: [ ]
+
+  config:
+    dir: /workspace
+    filename: config.yaml
+    configmapName: warden-config
+    data:
+      notary:
+        URL: "https://signing-dev.repositories.cloud.sap"
+        # list of comma-separated registries addresses
+        allowedRegistries: ""
 
   securityContext:
     runAsNonRoot: true
