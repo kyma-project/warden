@@ -3,5 +3,5 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.global.config.configmapName }}
   namespace: {{ .Release.Namespace }}
-data: |
+data:
   {{ .Values.global.config.filename }}: {{ toYaml .Values.global.config.data | quote  }}
