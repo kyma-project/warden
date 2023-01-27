@@ -29,10 +29,16 @@ func TestLoad(t *testing.T) {
 		require.NotEmpty(t, cfg.Notary.URL)
 	})
 
-	t.Run("Load test config error", func(t *testing.T) {
+	t.Run("Path does not exist error", func(t *testing.T) {
 		path := filepath.Join("this", "path", "doesnot.exist")
 
 		cfg, err := Load(path)
+		require.Error(t, err)
+		require.Nil(t, cfg)
+	})
+
+	t.Run("Empty path error", func(t *testing.T) {
+		cfg, err := Load("")
 		require.Error(t, err)
 		require.Nil(t, cfg)
 	})
