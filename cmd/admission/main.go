@@ -49,6 +49,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO:remove me pls
+	logger.Infof("%+v", config)
+
 	if err := certs.SetupCertSecret(
 		context.Background(),
 		config.Admission.SecretName,
