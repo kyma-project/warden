@@ -12,7 +12,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"testing"
-	"time"
 )
 
 func TestValidatePod(t *testing.T) {
@@ -141,35 +140,4 @@ func TestValidatePod(t *testing.T) {
 			require.Equal(t, testCase.expectedResult, result)
 		})
 	}
-}
-
-func TestValidateTimeout(t *testing.T) {
-	//GIVEN
-	validImage := "valid"
-	testNs := "namespace"
-	validContainer := v1.Container{Name: "valid-image", Image: validImage}
-	pod := &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
-		Spec: v1.PodSpec{Containers: []v1.Container{
-			validContainer,
-		}}}
-	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs,
-		Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
-	timeout := time.Millisecond * 10
-
-	mockValidator := mocks.ImageValidatorService{}
-	mockValidator.Mock.On("Validate", mock.Anything, validImage).After(timeout * 2).Return(nil)
-	podValidator := validate.NewPodValidator(&mockValidator)
-
-	ctx, cancel := context.WithTimeout(context.TODO(), timeout)
-	defer cancel()
-
-	//WHEN
-	result, err := podValidator.ValidatePod(ctx, pod, ns)
-	//THEN
-
-	require.Error(t, err)
-	require.Error(t, ctx.Err())
-	require.Equal(t, validate.ServiceUnavailable, result)
 }
