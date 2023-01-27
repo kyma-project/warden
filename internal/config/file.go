@@ -3,17 +3,20 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
 type notary struct {
-	URL               string `yaml:"URL"`
-	AllowedRegistries string `yaml:"allowedRegistries"`
+	URL               string        `yaml:"URL"`
+	Timeout           time.Duration `yaml:"timeout"`
+	AllowedRegistries string        `yaml:"allowedRegistries"`
 }
 
 type config struct {
-	Notary notary `yaml:"notary"`
+	Notary  notary        `yaml:"notary"`
+	Timeout time.Duration `yaml:"timeout"`
 }
 
 func Load(path string) (*config, error) {

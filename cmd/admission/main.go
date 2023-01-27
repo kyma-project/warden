@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 
@@ -9,9 +10,7 @@ import (
 	"github.com/kyma-project/warden/internal/admission"
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/validate"
-	"github.com/kyma-project/warden/internal/webhook"
 	"github.com/kyma-project/warden/internal/webhook/certs"
-	"github.com/vrischmann/envconfig"
 	"go.uber.org/zap"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,6 +24,14 @@ var (
 	scheme = runtime.NewScheme()
 )
 
+type flags struct {
+	systemNamespace string
+	serviceName     string
+	secretName      string
+	port            int
+	configPath      string
+}
+
 // nolint
 func init() {
 	_ = admissionregistrationv1.AddToScheme(scheme)
@@ -33,6 +40,14 @@ func init() {
 }
 
 func main() {
+	var flags flags
+	flag.StringVar(&flags.systemNamespace, "system-namespace", "default", "The namespace where component is deployed.")
+	flag.StringVar(&flags.serviceName, "service-name", "warden-admission", "The warden's service name.")
+	flag.StringVar(&flags.secretName, "secret-name", "warden-admission-cert", "The name of the secret with credentials.")
+	flag.IntVar(&flags.port, "port", 8443, "The port where the webhook will listen on.")
+	flag.StringVar(&flags.configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
+	flag.Parse()
+
 	tmpLog, err := zap.NewDevelopment()
 	if err != nil {
 		fmt.Println("failed to start controller-manager", err.Error())
@@ -40,25 +55,19 @@ func main() {
 	}
 	logger := tmpLog.Sugar()
 
-	envConfig := &webhook.Config{}
-	if err := envconfig.InitWithPrefix(envConfig, "WEBHOOK"); err != nil {
-		logger.Error("failed to get admission config", err.Error())
-		os.Exit(1)
-	}
-
 	if err := certs.SetupCertSecret(
 		context.Background(),
-		envConfig.SecretName,
-		envConfig.SystemNamespace,
-		envConfig.ServiceName,
+		flags.secretName,
+		flags.systemNamespace,
+		flags.serviceName,
 		logger); err != nil {
 		logger.Error("failed to setup certificates and webhook secret", err.Error())
 		os.Exit(1)
 	}
 
-	config, err := config.Load(envConfig.ConfigPath)
+	config, err := config.Load(flags.configPath)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", envConfig.ConfigPath))
+		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", flags.configPath))
 		os.Exit(1)
 	}
 
@@ -66,7 +75,7 @@ func main() {
 
 	mgr, err := manager.New(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:             scheme,
-		Port:               envConfig.Port,
+		Port:               flags.port,
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
@@ -75,12 +84,12 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := certs.SetupResourcesController(context.TODO(), mgr, envConfig.ServiceName, envConfig.SystemNamespace, envConfig.SecretName, logger); err != nil {
+	if err := certs.SetupResourcesController(context.TODO(), mgr, flags.serviceName, flags.systemNamespace, flags.secretName, logger); err != nil {
 		logger.Error("failed to setup webhook resource controller ", err.Error())
 		os.Exit(5)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: envConfig.NotaryTimeout}
+	repoFactory := validate.NotaryRepoFactory{Timeout: config.Notary.Timeout}
 	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
 
 	validatorSvcConfig := validate.ServiceConfig{
@@ -101,7 +110,7 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, envConfig.Timeout, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, config.Timeout, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

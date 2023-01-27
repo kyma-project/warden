@@ -20,8 +20,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
@@ -45,34 +43,25 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
+type flags struct {
+	metricsAddr          string
+	enableLeaderElection bool
+	probeAddr            string
+	configPath           string
+}
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	//+kubebuilder:scaffold:scheme
 }
 
-type regs []string
-
-func (s *regs) Set(val string) error {
-	*s = append(*s, val)
-	return nil
-}
-
-func (s *regs) String() string {
-	return strings.Join(*s, ", ")
-}
-
 func main() {
-	var metricsAddr string
-	var enableLeaderElection bool
-	var probeAddr string
-	var configPath string
-	//TODO: It will be unified in another PR
-	notaryTimeout := time.Second * 30
-	flag.StringVar(&metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
-	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
-	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
-	flag.BoolVar(&enableLeaderElection, "leader-elect", false,
+	var flags flags
+	flag.StringVar(&flags.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	flag.StringVar(&flags.probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
+	flag.StringVar(&flags.configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
+	flag.BoolVar(&flags.enableLeaderElection, "leader-elect", false,
 		"Enable leader election for controller manager. "+
 			"Enabling this will ensure there is only one active controller manager.")
 	opts := zap.Options{
@@ -81,9 +70,9 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	config, err := config.Load(configPath)
+	config, err := config.Load(flags.configPath)
 	if err != nil {
-		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
+		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", flags.configPath))
 		os.Exit(1)
 	}
 
@@ -91,10 +80,10 @@ func main() {
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     metricsAddr,
+		MetricsBindAddress:     flags.metricsAddr,
 		Port:                   9443,
-		HealthProbeBindAddress: probeAddr,
-		LeaderElection:         enableLeaderElection,
+		HealthProbeBindAddress: flags.probeAddr,
+		LeaderElection:         flags.enableLeaderElection,
 		LeaderElectionID:       "c3790980.warden.kyma-project.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -113,7 +102,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: notaryTimeout}
+	repoFactory := validate.NotaryRepoFactory{Timeout: config.Notary.Timeout}
 	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
 
 	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: config.Notary.URL}, AllowedRegistries: allowedRegistries}
