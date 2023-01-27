@@ -166,7 +166,7 @@ func labelForValidationResult(result validate.ValidationResult) string {
 		return pkg.ValidationStatusFailed
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess
-	case validate.ServiceUnAvailable:
+	case validate.ServiceUnavailable:
 		return pkg.ValidationStatusPending
 	default:
 		return pkg.ValidationStatusPending

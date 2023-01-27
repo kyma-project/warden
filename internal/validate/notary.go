@@ -20,6 +20,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/pkg/errors"
 	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/trustpinning"
 	"github.com/theupdateframework/notary/tuf/data"
@@ -40,21 +41,21 @@ type NotaryValidator struct {
 }
 
 type RepoFactory interface {
-	NewRepo(string, NotaryConfig) (client.Repository, error)
+	NewRepoClient(string, NotaryConfig) (client.Repository, error)
 }
 
 type NotaryRepoFactory struct {
+	Timeout time.Duration
 }
 
-func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repository, error) {
+func (f NotaryRepoFactory) NewRepoClient(img string, c NotaryConfig) (client.Repository, error) {
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
 		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
+			Timeout:   f.Timeout,
+			KeepAlive: f.Timeout,
 		}).DialContext,
-		TLSClientConfig:   nil,
 		DisableKeepAlives: true,
 	}
 	th := auth.NewTokenHandlerWithOptions(auth.TokenHandlerOptions{
@@ -72,7 +73,7 @@ func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repositor
 	u := c.Url + "/v2/"
 	pingClient := &http.Client{
 		Transport: base,
-		Timeout:   15 * time.Second,
+		Timeout:   f.Timeout,
 	}
 	req, err := http.NewRequest("GET", u, nil)
 	if err != nil {
@@ -82,14 +83,14 @@ func (f NotaryRepoFactory) NewRepo(img string, c NotaryConfig) (client.Repositor
 	if err != nil {
 		return nil, err
 	}
-	// non-nil err means we must close body
+	// nil err means we must close body
 	defer resp.Body.Close()
 	if (resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices) &&
 		resp.StatusCode != http.StatusUnauthorized {
 		// If we didn't get a 2XX range or 401 status code, we're not talking to a notary server.
 		// The http client should be configured to handle redirects so at this point, 3XX is
 		// not a valid status code.
-		return nil, err
+		return nil, errors.Errorf("couln't correctly connect to notary, status code: %d", resp.StatusCode)
 	}
 
 	cm := challenge.NewSimpleManager()

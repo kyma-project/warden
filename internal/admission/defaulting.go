@@ -11,6 +11,7 @@ import (
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"time"
 )
 
 const (
@@ -19,23 +20,46 @@ const (
 
 type DefaultingWebHook struct {
 	validationSvc validate.PodValidator
+	timeout       time.Duration
 	client        k8sclient.Client
 	decoder       *admission.Decoder
 	logger        *zap.SugaredLogger
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
 		logger:        logger,
+		timeout:       timeout,
 	}
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
-	if req.Resource.Resource != corev1.ResourcePods.String() {
+	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
+	defer cancel()
+
+	var resp admission.Response
+	done := make(chan bool)
+	go func() {
+		resp = w.handle(ctxTimeout, req)
+		done <- true
+	}()
+
+	select {
+	case <-done:
+	case <-ctxTimeout.Done():
+		if err := ctxTimeout.Err(); err != nil {
+			return admission.Errored(http.StatusRequestTimeout, err)
+		}
+	}
+	return resp
+}
+
+func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) admission.Response {
+	if req.Kind.Kind != corev1.ResourcePods.String() {
 		return admission.Errored(http.StatusBadRequest,
-			errors.Errorf("Invalid request kind:%s, expected:%s", req.Resource.Resource, corev1.ResourcePods.String()))
+			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, corev1.ResourcePods.String()))
 	}
 
 	pod := &corev1.Pod{}
@@ -93,7 +117,7 @@ func LabelForValidationResult(result validate.ValidationResult) string {
 		return pkg.ValidationStatusReject
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess
-	case validate.ServiceUnAvailable:
+	case validate.ServiceUnavailable:
 		return pkg.ValidationStatusPending
 	default:
 		return pkg.ValidationStatusPending

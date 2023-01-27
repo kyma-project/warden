@@ -40,7 +40,7 @@ func main() {
 
 	cfg := &webhook.Config{}
 	if err := envconfig.InitWithPrefix(cfg, "WEBHOOK"); err != nil {
-		logger.Error("failed to start controller-manager", err.Error())
+		logger.Error("failed to get admission config", err.Error())
 		os.Exit(1)
 	}
 
@@ -72,11 +72,13 @@ func main() {
 		os.Exit(5)
 	}
 
+	repoFactory := validate.NotaryRepoFactory{Timeout: cfg.NotaryTimeout}
+
 	validatorSvcConfig := validate.ServiceConfig{
 		NotaryConfig:      validate.NotaryConfig{Url: cfg.NotaryURL},
 		AllowedRegistries: nil,
 	}
-	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig)
+	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
 	validatorSvc := validate.NewPodValidator(podValidatorSvc)
 
 	logger.Info("setting up webhook server")
@@ -90,7 +92,7 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, cfg.Timeout, logger.With("webhook", "defaulting")),
 	})
 
 	logrZap.Info("starting the controller-manager")

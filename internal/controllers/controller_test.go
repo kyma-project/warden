@@ -6,6 +6,7 @@ import (
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -26,8 +27,8 @@ func Test_PodReconcile(t *testing.T) {
 	defer TearDown(t, testEnv)
 
 	imageValidator := mocks.NewImageValidatorService(t)
-	imageValidator.On("Validate", validImage).Return(nil).Maybe()
-	imageValidator.On("Validate", invalidImage).Return(errors.New("")).Maybe()
+	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()
+	imageValidator.On("Validate", mock.Anything, invalidImage).Return(errors.New("")).Maybe()
 
 	podValidator := validate.NewPodValidator(imageValidator)
 

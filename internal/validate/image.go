@@ -17,6 +17,7 @@ limitations under the License.
 package validate
 
 import (
+	"context"
 	"crypto/subtle"
 	"encoding/hex"
 	"errors"
@@ -32,7 +33,7 @@ const (
 
 //go:generate mockery --name=ImageValidatorService
 type ImageValidatorService interface {
-	Validate(image string) error
+	Validate(ctx context.Context, image string) error
 }
 
 type ServiceConfig struct {
@@ -45,17 +46,17 @@ type notaryService struct {
 	RepoFactory RepoFactory
 }
 
-func NewImageValidator(sc *ServiceConfig) ImageValidatorService {
+func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) ImageValidatorService {
 	return &notaryService{
 		ServiceConfig: ServiceConfig{
 			NotaryConfig:      sc.NotaryConfig,
 			AllowedRegistries: sc.AllowedRegistries,
 		},
-		RepoFactory: NotaryRepoFactory{},
+		RepoFactory: notaryClientFactory,
 	}
 }
 
-func (s *notaryService) Validate(image string) error {
+func (s *notaryService) Validate(ctx context.Context, image string) error {
 
 	split := strings.Split(image, tagDelim)
 
@@ -70,7 +71,7 @@ func (s *notaryService) Validate(image string) error {
 		return nil
 	}
 
-	expectedShaBytes, err := s.getNotaryImageDigestHash(imgRepo, imgTag)
+	expectedShaBytes, err := s.getNotaryImageDigestHash(ctx, imgRepo, imgTag)
 	if err != nil {
 		return err
 	}
@@ -124,12 +125,12 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 	return bytes, nil
 }
 
-func (s *notaryService) getNotaryImageDigestHash(imgRepo, imgTag string) ([]byte, error) {
+func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, imgTag string) ([]byte, error) {
 	if len(imgRepo) == 0 || len(imgTag) == 0 {
 		return []byte{}, errors.New("empty arguments provided")
 	}
 
-	c, err := s.RepoFactory.NewRepo(imgRepo, s.NotaryConfig)
+	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
 	if err != nil {
 		return []byte{}, err
 	}

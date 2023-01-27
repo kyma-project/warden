@@ -13,7 +13,7 @@ type ValidationResult int
 
 const (
 	Invalid ValidationResult = iota
-	ServiceUnAvailable
+	ServiceUnavailable
 	Valid
 	NoAction
 )
@@ -56,7 +56,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	admitResult := Valid
 
 	for s := range images {
-		result, err := a.validateImage(s)
+		result, err := a.validateImage(ctx, s)
 		matched[s] = result
 
 		if result == Invalid {
@@ -72,8 +72,8 @@ func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
-func (a *podValidator) validateImage(image string) (ValidationResult, error) {
-	err := a.Validator.Validate(image)
+func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationResult, error) {
+	err := a.Validator.Validate(ctx, image)
 	if err != nil {
 		return Invalid, err
 	}
