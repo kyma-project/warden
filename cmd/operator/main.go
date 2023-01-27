@@ -64,9 +64,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// TODO:remove me pls
-	setupLog.Info(fmt.Sprintf("%+v", config))
-
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
