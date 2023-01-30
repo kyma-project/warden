@@ -12,10 +12,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-30
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-36
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-30
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-36
 
   config:
     dir: /workspace
@@ -24,8 +24,19 @@ global:
     data:
       notary:
         URL: "https://signing-dev.repositories.cloud.sap"
+        timeout: 30s
         # list of comma-separated registries addresses
         allowedRegistries: ""
+      admission:
+        systemNamespace: "{{ .Release.Namespace }}"
+        serviceName: "{{ .Chart.Name }}-admission"
+        secretName: "{{ .Chart.Name }}-admission-cert"
+        timeout: 2s
+        port: 8443
+      operator:
+        metricsBindAddress: "127.0.0.1:8080"
+        healthProbeBindAddress: ":8081"
+        leaderElect: true
 
   securityContext:
     runAsNonRoot: true
