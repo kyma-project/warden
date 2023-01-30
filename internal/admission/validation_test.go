@@ -80,8 +80,8 @@ func TestValidationWebhook(t *testing.T) {
 
 			req := admission.Request{
 				AdmissionRequest: admissionv1.AdmissionRequest{
-					Resource: metav1.GroupVersionResource{Resource: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
-					Object:   runtime.RawExtension{Raw: rawPod},
+					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: rawPod},
 				}}
 
 			//WHEN
@@ -111,16 +111,16 @@ func TestValidationWebhook_Errors(t *testing.T) {
 		name: "Decode fails",
 		req: admission.Request{
 			AdmissionRequest: admissionv1.AdmissionRequest{
-				Resource: metav1.GroupVersionResource{Resource: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
-				Object:   runtime.RawExtension{Raw: []byte("")},
+				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+				Object: runtime.RawExtension{Raw: []byte("")},
 			}},
 		expectedStatus: int32(http.StatusInternalServerError),
 	},
 		{name: "Invalid request kind",
 			req: admission.Request{
 				AdmissionRequest: admissionv1.AdmissionRequest{
-					Resource: metav1.GroupVersionResource{Resource: corev1.ResourceCPU.String(), Version: corev1.SchemeGroupVersion.Version},
-					Object:   runtime.RawExtension{Raw: []byte("")},
+					Kind:   metav1.GroupVersionKind{Kind: corev1.ResourceCPU.String(), Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: []byte("")},
 				}},
 			expectedStatus: int32(http.StatusBadRequest)}}
 

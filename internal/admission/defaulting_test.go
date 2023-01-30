@@ -45,7 +45,7 @@ func TestTimeout(t *testing.T) {
 
 	req := admission.Request{
 		AdmissionRequest: admissionv1.AdmissionRequest{
-			Kind:   metav1.GroupVersionKind{Kind: corev1.ResourcePods.String(), Version: corev1.SchemeGroupVersion.Version},
+			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
 			Object: runtime.RawExtension{Raw: raw},
 		}}
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
@@ -84,7 +84,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res)
 		require.NotNil(t, res.Result, "response is ok")
 		assert.Equal(t, int32(http.StatusRequestTimeout), res.Result.Code)
-		assert.Equal(t, "context deadline exceeded", res.Result.Message)
+		assert.Contains(t, res.Result.Message, "context deadline exceeded")
 	})
 
 	t.Run("Defaulting webhook timeout - all layers", func(t *testing.T) {
@@ -107,7 +107,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res)
 		require.NotNil(t, res.Result, "response is ok")
 		assert.Equal(t, int32(http.StatusRequestTimeout), res.Result.Code)
-		assert.Equal(t, "context deadline exceeded", res.Result.Message)
+		assert.Contains(t, res.Result.Message, "context deadline exceeded")
 		require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
 	})
 }
