@@ -23,18 +23,21 @@ import (
 
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
+	"github.com/kyma-project/warden/internal/controllers/namespace"
 	"github.com/kyma-project/warden/internal/validate"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	zapk8s "sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -52,7 +55,7 @@ func init() {
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
-	opts := zap.Options{
+	opts := zapk8s.Options{
 		Development: true,
 	}
 	opts.BindFlags(flag.CommandLine)
@@ -64,7 +67,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+	ctrl.SetLogger(zapk8s.New(zapk8s.UseFlagOptions(&opts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -106,6 +109,28 @@ func main() {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
 	}
+
+	zapConfig := zap.NewDevelopmentConfig()
+	zapConfig.EncoderConfig.TimeKey = "timestamp"
+	zapConfig.Encoding = "json"
+	zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("Jan 02 15:04:05.000000000")
+
+	nsCtrl, err := zapConfig.Build()
+	if err != nil {
+		setupLog.Error(err, "unable to setup logger")
+		os.Exit(1)
+	}
+
+	// add namespace controller
+	if err = (&namespace.Reconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+		Log:    nsCtrl.Sugar(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		os.Exit(1)
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
