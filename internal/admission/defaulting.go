@@ -38,6 +38,31 @@ func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodVal
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
+	return w.handleWithLogger(ctx, req)
+}
+
+func (w *DefaultingWebHook) handleWithLogger(ctx context.Context, req admission.Request) admission.Response {
+	loggerWithReqId := w.logger.With("req-id", req.UID)
+	ctxLogger := context.WithValue(ctx, "log", loggerWithReqId)
+
+	resp := w.handleWithTimeMeasure(ctxLogger, req)
+	return resp
+}
+
+func (w *DefaultingWebHook) handleWithTimeMeasure(ctx context.Context, req admission.Request) admission.Response {
+	startTime := time.Now()
+	logger := (ctx.Value("log")).(*zap.SugaredLogger)
+	logger.Debug("request handling started")
+	defer func(startTime time.Time) {
+		duration := time.Now().Sub(startTime)
+		w.logger.Debugw("request handling finished", "exec-time", duration)
+	}(startTime)
+
+	resp := w.handleWithTimeout(ctx, req)
+	return resp
+}
+
+func (w *DefaultingWebHook) handleWithTimeout(ctx context.Context, req admission.Request) admission.Response {
 	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
 	defer cancel()
 
