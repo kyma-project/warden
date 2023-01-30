@@ -2,10 +2,9 @@ package validate
 
 import (
 	"context"
-	"github.com/pkg/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
-
+	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
+	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -40,7 +39,7 @@ func NewPodValidator(imageValidator ImageValidatorService) PodValidator {
 }
 
 func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error) {
-	l := log.FromContext(ctx)
+	logger := helpers.LoggerFromCtx(ctx) //log.FromContext(ctx)
 
 	if ns.Name != pod.Namespace {
 		return Invalid, errors.New("pod namespace mismatch with given namespace")
@@ -61,7 +60,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 
 		if result == Invalid {
 			admitResult = Invalid
-			l.Info(err.Error())
+			logger.Info(err.Error())
 		}
 	}
 

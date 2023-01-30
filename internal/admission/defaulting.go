@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
@@ -25,14 +26,14 @@ type DefaultingWebHook struct {
 	timeout       time.Duration
 	client        k8sclient.Client
 	decoder       *admission.Decoder
-	logger        *zap.SugaredLogger
+	baseLogger    *zap.SugaredLogger
 }
 
 func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
-		logger:        logger,
+		baseLogger:    logger,
 		timeout:       timeout,
 	}
 }
@@ -42,7 +43,7 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 }
 
 func (w *DefaultingWebHook) handleWithLogger(ctx context.Context, req admission.Request) admission.Response {
-	loggerWithReqId := w.logger.With("req-id", req.UID)
+	loggerWithReqId := w.baseLogger.With("req-id", req.UID)
 	ctxLogger := context.WithValue(ctx, "log", loggerWithReqId)
 
 	resp := w.handleWithTimeMeasure(ctxLogger, req)
@@ -50,12 +51,12 @@ func (w *DefaultingWebHook) handleWithLogger(ctx context.Context, req admission.
 }
 
 func (w *DefaultingWebHook) handleWithTimeMeasure(ctx context.Context, req admission.Request) admission.Response {
-	startTime := time.Now()
-	logger := (ctx.Value("log")).(*zap.SugaredLogger)
+	logger := helpers.LoggerFromCtx(ctx)
 	logger.Debug("request handling started")
+	startTime := time.Now()
 	defer func(startTime time.Time) {
 		duration := time.Now().Sub(startTime)
-		w.logger.Debugw("request handling finished", "exec-time", duration)
+		logger.Debugw("request handling finished", "exec-time", duration)
 	}(startTime)
 
 	resp := w.handleWithTimeout(ctx, req)
@@ -77,6 +78,7 @@ func (w *DefaultingWebHook) handleWithTimeout(ctx context.Context, req admission
 	case <-done:
 	case <-ctxTimeout.Done():
 		if err := ctxTimeout.Err(); err != nil {
+			helpers.LoggerFromCtx(ctx).Infof("request exceeded desired timeout: %s", w.timeout.String())
 			return admission.Errored(http.StatusRequestTimeout, errors.Wrapf(err, "request exceeded desired timeout: %s", w.timeout.String()))
 		}
 	}
@@ -113,7 +115,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	w.logger.Infof("pod was validated: %s, %s", pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
+	helpers.LoggerFromCtx(ctx).Infof("pod was validated: %s, %s", pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
 }
 
