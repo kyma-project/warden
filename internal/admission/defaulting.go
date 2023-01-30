@@ -18,6 +18,8 @@ const (
 	DefaultingPath = "/defaulting/pods"
 )
 
+const PodType = "Pod"
+
 type DefaultingWebHook struct {
 	validationSvc validate.PodValidator
 	timeout       time.Duration
@@ -50,16 +52,16 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 	case <-done:
 	case <-ctxTimeout.Done():
 		if err := ctxTimeout.Err(); err != nil {
-			return admission.Errored(http.StatusRequestTimeout, err)
+			return admission.Errored(http.StatusRequestTimeout, errors.Wrapf(err, "request exceeded desired timeout: %s", w.timeout.String()))
 		}
 	}
 	return resp
 }
 
 func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) admission.Response {
-	if req.Kind.Kind != corev1.ResourcePods.String() {
+	if req.Kind.Kind != PodType {
 		return admission.Errored(http.StatusBadRequest,
-			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, corev1.ResourcePods.String()))
+			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, PodType))
 	}
 
 	pod := &corev1.Pod{}

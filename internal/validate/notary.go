@@ -90,7 +90,7 @@ func (f NotaryRepoFactory) NewRepoClient(img string, c NotaryConfig) (client.Rep
 		// If we didn't get a 2XX range or 401 status code, we're not talking to a notary server.
 		// The http client should be configured to handle redirects so at this point, 3XX is
 		// not a valid status code.
-		return nil, errors.Errorf("couln't correctly connect to notary, status code: %d", resp.StatusCode)
+		return nil, errors.Errorf("couldn't correctly connect to notary, status code: %d", resp.StatusCode)
 	}
 
 	cm := challenge.NewSimpleManager()

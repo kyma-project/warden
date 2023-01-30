@@ -27,9 +27,9 @@ func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) adm
 		return admission.Allowed("")
 	}
 
-	if req.Resource.Resource != corev1.ResourcePods.String() {
+	if req.Kind.Kind != PodType {
 		return admission.Errored(http.StatusBadRequest,
-			errors.Errorf("Invalid request kind:%s, expected:%s", req.Resource.Resource, corev1.ResourcePods.String()))
+			errors.Errorf("Invalid request kind:%s, expected:%s", req.Kind.Kind, PodType))
 	}
 
 	pod := &corev1.Pod{}
