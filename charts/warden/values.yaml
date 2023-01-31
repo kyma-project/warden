@@ -12,10 +12,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:v20230130-796b77d1
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230130-796b77d1
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:v20230130-796b77d1
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230130-796b77d1
 
   config:
     dir: /workspace
