@@ -55,8 +55,7 @@ func (w *DefaultingWebHook) handleWithTimeMeasure(ctx context.Context, req admis
 	logger.Debug("request handling started")
 	startTime := time.Now()
 	defer func(startTime time.Time) {
-		duration := time.Now().Sub(startTime)
-		logger.Debugw("request handling finished", "exec-time", duration)
+		helpers.LogEndTime(ctx, "request handling finished", startTime)
 	}(startTime)
 
 	resp := w.handleWithTimeout(ctx, req)

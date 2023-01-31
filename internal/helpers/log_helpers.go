@@ -7,8 +7,12 @@ import (
 	"time"
 )
 
+type logkey string
+
+const keyLog logkey = "log"
+
 func LoggerFromCtx(ctx context.Context) *zap.SugaredLogger {
-	logger := (ctx.Value("log")).(*zap.SugaredLogger)
+	logger := (ctx.Value(keyLog)).(*zap.SugaredLogger)
 	if logger != nil {
 		return logger
 	}
@@ -26,6 +30,6 @@ func LogStartTime(ctx context.Context, message string) time.Time {
 
 func LogEndTime(ctx context.Context, message string, startTime time.Time) {
 	logger := LoggerFromCtx(ctx)
-	duration := time.Now().Sub(startTime)
+	duration := time.Since(startTime)
 	logger.Debugw(fmt.Sprintf("%s end", message), "exec-time", duration)
 }
