@@ -8,13 +8,13 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type ValidationResult int
+type ValidationResult string
 
 const (
-	Invalid ValidationResult = iota
-	ServiceUnavailable
-	Valid
-	NoAction
+	Invalid            = "Invalid"
+	ServiceUnavailable = "ServiceUnavailable"
+	Valid              = "Valid"
+	NoAction           = "NoAction"
 )
 
 //go:generate mockery --name PodValidator
@@ -52,7 +52,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 
 	images := getAllImages(pod)
 
-	admitResult := Valid
+	var admitResult ValidationResult = Valid
 
 	for s := range images {
 		result, err := a.validateImage(ctx, s)

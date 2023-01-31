@@ -146,12 +146,18 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 		return []byte{}, errors.New("empty arguments provided")
 	}
 
+	const messageNewRepoClient = "request to notary (NewRepoClient)"
+	startTimeNewRepoClient := helpers.LogStartTime(ctx, messageNewRepoClient)
 	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
+	helpers.LogEndTime(ctx, messageNewRepoClient, startTimeNewRepoClient)
 	if err != nil {
 		return []byte{}, err
 	}
 
+	const messageGetTargetByName = "request to notary (GetTargetByName)"
+	startTimeGetTargetByName := helpers.LogStartTime(ctx, messageGetTargetByName)
 	target, err := c.GetTargetByName(imgTag)
+	helpers.LogEndTime(ctx, messageGetTargetByName, startTimeGetTargetByName)
 	if err != nil {
 		return []byte{}, err
 	}

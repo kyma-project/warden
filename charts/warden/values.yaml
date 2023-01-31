@@ -31,7 +31,7 @@ global:
         systemNamespace: "{{ .Release.Namespace }}"
         serviceName: "{{ .Chart.Name }}-admission"
         secretName: "{{ .Chart.Name }}-admission-cert"
-        timeout: 2s
+        timeout: 20s
         port: 8443
       operator:
         metricsBindAddress: "127.0.0.1:8080"

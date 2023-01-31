@@ -109,13 +109,13 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Allowed("validation is not enabled for pod")
 	}
 
-	labeledPod := labelPod(result, pod)
+	labeledPod := labelPod(ctx, result, pod)
 	fBytes, err := json.Marshal(labeledPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	helpers.LoggerFromCtx(ctx).Infof("pod was validated: %s, %s", pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
+	helpers.LoggerFromCtx(ctx).Infof("pod was validated: %s, %s, %s", result, pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
 }
 
@@ -124,8 +124,9 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 	return nil
 }
 
-func labelPod(result validate.ValidationResult, pod *corev1.Pod) *corev1.Pod {
+func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod) *corev1.Pod {
 	labelToApply := LabelForValidationResult(result)
+	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s`", labelToApply)
 	if labelToApply == "" {
 		return pod
 	}
