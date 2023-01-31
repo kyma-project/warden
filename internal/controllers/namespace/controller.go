@@ -3,6 +3,7 @@ package namespace
 import (
 	"context"
 
+	"github.com/google/uuid"
 	warden "github.com/kyma-project/warden/pkg"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
@@ -25,21 +26,23 @@ type Reconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	r.Log.With("req", req).Info("reconciliation started")
+	reqUUID := uuid.New().String()
+
+	logger := r.Log.With("req", req).With("reqUUID", reqUUID)
+	logger.Info("reconciliation started")
 
 	var instance corev1.Namespace
 	if err := r.Get(ctx, req.NamespacedName, &instance); err != nil {
-		r.Log.Debug("unable to fetch namespace, requeueing")
+		logger.Error("unable to fetch namespace, requeueing")
 		return ctrl.Result{
 			Requeue: true,
 		}, client.IgnoreNotFound(err)
 	}
 
-	value, found := instance.Labels[warden.NamespaceValidationLabel]
-	if !found || value != warden.NamespaceValidationEnabled {
+	if !nsValidationLabelSet(instance.Labels) {
 		var result ctrl.Result
-		r.Log.With("result", result).
-			Debugf("validation lable not found: %s, reconciliation finished", warden.NamespaceValidationLabel)
+		logger.With("result", result).
+			Debugf("validation lable: %s not found, omitting update namespace event", warden.NamespaceValidationLabel)
 		return ctrl.Result{}, nil
 	}
 
@@ -49,29 +52,28 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	r.Log.With("podCount", len(pods.Items)).Debug("pod fetching succeeded")
+	logger.With("podCount", len(pods.Items)).Debug("pod fetching succeeded")
 
 	var labledCount int
 	// label all pods with validation pending; requeue in case any error
 	for i, pod := range pods.Items {
 		if err := labelWithValidationPendin(ctx, r.Patch, &pod); err != nil {
-			r.Log.Errorf("pod labeling error: %s", err)
+			logger.Errorf("pod labeling error: %s", err)
 			continue
 		}
 
 		labledCount++
-		r.Log.With("name", pod.Name).
-			With("namespace", pod.Namespace).
+		logger.With("name", pod.Name).With("namespace", pod.Namespace).
 			Debugf("pod labeling succeeded %d/%d", i, len(pods.Items))
 	}
 
-	r.Log.Debugf("%d/%d pod[s] labeled", labledCount, len(pods.Items))
+	logger.Debugf("%d/%d pod[s] labeled", labledCount, len(pods.Items))
 
 	result := ctrl.Result{
 		Requeue: len(pods.Items) != labledCount,
 	}
 
-	r.Log.With("result", result).Debug("reconciliation finished")
+	logger.With("result", result).Debug("reconciliation finished")
 
 	return result, nil
 }

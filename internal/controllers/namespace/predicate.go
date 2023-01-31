@@ -7,10 +7,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
+// predicate options
 type predicateOps struct {
 	logger *zap.SugaredLogger
 }
 
+// buildNsCreateReject creates function to reject all incomming create events
 func buildNsCreateReject(ops predicateOps) func(event.CreateEvent) bool {
 	return func(_ event.CreateEvent) bool {
 		ops.logger.Debug("omitting incomming create namespace event")
@@ -18,6 +20,7 @@ func buildNsCreateReject(ops predicateOps) func(event.CreateEvent) bool {
 	}
 }
 
+// buildNsDeleteReject creates function to reject all incomming delete events
 func buildNsDeleteReject(ops predicateOps) func(event.DeleteEvent) bool {
 	return func(_ event.DeleteEvent) bool {
 		ops.logger.Debug("omitting incomming delete namespace event")
@@ -25,6 +28,7 @@ func buildNsDeleteReject(ops predicateOps) func(event.DeleteEvent) bool {
 	}
 }
 
+// buildNsGenericReject creates function to reject all incomming generic events
 func buildNsGenericReject(ops predicateOps) func(event.GenericEvent) bool {
 	return func(_ event.GenericEvent) bool {
 		ops.logger.Debug("omitting incomming generic namespace event")
@@ -32,6 +36,7 @@ func buildNsGenericReject(ops predicateOps) func(event.GenericEvent) bool {
 	}
 }
 
+// newWardenLabelsAdded creates predicate to check if validation label was added
 func newWardenLabelsAdded(ops predicateOps) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc:  buildNsCreateReject(ops),
@@ -41,6 +46,15 @@ func newWardenLabelsAdded(ops predicateOps) predicate.Funcs {
 	}
 }
 
+func nsValidationLabelSet(labels map[string]string) bool {
+	value, found := labels[warden.NamespaceValidationLabel]
+	if found && value == warden.NamespaceValidationEnabled {
+		return true
+	}
+	return false
+}
+
+// buildNsUpdated creates function to check if validation label was added
 func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 	return func(evt event.UpdateEvent) bool {
 		ops.logger.
@@ -48,15 +62,15 @@ func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 			With("newLabels", evt.ObjectNew.GetLabels()).
 			Debug("incomming update namespace event")
 
-		oldValue, found := evt.ObjectOld.GetLabels()[warden.NamespaceValidationLabel]
-		if found && oldValue == warden.NamespaceValidationEnabled {
-			ops.logger.Debug("omitting update namespace event")
+		if nsValidationLabelSet(evt.ObjectOld.GetLabels()) {
+			ops.logger.Debugf("validation label '%s' already exists, omitting update namespace event",
+				warden.NamespaceValidationLabel)
 			return false
 		}
 
-		newValue, found := evt.ObjectNew.GetLabels()[warden.NamespaceValidationLabel]
-		if !found || newValue != warden.NamespaceValidationEnabled {
-			ops.logger.Debug("omitting update namespace event")
+		if !nsValidationLabelSet(evt.ObjectNew.GetLabels()) {
+			ops.logger.Debugf("validation lable: %s not found, omitting update namespace event",
+				warden.NamespaceValidationLabel)
 			return false
 		}
 

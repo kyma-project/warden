@@ -11,12 +11,18 @@ import (
 type patch func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
 
 func labelWithValidationPendin(ctx context.Context, patch patch, pod *corev1.Pod) error {
+	// if validation label is already set do not patch the pod
+	value, found := pod.Labels[warden.PodValidationLabel]
+	if found && value == warden.ValidationStatusPending {
+		return nil
+	}
+
 	// make a deep copy and initialize labels if needed
 	podCopy := pod.DeepCopy()
 	if podCopy.Labels == nil {
 		podCopy.Labels = make(map[string]string, 1)
 	}
 	// add validation lable and apply patch
-	podCopy.Labels[warden.NamespaceValidationLabel] = warden.NamespaceValidationEnabled
+	podCopy.Labels[warden.PodValidationLabel] = warden.ValidationStatusPending
 	return patch(ctx, podCopy, client.MergeFrom(pod))
 }
