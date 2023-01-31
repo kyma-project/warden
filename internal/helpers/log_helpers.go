@@ -8,7 +8,13 @@ import (
 )
 
 func LoggerFromCtx(ctx context.Context) *zap.SugaredLogger {
-	return (ctx.Value("log")).(*zap.SugaredLogger)
+	logger := (ctx.Value("log")).(*zap.SugaredLogger)
+	if logger != nil {
+		return logger
+	}
+	logger = zap.NewExample().Sugar().With("WARNING", "uninitialized logger from context")
+	logger.Warn("couldn't find logger in context")
+	return logger
 }
 
 func LogStartTime(ctx context.Context, message string) time.Time {
