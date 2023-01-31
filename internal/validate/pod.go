@@ -39,7 +39,7 @@ func NewPodValidator(imageValidator ImageValidatorService) PodValidator {
 }
 
 func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error) {
-	logger := helpers.LoggerFromCtx(ctx) //log.FromContext(ctx)
+	logger := helpers.LoggerFromCtx(ctx)
 
 	if ns.Name != pod.Namespace {
 		return Invalid, errors.New("pod namespace mismatch with given namespace")
