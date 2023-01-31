@@ -12,12 +12,12 @@ type logkey string
 const keyLog logkey = "log"
 
 func LoggerFromCtx(ctx context.Context) *zap.SugaredLogger {
-	logger := (ctx.Value(keyLog)).(*zap.SugaredLogger)
-	if logger != nil {
-		return logger
+	logger, ok := ctx.Value(keyLog).(*zap.SugaredLogger)
+	if logger == nil || !ok {
+		tmpLogger := zap.NewExample().Sugar().With("WARNING", "uninitialized logger from context")
+		tmpLogger.Warn("couldn't find logger in context")
+		return tmpLogger
 	}
-	logger = zap.NewExample().Sugar().With("WARNING", "uninitialized logger from context")
-	logger.Warn("couldn't find logger in context")
 	return logger
 }
 

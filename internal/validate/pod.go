@@ -11,10 +11,10 @@ import (
 type ValidationResult string
 
 const (
-	Invalid            = "Invalid"
-	ServiceUnavailable = "ServiceUnavailable"
-	Valid              = "Valid"
-	NoAction           = "NoAction"
+	Invalid            ValidationResult = "Invalid"
+	ServiceUnavailable ValidationResult = "ServiceUnavailable"
+	Valid              ValidationResult = "Valid"
+	NoAction           ValidationResult = "NoAction"
 )
 
 //go:generate mockery --name PodValidator
@@ -52,7 +52,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 
 	images := getAllImages(pod)
 
-	var admitResult ValidationResult = Valid
+	admitResult := Valid
 
 	for s := range images {
 		result, err := a.validateImage(ctx, s)
