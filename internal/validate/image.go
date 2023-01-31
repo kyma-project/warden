@@ -22,10 +22,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
-
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/kyma-project/warden/internal/helpers"
+	"strings"
 )
 
 const (
@@ -58,7 +58,6 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 }
 
 func (s *notaryService) Validate(ctx context.Context, image string) error {
-
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
@@ -72,12 +71,12 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 		return nil
 	}
 
-	expectedShaBytes, err := s.getNotaryImageDigestHash(ctx, imgRepo, imgTag)
+	expectedShaBytes, err := s.loggedGetNotaryImageDigestHash(ctx, imgRepo, imgTag)
 	if err != nil {
 		return err
 	}
 
-	shaBytes, err := s.getImageDigestHash(image)
+	shaBytes, err := s.loggedGetImageDigestHash(ctx, image)
 	if err != nil {
 		return err
 	}
@@ -97,6 +96,14 @@ func (s *notaryService) isImageAllowed(imgRepo string) bool {
 		}
 	}
 	return false
+}
+
+func (s *notaryService) loggedGetImageDigestHash(ctx context.Context, image string) ([]byte, error) {
+	const message = "request to image registry"
+	startTime := helpers.LogStartTime(ctx, message)
+	result, err := s.getImageDigestHash(image)
+	helpers.LogEndTime(ctx, message, startTime)
+	return result, err
 }
 
 func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
@@ -126,17 +133,31 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 	return bytes, nil
 }
 
+func (s *notaryService) loggedGetNotaryImageDigestHash(ctx context.Context, imgRepo, imgTag string) ([]byte, error) {
+	const message = "request to notary"
+	startTime := helpers.LogStartTime(ctx, message)
+	result, err := s.getNotaryImageDigestHash(ctx, imgRepo, imgTag)
+	helpers.LogEndTime(ctx, message, startTime)
+	return result, err
+}
+
 func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, imgTag string) ([]byte, error) {
 	if len(imgRepo) == 0 || len(imgTag) == 0 {
 		return []byte{}, errors.New("empty arguments provided")
 	}
 
+	const messageNewRepoClient = "request to notary (NewRepoClient)"
+	startTimeNewRepoClient := helpers.LogStartTime(ctx, messageNewRepoClient)
 	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
+	helpers.LogEndTime(ctx, messageNewRepoClient, startTimeNewRepoClient)
 	if err != nil {
 		return []byte{}, err
 	}
 
+	const messageGetTargetByName = "request to notary (GetTargetByName)"
+	startTimeGetTargetByName := helpers.LogStartTime(ctx, messageGetTargetByName)
 	target, err := c.GetTargetByName(imgTag)
+	helpers.LogEndTime(ctx, messageGetTargetByName, startTimeGetTargetByName)
 	if err != nil {
 		return []byte{}, err
 	}
