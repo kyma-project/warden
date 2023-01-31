@@ -44,7 +44,7 @@ func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) a
 
 func (w *DefaultingWebHook) handleWithLogger(ctx context.Context, req admission.Request) admission.Response {
 	loggerWithReqId := w.baseLogger.With("req-id", req.UID)
-	ctxLogger := context.WithValue(ctx, "log", loggerWithReqId)
+	ctxLogger := helpers.LoggerToContext(ctx, loggerWithReqId)
 
 	resp := w.handleWithTimeMeasure(ctxLogger, req)
 	return resp

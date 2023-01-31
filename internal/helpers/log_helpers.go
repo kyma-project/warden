@@ -11,6 +11,11 @@ type logkey string
 
 const keyLog logkey = "log"
 
+func LoggerToContext(ctx context.Context, logger *zap.SugaredLogger) context.Context {
+	ctxLogger := context.WithValue(ctx, keyLog, logger)
+	return ctxLogger
+}
+
 func LoggerFromCtx(ctx context.Context) *zap.SugaredLogger {
 	logger, ok := ctx.Value(keyLog).(*zap.SugaredLogger)
 	if logger == nil || !ok {
