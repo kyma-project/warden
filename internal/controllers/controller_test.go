@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/kyma-project/warden/internal/controllers/test_suite"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
@@ -23,8 +24,8 @@ const (
 )
 
 func Test_PodReconcile(t *testing.T) {
-	testEnv, k8sClient := Setup(t)
-	defer TearDown(t, testEnv)
+	testEnv, k8sClient := test_suite.Setup(t)
+	defer test_suite.TearDown(t, testEnv)
 
 	imageValidator := mocks.NewImageValidatorService(t)
 	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()

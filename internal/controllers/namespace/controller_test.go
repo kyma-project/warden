@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"github.com/kyma-project/warden/internal/controllers/test_suite"
 	"testing"
 	"time"
 
@@ -22,8 +23,8 @@ const (
 )
 
 func Test_NamespaceReconcile(t *testing.T) {
-	testEnv, k8sClient := Setup(t)
-	defer TearDown(t, testEnv)
+	testEnv, k8sClient := test_suite.Setup(t)
+	defer test_suite.TearDown(t, testEnv)
 
 	type args struct {
 		client        client.Client
