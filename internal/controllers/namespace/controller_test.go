@@ -3,6 +3,7 @@ package namespace
 import (
 	"context"
 	"github.com/kyma-project/warden/internal/controllers/test_suite"
+	"github.com/kyma-project/warden/internal/test_helpers"
 	"testing"
 	"time"
 
@@ -56,7 +57,7 @@ func Test_NamespaceReconcile(t *testing.T) {
 	ctrl := Reconciler{
 		Client: k8sClient,
 		Scheme: scheme.Scheme,
-		Log:    newTestZapLogger(t).Sugar(),
+		Log:    test_helpers.NewTestZapLogger(t).Sugar(),
 	}
 
 	type args struct {

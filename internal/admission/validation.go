@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
@@ -15,14 +16,22 @@ const (
 )
 
 type ValidationWebhook struct {
-	decoder *admission.Decoder
+	decoder    *admission.Decoder
+	baseLogger *zap.SugaredLogger
 }
 
-func NewValidationWebhook() *ValidationWebhook {
-	return &ValidationWebhook{}
+func NewValidationWebhook(logger *zap.SugaredLogger) *ValidationWebhook {
+	return &ValidationWebhook{
+		baseLogger: logger,
+	}
 }
 
-func (w *ValidationWebhook) Handle(_ context.Context, req admission.Request) admission.Response {
+func (w *ValidationWebhook) Handle(ctx context.Context, req admission.Request) admission.Response {
+	return HandleWithLogger(w.baseLogger,
+		HandlerWithTimeMeasure(w.handle))(ctx, req)
+}
+
+func (w *ValidationWebhook) handle(_ context.Context, req admission.Request) admission.Response {
 	if req.Operation == admissionv1.Delete {
 		return admission.Allowed("")
 	}

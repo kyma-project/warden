@@ -99,7 +99,7 @@ func main() {
 	whs.KeyName = certs.KeyFile
 
 	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
-		Handler: admission.NewValidationWebhook(),
+		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation")),
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
