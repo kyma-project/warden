@@ -58,7 +58,7 @@ func TestTimeout(t *testing.T) {
 			After(timeout/2).
 			Return(validate.Valid, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, logger.Sugar())
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 
 		//WHEN
@@ -76,7 +76,7 @@ func TestTimeout(t *testing.T) {
 			After(timeout*2).
 			Return(validate.Valid, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, logger.Sugar())
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -99,7 +99,7 @@ func TestTimeout(t *testing.T) {
 
 		validateImage := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: srv.URL}}, validate.NotaryRepoFactory{})
 		validationSvc := validate.NewPodValidator(validateImage)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, logger.Sugar())
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -111,6 +111,71 @@ func TestTimeout(t *testing.T) {
 		assert.Contains(t, res.Result.Message, "context deadline exceeded")
 		require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
 	})
+}
+
+func TestStrictMode(t *testing.T) {
+	tests := []struct {
+		name        string
+		strictMode  bool
+		wantedLabel string
+	}{
+		{
+			name:        "Strict mode on",
+			strictMode:  true,
+			wantedLabel: pkg.ValidationStatusReject,
+		},
+		{
+			name:        "Strict mode off",
+			strictMode:  false,
+			wantedLabel: pkg.ValidationStatusPending,
+		},
+	}
+
+	logger := zap.NewNop()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	decoder, err := admission.NewDecoder(scheme)
+	require.NoError(t, err)
+	timeout := time.Millisecond * 30
+
+	testNs := "test-namespace"
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
+		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+	}}}
+
+	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Image: "test:test"}}},
+	}
+	req := newRequestFix(t, pod)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			validationSvc := mocks.NewPodValidator(t)
+
+			validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+				Return(validate.ServiceUnavailable, nil).Once()
+			defer validationSvc.AssertExpectations(t)
+			webhook := NewDefaultingWebhook(client, validationSvc, timeout, tt.strictMode, logger.Sugar())
+			require.NoError(t, webhook.InjectDecoder(decoder))
+
+			//WHEN
+			res := webhook.Handle(context.TODO(), req)
+
+			//THEN
+			require.NotNil(t, res)
+			require.Nil(t, res.Result)
+			require.True(t, res.AdmissionResponse.Allowed)
+			require.Len(t, res.Patches, 1)
+			require.Len(t, res.Patches[0].Value, 1)
+			require.Equal(t, "add", res.Patches[0].Operation)
+			require.Equal(t, "/metadata/labels", res.Patches[0].Path)
+			patchValue := (res.Patches[0].Value).(map[string]interface{})
+			require.Contains(t, patchValue, pkg.PodValidationLabel)
+			require.Equal(t, tt.wantedLabel, patchValue[pkg.PodValidationLabel])
+		})
+	}
 }
 
 func TestFlow(t *testing.T) {
@@ -211,7 +276,7 @@ func TestFlow(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 			timeout := time.Second
-			webhook := NewDefaultingWebhook(client, podValidator, timeout, logger.Sugar())
+			webhook := NewDefaultingWebhook(client, podValidator, timeout, false, logger.Sugar())
 			require.NoError(t, webhook.InjectDecoder(decoder))
 
 			//WHEN

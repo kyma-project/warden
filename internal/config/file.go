@@ -20,6 +20,7 @@ type admission struct {
 	SecretName      string        `yaml:"secretName"`
 	Timeout         time.Duration `yaml:"timeout"`
 	Port            int           `yaml:"port"`
+	StrictMode      bool          `yaml:"strictMode"`
 }
 
 type operator struct {
@@ -70,6 +71,7 @@ func defaultConfig() *config {
 			SecretName:      "warden-admission-cert",
 			Port:            8443,
 			Timeout:         time.Second * 2,
+			StrictMode:      false,
 		},
 		Operator: operator{
 			MetricsBindAddress:        ":8080",

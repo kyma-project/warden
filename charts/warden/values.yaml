@@ -35,6 +35,7 @@ global:
         secretName: "{{ .Chart.Name }}-admission-cert"
         timeout: 10s
         port: 8443
+        strictMode: false
       operator:
         metricsBindAddress: "127.0.0.1:8080"
         healthProbeBindAddress: ":8081"
