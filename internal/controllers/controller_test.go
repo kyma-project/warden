@@ -101,8 +101,8 @@ func Test_PodReconcile(t *testing.T) {
 			finalPod := corev1.Pod{}
 			require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
 
-			labeValue, ok := finalPod.Labels[pkg.PodValidationLabel]
-			require.True(t, ok)
+			labeValue, found := finalPod.Labels[pkg.PodValidationLabel]
+			require.True(t, found)
 			require.Equal(t, tc.expectedLabel, labeValue)
 		})
 	}

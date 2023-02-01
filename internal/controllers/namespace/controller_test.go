@@ -12,7 +12,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/utils/pointer"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -27,31 +26,34 @@ func Test_NamespaceReconcile(t *testing.T) {
 	defer test_suite.TearDown(t, testEnv)
 
 	type args struct {
-		client        client.Client
-		pod           *corev1.Pod
-		ns            *corev1.Namespace
-		expectedLabel *string
+		client             client.Client
+		pod                corev1.Pod
+		ns                 *corev1.Namespace
+		expectedLabelValue string
 	}
+
+	podSpec := corev1.PodSpec{
+		Containers: []corev1.Container{
+			{
+				Image: "test-image",
+				Name:  "container",
+			},
+		},
+	}
+	//TODO: create namespaces before
 
 	tests := []struct {
 		name string
 		args args
 	}{
 		{
-			name: "Happy Path with pod having no lables",
+			name: "Happy Path with pod having no label",
 			args: args{
 				client: k8sClient,
-				pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 					Namespace: validatableNs,
 					Name:      "valid-pod"},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Image: "test-image",
-								Name:  "container",
-							},
-						},
-					},
+					Spec: podSpec,
 				},
 				ns: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 					Name: validatableNs,
@@ -59,32 +61,26 @@ func Test_NamespaceReconcile(t *testing.T) {
 						warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled,
 					}},
 				},
-				expectedLabel: pointer.String(warden.ValidationStatusPending),
+				expectedLabelValue: warden.ValidationStatusPending,
 			},
 		},
 		{
-			name: "Happy Path with lable reset",
+			name: "Happy Path with label reset",
 			args: args{
 				client: k8sClient,
-				pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 					Namespace: validatableNs,
 					Name:      "valid-pod-2",
 					Labels: map[string]string{
 						warden.PodValidationLabel: warden.ValidationStatusSuccess,
 					},
 				},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Image: "test-image",
-								Name:  "container",
-							},
-						},
-					},
+					Spec: podSpec,
 				},
-				expectedLabel: pointer.String(warden.ValidationStatusPending),
+				expectedLabelValue: warden.ValidationStatusPending,
 			},
 		},
+		//TODO: investigate this
 		{
 			name: "Happy Path, no pods",
 			args: args{
@@ -95,23 +91,16 @@ func Test_NamespaceReconcile(t *testing.T) {
 			name: "Namespace not labeled",
 			args: args{
 				client: k8sClient,
-				pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 					Namespace: unvalidatableNs,
 					Name:      "valid-pod-3"},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Image: "test-image",
-								Name:  "container",
-							},
-						},
-					},
+					Spec: podSpec,
 				},
 				ns: &corev1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: unvalidatableNs,
 						Labels: map[string]string{
-							"some": "labe",
+							"some": "label",
 						},
 					},
 				},
@@ -137,9 +126,7 @@ func Test_NamespaceReconcile(t *testing.T) {
 				Log:    newTestZapLogger(t).Sugar(),
 			}
 
-			if tt.args.pod != nil {
-				require.NoError(t, k8sClient.Create(ctx, tt.args.pod))
-			}
+			require.NoError(t, k8sClient.Create(ctx, &tt.args.pod))
 
 			req := reconcile.Request{
 				NamespacedName: types.NamespacedName{
@@ -149,22 +136,14 @@ func Test_NamespaceReconcile(t *testing.T) {
 
 			_, err := ctrl.Reconcile(ctx, req)
 
-			if tt.args.pod != nil {
-				require.NoError(t, err)
-				key := client.ObjectKeyFromObject(tt.args.pod)
+			require.NoError(t, err)
+			key := client.ObjectKeyFromObject(&tt.args.pod)
 
-				finalPod := corev1.Pod{}
-				require.NoError(t, k8sClient.Get(ctx, key, &finalPod))
+			finalPod := corev1.Pod{}
+			require.NoError(t, k8sClient.Get(ctx, key, &finalPod))
 
-				labeValue, found := finalPod.Labels[warden.PodValidationLabel]
-				if tt.args.expectedLabel == nil {
-					require.False(t, found)
-					return
-				}
-
-				require.True(t, found)
-				require.Equal(t, *tt.args.expectedLabel, labeValue)
-			}
+			labelValue := finalPod.Labels[warden.PodValidationLabel]
+			require.Equal(t, tt.args.expectedLabelValue, labelValue)
 		})
 	}
 }

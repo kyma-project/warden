@@ -127,7 +127,7 @@ func main() {
 		Scheme: mgr.GetScheme(),
 		Log:    nsCtrl.Sugar(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
+		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
 	}
 

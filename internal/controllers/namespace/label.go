@@ -10,7 +10,7 @@ import (
 
 type patch func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error
 
-func labelWithValidationPendin(ctx context.Context, patch patch, pod *corev1.Pod) error {
+func labelWithValidationPending(ctx context.Context, pod *corev1.Pod, patch patch) error {
 	// if validation label is already set do not patch the pod
 	value, found := pod.Labels[warden.PodValidationLabel]
 	if found && value == warden.ValidationStatusPending {
@@ -22,7 +22,7 @@ func labelWithValidationPendin(ctx context.Context, patch patch, pod *corev1.Pod
 	if podCopy.Labels == nil {
 		podCopy.Labels = make(map[string]string, 1)
 	}
-	// add validation lable and apply patch
+	// add validation label and apply patch
 	podCopy.Labels[warden.PodValidationLabel] = warden.ValidationStatusPending
 	return patch(ctx, podCopy, client.MergeFrom(pod))
 }

@@ -3,6 +3,7 @@ package namespace
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	warden "github.com/kyma-project/warden/pkg"
@@ -17,9 +18,8 @@ func Test_labelWithValidationPendin(t *testing.T) {
 		pod   *corev1.Pod
 	}
 	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
+		name string
+		args args
 	}{
 		{
 			name: "validation label already set to pending",
@@ -33,7 +33,6 @@ func Test_labelWithValidationPendin(t *testing.T) {
 					},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "pending validation label should be added",
@@ -43,7 +42,6 @@ func Test_labelWithValidationPendin(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{},
 				},
 			},
-			wantErr: false,
 		},
 		{
 			name: "validation label reset from success to pending",
@@ -57,14 +55,15 @@ func Test_labelWithValidationPendin(t *testing.T) {
 					},
 				},
 			},
-			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := labelWithValidationPendin(context.Background(), tt.args.patch, tt.args.pod); (err != nil) != tt.wantErr {
-				t.Errorf("labelWithValidationPendin() error = %v, wantErr %v", err, tt.wantErr)
-			}
+			//WHEN
+			err := labelWithValidationPending(context.Background(), tt.args.pod, tt.args.patch)
+
+			//THEN
+			require.NoError(t, err)
 		})
 	}
 }

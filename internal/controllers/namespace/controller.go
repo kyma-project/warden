@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
 	warden "github.com/kyma-project/warden/pkg"
@@ -10,7 +11,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 // PodReconciler reconciles a Pod object
@@ -18,6 +18,16 @@ type Reconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	Log    *zap.SugaredLogger
+}
+
+// SetupWithManager sets up the controller with the Manager.
+func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Namespace{}).
+		WithEventFilter(predicate.And(
+			newWardenLabelsAdded(predicateOps{logger: r.Log}),
+		)).
+		Complete(r)
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=list;update
@@ -43,7 +53,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		var result ctrl.Result
 		logger.With("result", result).
 			Debugf("validation lable: %s not found, omitting update namespace event", warden.NamespaceValidationLabel)
-		return ctrl.Result{}, nil
+		return result, nil
 	}
 
 	// fetch all the pods in the given namespace
@@ -57,7 +67,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	var labledCount int
 	// label all pods with validation pending; requeue in case any error
 	for i, pod := range pods.Items {
-		if err := labelWithValidationPendin(ctx, r.Patch, &pod); err != nil {
+		if err := labelWithValidationPending(ctx, &pod, r.Patch); err != nil {
 			logger.Errorf("pod labeling error: %s", err)
 			continue
 		}
@@ -76,14 +86,4 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	logger.With("result", result).Debug("reconciliation finished")
 
 	return result, nil
-}
-
-// SetupWithManager sets up the controller with the Manager.
-func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&corev1.Namespace{}).
-		WithEventFilter(predicate.And(
-			newWardenLabelsAdded(predicateOps{logger: r.Log}),
-		)).
-		Complete(r)
 }
