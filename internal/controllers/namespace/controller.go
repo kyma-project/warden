@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
@@ -59,12 +60,12 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	// fetch all the pods in the given namespace
 	var pods corev1.PodList
 	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: req.Name}); err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, errors.Wrap(err, "while fetching list of pods")
 	}
 
 	logger.With("podCount", len(pods.Items)).Debug("pod fetching succeeded")
 
-	var labledCount int
+	var labelCount int
 	// label all pods with validation pending; requeue in case any error
 	for i, pod := range pods.Items {
 		if err := labelWithValidationPending(ctx, &pod, r.Patch); err != nil {
@@ -72,15 +73,15 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			continue
 		}
 
-		labledCount++
+		labelCount++
 		logger.With("name", pod.Name).With("namespace", pod.Namespace).
 			Debugf("pod labeling succeeded %d/%d", i, len(pods.Items))
 	}
 
-	logger.Debugf("%d/%d pod[s] labeled", labledCount, len(pods.Items))
+	logger.Debugf("%d/%d pod[s] labeled", labelCount, len(pods.Items))
 
 	result := ctrl.Result{
-		Requeue: len(pods.Items) != labledCount,
+		Requeue: len(pods.Items) != labelCount,
 	}
 
 	logger.With("result", result).Debug("reconciliation finished")
