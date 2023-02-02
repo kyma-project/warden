@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewReadOnlyRepo(t *testing.T) {
+	t.Skip("This is not unit test because it reach the external system")
 	nc := NotaryConfig{
 		Url: "https://signing-dev.repositories.cloud.sap",
 	}
