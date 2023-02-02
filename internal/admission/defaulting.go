@@ -39,49 +39,9 @@ func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodVal
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
-	return w.handleWithLogger(ctx, req)
-}
-
-func (w *DefaultingWebHook) handleWithLogger(ctx context.Context, req admission.Request) admission.Response {
-	loggerWithReqId := w.baseLogger.With("req-id", req.UID)
-	ctxLogger := helpers.LoggerToContext(ctx, loggerWithReqId)
-
-	resp := w.handleWithTimeMeasure(ctxLogger, req)
-	return resp
-}
-
-func (w *DefaultingWebHook) handleWithTimeMeasure(ctx context.Context, req admission.Request) admission.Response {
-	logger := helpers.LoggerFromCtx(ctx)
-	logger.Debug("request handling started")
-	startTime := time.Now()
-	defer func(startTime time.Time) {
-		helpers.LogEndTime(ctx, "request handling finished", startTime)
-	}(startTime)
-
-	resp := w.handleWithTimeout(ctx, req)
-	return resp
-}
-
-func (w *DefaultingWebHook) handleWithTimeout(ctx context.Context, req admission.Request) admission.Response {
-	ctxTimeout, cancel := context.WithTimeout(ctx, w.timeout)
-	defer cancel()
-
-	var resp admission.Response
-	done := make(chan bool)
-	go func() {
-		resp = w.handle(ctxTimeout, req)
-		done <- true
-	}()
-
-	select {
-	case <-done:
-	case <-ctxTimeout.Done():
-		if err := ctxTimeout.Err(); err != nil {
-			helpers.LoggerFromCtx(ctx).Infof("request exceeded desired timeout: %s", w.timeout.String())
-			return admission.Errored(http.StatusRequestTimeout, errors.Wrapf(err, "request exceeded desired timeout: %s", w.timeout.String()))
-		}
-	}
-	return resp
+	return HandleWithLogger(w.baseLogger,
+		HandlerWithTimeMeasure(
+			HandleWithTimeout(w.timeout, w.handle)))(ctx, req)
 }
 
 func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) admission.Response {

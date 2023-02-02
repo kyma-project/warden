@@ -1,12 +1,11 @@
 package namespace
 
 import (
+	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/stretchr/testify/require"
 	"testing"
 
 	warden "github.com/kyma-project/warden/pkg"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -139,7 +138,7 @@ func Test_nsUpdated(t *testing.T) {
 		},
 	}
 
-	logger := newTestZapLogger(t)
+	logger := test_helpers.NewTestZapLogger(t)
 	nsUpdate := buildNsUpdated(predicateOps{
 		logger: logger.Sugar(),
 	})
@@ -152,41 +151,8 @@ func Test_nsUpdated(t *testing.T) {
 	}
 }
 
-// testWriterSyncer is used by tests
-// as an output for zap logger
-type testWriterSyncer struct {
-	t *testing.T
-}
-
-func (l *testWriterSyncer) Write(p []byte) (n int, err error) {
-	msg := string(p)
-	l.t.Logf("%s", msg)
-	return len(msg), nil
-}
-
-func (l *testWriterSyncer) Sync() error {
-	return nil
-}
-
-func newTestZapLogger(t *testing.T) *zap.Logger {
-	encoderCfg := zapcore.EncoderConfig{
-		MessageKey:     "msg",
-		LevelKey:       "level",
-		NameKey:        "logger",
-		EncodeLevel:    zapcore.LowercaseLevelEncoder,
-		EncodeTime:     zapcore.ISO8601TimeEncoder,
-		EncodeDuration: zapcore.StringDurationEncoder,
-	}
-	core := zapcore.NewCore(
-		zapcore.NewJSONEncoder(encoderCfg),
-		&testWriterSyncer{t: t},
-		zap.DebugLevel,
-	)
-	return zap.New(core)
-}
-
 func Test_buildNsCreateReject(t *testing.T) {
-	logger := newTestZapLogger(t)
+	logger := test_helpers.NewTestZapLogger(t)
 
 	nsCreateReject := buildNsCreateReject(predicateOps{
 		logger: logger.Sugar(),
@@ -199,7 +165,7 @@ func Test_buildNsCreateReject(t *testing.T) {
 }
 
 func Test_buildNsDeleteReject(t *testing.T) {
-	logger := newTestZapLogger(t)
+	logger := test_helpers.NewTestZapLogger(t)
 
 	nsCreateReject := buildNsDeleteReject(predicateOps{
 		logger: logger.Sugar(),
@@ -212,7 +178,7 @@ func Test_buildNsDeleteReject(t *testing.T) {
 }
 
 func Test_buildNsGenericReject(t *testing.T) {
-	logger := newTestZapLogger(t)
+	logger := test_helpers.NewTestZapLogger(t)
 
 	nsCreateReject := buildNsGenericReject(predicateOps{
 		logger: logger.Sugar(),

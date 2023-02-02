@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,8 @@ func TestValidationWebhook(t *testing.T) {
 	scheme := runtime.NewScheme()
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
-	webhook := NewValidationWebhook()
+	log := test_helpers.NewTestZapLogger(t).Sugar()
+	webhook := NewValidationWebhook(log)
 	require.NoError(t, webhook.InjectDecoder(decoder))
 
 	testCases := []struct {
@@ -100,7 +102,8 @@ func TestValidationWebhook_Errors(t *testing.T) {
 	scheme := runtime.NewScheme()
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
-	webhook := NewValidationWebhook()
+	log := test_helpers.NewTestZapLogger(t).Sugar()
+	webhook := NewValidationWebhook(log)
 	require.NoError(t, webhook.InjectDecoder(decoder))
 	testCases := []struct {
 		name            string
