@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/warden/internal/controllers/test_suite"
+	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
@@ -44,14 +45,10 @@ func Test_PodReconcile(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(context.TODO(), &ns))
 
-	ctrl := PodReconciler{
-		Client:    k8sClient,
-		Scheme:    scheme.Scheme,
-		Validator: podValidator,
-		PodReconcilerConfig: PodReconcilerConfig{
-			RequeueAfter: time.Minute * 60,
-		},
-	}
+	testLogger := test_helpers.NewTestZapLogger(t)
+	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig: PodReconcilerConfig{
+		RequeueAfter: time.Minute * 60,
+	}, testLogger.Sugar())
 
 	testCases := []struct {
 		name          string
