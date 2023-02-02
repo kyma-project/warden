@@ -20,6 +20,9 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-logr/zapr"
+	"github.com/kyma-project/warden/internal/logging"
+	"os"
+
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
 	"github.com/kyma-project/warden/internal/controllers/namespace"
@@ -67,18 +70,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	zapConfig := zap.NewDevelopmentConfig()
-	zapConfig.EncoderConfig.TimeKey = "timestamp"
-	zapConfig.Encoding = "json"
-	zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("Jan 02 15:04:05.000000000")
-
-	logger, err := zapConfig.Build()
+	atomic := zap.NewAtomicLevel()
+	parsedLevel, err := zapcore.ParseLevel(appConfig.Logging.Level)
 	if err != nil {
-		setupLog.Error(err, "unable to setup logger")
+		setupLog.Error(err, "unable to parse logger level")
 		os.Exit(1)
 	}
+	atomic.SetLevel(parsedLevel)
 
-	ctrl.SetLogger(zapr.NewLogger(logger))
+	l, err := logging.ConfigureLogger(appConfig.Logging.Level, appConfig.Logging.Format, atomic)
+	if err != nil {
+		setupLog.Error(err, "while configuring logger")
+		os.Exit(10)
+	}
+	logger := l.WithContext()
+	ctrl.SetLogger(zapr.NewLogger(logger.Desugar()))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
@@ -117,7 +123,7 @@ func main() {
 		mgr.GetScheme(),
 		podValidator,
 		controllers.PodReconcilerConfig{RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
-		logger.Sugar().Named("pod-controller"),
+		logger.Named("pod-controller"),
 	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
@@ -127,7 +133,7 @@ func main() {
 	if err = (&namespace.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Log:    logger.Sugar().Named("namespace-controller"),
+		Log:    logger.Named("namespace-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
