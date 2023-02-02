@@ -12,7 +12,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func Test_labelWithValidationPendin(t *testing.T) {
+func Test_labelWithValidationPending(t *testing.T) {
 	type args struct {
 		patch patch
 		pod   *corev1.Pod

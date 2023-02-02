@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"github.com/stretchr/testify/require"
 	"testing"
 
 	warden "github.com/kyma-project/warden/pkg"
@@ -101,7 +102,7 @@ func Test_nsUpdated(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "ns not updated - new obj has no validation lable",
+			name: "ns not updated - new obj has no validation label",
 			args: args{
 				event: event.UpdateEvent{
 					ObjectOld: &corev1.Namespace{
@@ -119,7 +120,7 @@ func Test_nsUpdated(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "ns not updated - old obj has validation lable",
+			name: "ns not updated - old obj has validation label",
 			args: args{
 				event: event.UpdateEvent{
 					ObjectOld: &corev1.Namespace{
@@ -145,10 +146,8 @@ func Test_nsUpdated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := nsUpdate(tt.args.event); got != tt.want {
-				t.Errorf("nsUpdated() = %t, want %t", got, tt.want)
-			}
-
+			shouldBeTriggered := nsUpdate(tt.args.event)
+			require.Equal(t, tt.want, shouldBeTriggered)
 		})
 	}
 }

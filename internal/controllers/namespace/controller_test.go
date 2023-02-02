@@ -29,14 +29,8 @@ func Test_NamespaceReconcile(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	podSpec := corev1.PodSpec{
-		Containers: []corev1.Container{
-			{
-				Image: "test-image",
-				Name:  "container",
-			},
-		},
-	}
+	podSpec := corev1.PodSpec{Containers: []corev1.Container{{Image: "test-image", Name: "container"}}}
+
 	validatedNs := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
 		Name: validatableNs,
 		Labels: map[string]string{
