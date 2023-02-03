@@ -11,6 +11,8 @@ spec:
     metadata:
       labels:
         app: {{ .Chart.Name }}
+      annotations:
+        {{ toYaml .Values.global.admission.annotations | indent 8}}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
