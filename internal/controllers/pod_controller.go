@@ -118,14 +118,14 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	shouldRetry := ctrl.Result{RequeueAfter: r.RequeueAfter}
 	switch result {
 	case validate.Valid:
-		logger.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
+		logger.Info("pod validated successfully")
 		shouldRetry = ctrl.Result{}
 	case validate.Invalid:
-		logger.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
+		logger.Info("pod validation failed", "name")
 		shouldRetry = ctrl.Result{}
 	}
 	if err := r.labelPod(ctx, pod, result); err != nil {
-		logger.Info("pod labeling failed", "name", pod.Name, "namespace", pod.Namespace, "err", err.Error())
+		logger.Info("pod labeling failed", "err", err.Error())
 		shouldRetry.Requeue = true
 	}
 	return shouldRetry, nil
