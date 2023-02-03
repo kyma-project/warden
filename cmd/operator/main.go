@@ -20,13 +20,11 @@ import (
 	"flag"
 	"fmt"
 	"github.com/go-logr/zapr"
-	"os"
-	"time"
-
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
 	"github.com/kyma-project/warden/internal/controllers/namespace"
 	"github.com/kyma-project/warden/internal/validate"
+	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -118,13 +116,11 @@ func main() {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		podValidator,
-		controllers.PodReconcilerConfig{
-			RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
+		controllers.PodReconcilerConfig{RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
 		logger.Sugar().Named("pod-controller"),
-	)).SetupWithManager(mgr)
-		err != nil {
+	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1),
+		os.Exit(1)
 	}
 
 	// add namespace controller

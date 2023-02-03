@@ -46,7 +46,7 @@ func Test_PodReconcile(t *testing.T) {
 	require.NoError(t, k8sClient.Create(context.TODO(), &ns))
 
 	testLogger := test_helpers.NewTestZapLogger(t)
-	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig: PodReconcilerConfig{
+	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig{
 		RequeueAfter: time.Minute * 60,
 	}, testLogger.Sugar())
 
