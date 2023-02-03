@@ -2,6 +2,9 @@ package controllers
 
 import (
 	"context"
+	"testing"
+	"time"
+
 	"github.com/kyma-project/warden/internal/controllers/test_suite"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
@@ -15,7 +18,6 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"testing"
 )
 
 const (
@@ -46,6 +48,9 @@ func Test_PodReconcile(t *testing.T) {
 		Client:    k8sClient,
 		Scheme:    scheme.Scheme,
 		Validator: podValidator,
+		PodReconcilerConfig: PodReconcilerConfig{
+			RequeueAfter: time.Minute * 60,
+		},
 	}
 
 	testCases := []struct {

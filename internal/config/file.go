@@ -23,9 +23,10 @@ type admission struct {
 }
 
 type operator struct {
-	MetricsBindAddress     string `yaml:"metricsBindAddress"`
-	HealthProbeBindAddress string `yaml:"healthProbeBindAddress"`
-	LeaderElect            bool   `yaml:"leaderElect"`
+	MetricsBindAddress        string        `yaml:"metricsBindAddress"`
+	HealthProbeBindAddress    string        `yaml:"healthProbeBindAddress"`
+	LeaderElect               bool          `yaml:"leaderElect"`
+	PodReconcilerRequeueAfter time.Duration `yaml:"podReconcilerRequeueAfter"`
 }
 
 type config struct {
@@ -65,9 +66,10 @@ func defaultConfig() *config {
 			Timeout:         time.Second * 2,
 		},
 		Operator: operator{
-			MetricsBindAddress:     ":8080",
-			HealthProbeBindAddress: ":8081",
-			LeaderElect:            false,
+			MetricsBindAddress:        ":8080",
+			HealthProbeBindAddress:    ":8081",
+			LeaderElect:               false,
+			PodReconcilerRequeueAfter: time.Minute * 60,
 		},
 	}
 }

@@ -18,24 +18,30 @@ package controllers
 
 import (
 	"context"
+	"reflect"
+	"time"
+
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"reflect"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"time"
 )
+
+type PodReconcilerConfig struct {
+	RequeueAfter time.Duration
+}
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client.Client
 	Scheme    *runtime.Scheme
 	Validator validate.PodValidator
+	PodReconcilerConfig
 }
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
@@ -56,7 +62,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		return ctrl.Result{}, err
 	}
 
-	shouldRetry := ctrl.Result{RequeueAfter: 10 * time.Minute}
+	shouldRetry := ctrl.Result{RequeueAfter: r.RequeueAfter}
 	switch result {
 	case validate.Valid:
 		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)

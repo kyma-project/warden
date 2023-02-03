@@ -105,6 +105,9 @@ func main() {
 		Client:    mgr.GetClient(),
 		Scheme:    mgr.GetScheme(),
 		Validator: podValidator,
+		PodReconcilerConfig: controllers.PodReconcilerConfig{
+			RequeueAfter: config.Operator.PodReconcilerRequeueAfter,
+		},
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
 		os.Exit(1)
