@@ -56,7 +56,8 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Validate(context.TODO(), tt.imageName)
 			require.Error(t, err)
-			require.EqualError(t, err, tt.expectedErrMsg)
+			require.Contains(t, err.Error(), tt.expectedErrMsg)
+			require.Equal(t, pkg.ValidationError, pkg.ErrorCode(err)) // TODO does not work
 		})
 	}
 }
@@ -65,7 +66,8 @@ func Test_Validate_ImageWithDifferentHashInNotary_ShouldReturnError(t *testing.T
 	s := NewDefaultMockNotaryService().Build()
 	err := s.Validate(context.TODO(), TrustedImageName)
 	require.Error(t, err)
-	require.EqualError(t, err, "unexpected image hash value")
+	require.Contains(t, err.Error(), "unexpected image hash value")
+	require.Equal(t, pkg.ValidationError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
@@ -75,7 +77,7 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
 	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "does not have trust data for")
+	require.Contains(t, err.Error(), "does not have trust data for")
 	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
@@ -83,7 +85,7 @@ func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *t
 	s := NewDefaultMockNotaryService().Build()
 	err := s.Validate(context.TODO(), "eu.gcr.io/kyma-project/function-controller:unknown")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "MANIFEST_UNKNOWN: Failed to fetch")
+	require.Contains(t, err.Error(), "MANIFEST_UNKNOWN: Failed to fetch")
 	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
@@ -91,7 +93,8 @@ func Test_Validate_WhenNotaryNotResponding_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithRepoFactory(MockNotaryRepoFactoryNoSuchHost{}).Build()
 	err := s.Validate(context.TODO(), TrustedImageName)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "no such host")
+	require.Contains(t, err.Error(), "no such host")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
@@ -100,6 +103,7 @@ func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "no such host")
 	require.ErrorContains(t, err, "lookup some.unknown.registry")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testing.T) {
@@ -173,7 +177,7 @@ func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T
 
 	//THEN
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "context deadline exceeded")
+	assert.Contains(t, err.Error(), "context deadline exceeded")
 	require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
 	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }

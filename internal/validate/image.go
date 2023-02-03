@@ -64,7 +64,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
-		return errors.New("image name is not formatted correctly")
+		return pkg.NewValidationError(errors.New("image name is not formatted correctly"))
 	}
 
 	imgRepo := split[0]
