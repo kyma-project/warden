@@ -25,6 +25,7 @@ import (
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/kyma-project/warden/internal/helpers"
+	"github.com/kyma-project/warden/pkg"
 	"strings"
 )
 
@@ -85,7 +86,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 	}
 
 	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
-		return errors.New("unexpected image hash value")
+		return pkg.NewValidationError(errors.New("unexpected image hash value"))
 	}
 
 	return nil
@@ -111,26 +112,26 @@ func (s *notaryService) loggedGetImageDigestHash(ctx context.Context, image stri
 
 func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 	if len(image) == 0 {
-		return []byte{}, errors.New("empty image provided")
+		return []byte{}, pkg.NewValidationError(errors.New("empty image provided"))
 	}
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
-		return []byte{}, fmt.Errorf("ref parse: %w", err)
+		return []byte{}, pkg.NewValidationError(fmt.Errorf("ref parse: %w", err))
 	}
 	i, err := remote.Image(ref)
 	if err != nil {
-		return []byte{}, fmt.Errorf("get image: %w", err)
+		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("get image: %w", err))
 	}
 	m, err := i.Manifest()
 	if err != nil {
-		return []byte{}, fmt.Errorf("image manifest: %w", err)
+		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("image manifest: %w", err))
 	}
 
 	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
 
 	if err != nil {
-		return []byte{}, fmt.Errorf("checksum error: %w", err)
+		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("checksum error: %w", err))
 	}
 
 	return bytes, nil
@@ -146,7 +147,7 @@ func (s *notaryService) loggedGetNotaryImageDigestHash(ctx context.Context, imgR
 
 func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, imgTag string) ([]byte, error) {
 	if len(imgRepo) == 0 || len(imgTag) == 0 {
-		return []byte{}, errors.New("empty arguments provided")
+		return []byte{}, pkg.NewValidationError(errors.New("empty arguments provided"))
 	}
 
 	const messageNewRepoClient = "request to notary (NewRepoClient)"
@@ -154,7 +155,7 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
 	helpers.LogEndTime(ctx, messageNewRepoClient, startTimeNewRepoClient)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, pkg.NewServiceUnavailableError(err)
 	}
 
 	const messageGetTargetByName = "request to notary (GetTargetByName)"
@@ -162,15 +163,15 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	target, err := c.GetTargetByName(imgTag)
 	helpers.LogEndTime(ctx, messageGetTargetByName, startTimeGetTargetByName)
 	if err != nil {
-		return []byte{}, err
+		return []byte{}, pkg.NewServiceUnavailableError(err)
 	}
 
 	if len(target.Hashes) == 0 {
-		return []byte{}, errors.New("image hash is missing")
+		return []byte{}, pkg.NewValidationError(errors.New("image hash is missing"))
 	}
 
 	if len(target.Hashes) > 1 {
-		return []byte{}, errors.New("more than one hash for image")
+		return []byte{}, pkg.NewValidationError(errors.New("more than one hash for image"))
 	}
 
 	key := ""

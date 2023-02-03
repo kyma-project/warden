@@ -1,6 +1,7 @@
 package validate
 
 import (
+	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -75,6 +76,7 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "does not have trust data for")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *testing.T) {
@@ -82,6 +84,7 @@ func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *t
 	err := s.Validate(context.TODO(), "eu.gcr.io/kyma-project/function-controller:unknown")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "MANIFEST_UNKNOWN: Failed to fetch")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_WhenNotaryNotResponding_ShouldReturnError(t *testing.T) {
@@ -172,6 +175,34 @@ func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "context deadline exceeded")
 	require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+}
+
+func Test_Validate_WhenNotaryRespondWithError_ShouldReturnServiceNotAvailable(t *testing.T) {
+
+	h := func(writer http.ResponseWriter, request *http.Request) {
+		writer.WriteHeader(404)
+	}
+	handler := http.HandlerFunc(h)
+
+	testServer := httptest.NewServer(handler)
+	defer testServer.Close()
+
+	sc := &ServiceConfig{
+		NotaryConfig: NotaryConfig{
+			Url: testServer.URL,
+		},
+	}
+	f := NotaryRepoFactory{5 * time.Second}
+	validator := NewImageValidator(sc, f)
+
+	//WHEN
+	err := validator.Validate(context.TODO(), "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
+
+	//THEN
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "couldn't correctly connect to notary")
+	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_DEV(t *testing.T) {
