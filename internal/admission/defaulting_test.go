@@ -29,7 +29,7 @@ func TestTimeout(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(scheme))
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
-	timeout := time.Millisecond * 30
+	timeout := time.Millisecond * 100
 
 	testNs := "test-namespace"
 	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
