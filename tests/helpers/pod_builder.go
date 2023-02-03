@@ -11,11 +11,15 @@ type PodBuilder struct {
 }
 
 func (tc *testContext) Pod() *PodBuilder {
+	return tc.PodWithName(tc.NameWithTime())
+}
+
+func (tc *testContext) PodWithName(name string) *PodBuilder {
 	return &PodBuilder{
 		tc: tc,
 		pod: &corev1.Pod{
 			ObjectMeta: v1.ObjectMeta{
-				Name:      tc.NameWithTime(),
+				Name:      name,
 				Namespace: tc.namespaceName,
 			},
 		},
