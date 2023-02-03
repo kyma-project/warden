@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"github.com/go-logr/zapr"
 	"os"
+	"time"
 
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
@@ -113,11 +114,17 @@ func main() {
 	imageValidator := validate.NewImageValidator(notaryConfig, repoFactory)
 	podValidator := validate.NewPodValidator(imageValidator)
 
-	if err = (controllers.NewPodReconciler(mgr.GetClient(), mgr.GetScheme(), podValidator, 		PodReconcilerConfig: PodReconcilerConfig{
-		RequeueAfter: time.Minute * 60,
-	},logger.Sugar().Named("pod-controller"))).SetupWithManager(mgr); err != nil {
+	if err = (controllers.NewPodReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		podValidator,
+		controllers.PodReconcilerConfig{
+			RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
+		logger.Sugar().Named("pod-controller"),
+	)).SetupWithManager(mgr)
+		err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
+		os.Exit(1),
 	}
 
 	// add namespace controller
