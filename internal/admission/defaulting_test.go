@@ -3,13 +3,13 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -24,7 +24,7 @@ import (
 
 func TestTimeout(t *testing.T) {
 	//GIVEN
-	logger := zap.NewNop()
+	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	decoder, err := admission.NewDecoder(scheme)
@@ -94,6 +94,7 @@ func TestTimeout(t *testing.T) {
 			time.Sleep(timeout * 2)
 		})
 		srv := httptest.NewServer(h)
+		defer srv.CloseClientConnections()
 		defer srv.Close()
 
 		validateImage := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: srv.URL}}, validate.NotaryRepoFactory{})
