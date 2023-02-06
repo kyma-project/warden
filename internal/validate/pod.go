@@ -46,6 +46,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	}
 
 	if enabled := IsValidationEnabledForNS(ns); !enabled {
+		logger.Debugw("Pod validation skipped because validation for namespace is not enabled")
 		return NoAction, nil
 	}
 	matched := make(map[string]ValidationResult)

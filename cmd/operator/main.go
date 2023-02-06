@@ -19,12 +19,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
-
+	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
 	"github.com/kyma-project/warden/internal/controllers/namespace"
 	"github.com/kyma-project/warden/internal/validate"
+	"os"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
@@ -61,20 +61,31 @@ func main() {
 	opts.BindFlags(flag.CommandLine)
 	flag.Parse()
 
-	config, err := config.Load(configPath)
+	appConfig, err := config.Load(configPath)
 	if err != nil {
 		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
 		os.Exit(1)
 	}
 
-	ctrl.SetLogger(zapk8s.New(zapk8s.UseFlagOptions(&opts)))
+	zapConfig := zap.NewDevelopmentConfig()
+	zapConfig.EncoderConfig.TimeKey = "timestamp"
+	zapConfig.Encoding = "json"
+	zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("Jan 02 15:04:05.000000000")
+
+	logger, err := zapConfig.Build()
+	if err != nil {
+		setupLog.Error(err, "unable to setup logger")
+		os.Exit(1)
+	}
+
+	ctrl.SetLogger(zapr.NewLogger(logger))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
-		MetricsBindAddress:     config.Operator.MetricsBindAddress,
+		MetricsBindAddress:     appConfig.Operator.MetricsBindAddress,
 		Port:                   9443,
-		HealthProbeBindAddress: config.Operator.HealthProbeBindAddress,
-		LeaderElection:         config.Operator.LeaderElect,
+		HealthProbeBindAddress: appConfig.Operator.HealthProbeBindAddress,
+		LeaderElection:         appConfig.Operator.LeaderElect,
 		LeaderElectionID:       "c3790980.warden.kyma-project.io",
 		// LeaderElectionReleaseOnCancel defines if the leader should step down voluntarily
 		// when the Manager ends. This requires the binary to immediately end when the
@@ -93,34 +104,22 @@ func main() {
 		os.Exit(1)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: config.Notary.Timeout}
-	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
+	repoFactory := validate.NotaryRepoFactory{Timeout: appConfig.Notary.Timeout}
+	allowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.AllowedRegistries)
 
-	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: config.Notary.URL}, AllowedRegistries: allowedRegistries}
+	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: appConfig.Notary.URL}, AllowedRegistries: allowedRegistries}
 
 	imageValidator := validate.NewImageValidator(notaryConfig, repoFactory)
 	podValidator := validate.NewPodValidator(imageValidator)
 
-	if err = (&controllers.PodReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		Validator: podValidator,
-		PodReconcilerConfig: controllers.PodReconcilerConfig{
-			RequeueAfter: config.Operator.PodReconcilerRequeueAfter,
-		},
-	}).SetupWithManager(mgr); err != nil {
+	if err = (controllers.NewPodReconciler(
+		mgr.GetClient(),
+		mgr.GetScheme(),
+		podValidator,
+		controllers.PodReconcilerConfig{RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
+		logger.Sugar().Named("pod-controller"),
+	)).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
-	}
-
-	zapConfig := zap.NewDevelopmentConfig()
-	zapConfig.EncoderConfig.TimeKey = "timestamp"
-	zapConfig.Encoding = "json"
-	zapConfig.EncoderConfig.EncodeTime = zapcore.TimeEncoderOfLayout("Jan 02 15:04:05.000000000")
-
-	nsCtrl, err := zapConfig.Build()
-	if err != nil {
-		setupLog.Error(err, "unable to setup logger")
 		os.Exit(1)
 	}
 
@@ -128,7 +127,7 @@ func main() {
 	if err = (&namespace.Reconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
-		Log:    nsCtrl.Sugar(),
+		Log:    logger.Sugar().Named("namespace-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
 		os.Exit(1)
