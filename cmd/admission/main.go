@@ -39,7 +39,7 @@ var (
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "appConfig-path", "./hack/appConfig.yaml", "The path to the configuration file.")
+	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	flag.Parse()
 
 	appConfig, err := config.Load(configPath)

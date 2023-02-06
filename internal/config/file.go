@@ -77,5 +77,9 @@ func defaultConfig() *config {
 			LeaderElect:               false,
 			PodReconcilerRequeueAfter: time.Minute * 60,
 		},
+		Logging: logging{
+			Level:  "info",
+			Format: "text",
+		},
 	}
 }
