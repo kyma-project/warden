@@ -94,7 +94,6 @@ func TestTimeout(t *testing.T) {
 			time.Sleep(timeout * 2)
 		})
 		srv := httptest.NewServer(h)
-		defer srv.CloseClientConnections()
 		defer srv.Close()
 
 		validateImage := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: srv.URL}}, validate.NotaryRepoFactory{})
