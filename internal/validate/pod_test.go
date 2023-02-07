@@ -17,10 +17,12 @@ import (
 func TestValidatePod(t *testing.T) {
 	testNs := "test-namespace"
 
-	validImage := "valid"
+	validImage := "validImage"
 	validContainer := v1.Container{Name: "valid-image", Image: validImage}
 	invalidImage := "invalidImage"
 	invalidContainer := v1.Container{Name: "invalid-image", Image: invalidImage}
+	forbiddenImage := "forbiddenImage"
+	forbiddenContainer := v1.Container{Name: "forbidden-image", Image: forbiddenImage}
 
 	t.Run("Pod shouldn't be validated", func(t *testing.T) {
 		//GIVEN
@@ -117,6 +119,59 @@ func TestValidatePod(t *testing.T) {
 				}},
 			expectedResult: validate.Invalid,
 		},
+		{
+			name: "pod has no label and valid image",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{validContainer},
+				}},
+			expectedResult: validate.Valid,
+		},
+		{
+			name: "pod has label Success and valid image",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs,
+				Labels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess}},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{validContainer},
+				}},
+			expectedResult: validate.Valid,
+		},
+		{
+			name: "pod has label Failed",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs,
+				Labels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed}},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{forbiddenContainer},
+				}},
+			expectedResult: validate.NoAction,
+		},
+		{
+			name: "pod has label Reject",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs,
+				Labels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject}},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{forbiddenContainer},
+				}},
+			expectedResult: validate.NoAction,
+		},
+		{
+			name: "pod has label Pending",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs,
+				Labels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending}},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{forbiddenContainer},
+				}},
+			expectedResult: validate.NoAction,
+		},
+		{
+			name: "pod has unknown label",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs,
+				Labels: map[string]string{pkg.PodValidationLabel: "some-unknown-label"}},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{forbiddenContainer},
+				}},
+			expectedResult: validate.NoAction,
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -130,6 +185,7 @@ func TestValidatePod(t *testing.T) {
 			mockValidator := mocks.ImageValidatorService{}
 			mockValidator.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
 			mockValidator.Mock.On("Validate", mock.Anything, validImage).Return(nil)
+			mockValidator.Mock.On("Validate", mock.Anything, forbiddenImage).Panic("Unexpected validation call")
 
 			podValidator := validate.NewPodValidator(&mockValidator)
 			//WHEN

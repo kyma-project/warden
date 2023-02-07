@@ -55,6 +55,9 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
+	logger := helpers.LoggerFromCtx(ctx)
+	logger.Debugw("validation started", "operation", req.Operation, "label", pod.ObjectMeta.GetLabels()[pkg.PodValidationLabel])
+
 	ns := &corev1.Namespace{}
 	if err := w.client.Get(ctx, k8sclient.ObjectKey{Name: pod.Namespace}, ns); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -74,7 +77,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	helpers.LoggerFromCtx(ctx).Infof("pod was validated: %s, %s, %s", result, pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
+	logger.Infof("pod was validated: %s, %s, %s", result, pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
 }
 
