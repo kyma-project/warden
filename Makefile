@@ -183,7 +183,7 @@ install-admission-k3d: build-admission
 ## Install
 
 install:
-	 helm upgrade --install --namespace kyma-system --wait warden ./charts/warden/
+	 helm upgrade --install --wait warden ./charts/warden/
 
 uninstall:
 	helm uninstall warden --wait

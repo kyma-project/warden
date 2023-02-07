@@ -59,6 +59,7 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 
 func (s *notaryService) Validate(ctx context.Context, image string) error {
 	logger := helpers.LoggerFromCtx(ctx).With("image", image)
+	newCtx := helpers.LoggerToContext(ctx, logger)
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
@@ -73,12 +74,12 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 		return nil
 	}
 
-	expectedShaBytes, err := s.loggedGetNotaryImageDigestHash(ctx, imgRepo, imgTag)
+	expectedShaBytes, err := s.loggedGetNotaryImageDigestHash(newCtx, imgRepo, imgTag)
 	if err != nil {
 		return err
 	}
 
-	shaBytes, err := s.loggedGetImageDigestHash(ctx, image)
+	shaBytes, err := s.loggedGetImageDigestHash(newCtx, image)
 	if err != nil {
 		return err
 	}
