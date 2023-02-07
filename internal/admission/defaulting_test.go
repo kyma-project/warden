@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
@@ -114,7 +115,7 @@ func TestTimeout(t *testing.T) {
 
 func TestFlow(t *testing.T) {
 	//GIVEN
-	logger := zap.NewNop()
+	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	decoder, err := admission.NewDecoder(scheme)

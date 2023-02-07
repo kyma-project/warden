@@ -12,10 +12,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-46
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-56
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-46
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-56
     annotations:
       sidecar.istio.io/inject: "false"
   config:
