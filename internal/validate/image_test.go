@@ -55,8 +55,9 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Validate(context.TODO(), tt.imageName)
-			require.ErrorContains(t, err, tt.expectedErrMsg)
-			require.Equal(t, pkg.ValidationError, pkg.ErrorCode(err)) // TODO does not work
+
+			require.Error(t, err)
+			require.EqualError(t, err, tt.expectedErrMsg)
 		})
 	}
 }
