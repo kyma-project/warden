@@ -80,18 +80,18 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	logger.Infof("pod was validated: %s, %s, %s", result, pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
+	logger.Infow("pod was validated", "result", result)
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
 }
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) bool {
 	logger := helpers.LoggerFromCtx(ctx)
 	if enabled := IsValidationEnabledForNS(ns); !enabled {
-		logger.Debugw("Pod validation skipped because validation for namespace is not enabled")
+		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false
 	}
 	if enabled := IsValidationEnabledForPodValidationLabel(pod); !enabled {
-		logger.Debugw("Pod verification skipped because pod checking is not enabled for the input validation label")
+		logger.Debugw("pod verification skipped because pod checking is not enabled for the input validation label")
 		return false
 	}
 	return true
