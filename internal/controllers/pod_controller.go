@@ -121,7 +121,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		logger.Info("pod validated successfully")
 		shouldRetry = ctrl.Result{}
 	case validate.Invalid:
-		logger.Info("pod validation failed", "name")
+		logger.Info("pod validation failed")
 		shouldRetry = ctrl.Result{}
 	}
 	if err := r.labelPod(ctx, pod, result); err != nil {

@@ -12,10 +12,10 @@ fullnameOverride: ""
 #Service configuration
 global:
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-53
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-46
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-53
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-46
     annotations:
       sidecar.istio.io/inject: "false"
   config:
@@ -39,6 +39,10 @@ global:
         healthProbeBindAddress: ":8081"
         leaderElect: true
         podReconcilerRequeueAfter: 60m
+      logging:
+        format: json
+        level: info
+
 
   securityContext:
     runAsNonRoot: true

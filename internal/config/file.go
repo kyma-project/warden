@@ -33,6 +33,12 @@ type config struct {
 	Notary    notary    `yaml:"notary"`
 	Admission admission `yaml:"admission"`
 	Operator  operator  `yaml:"operator"`
+	Logging   logging   `yaml:"logging"`
+}
+
+type logging struct {
+	Level  string `yaml:"level"`
+	Format string `yaml:"format"`
 }
 
 func Load(path string) (*config, error) {
@@ -70,6 +76,10 @@ func defaultConfig() *config {
 			HealthProbeBindAddress:    ":8081",
 			LeaderElect:               false,
 			PodReconcilerRequeueAfter: time.Minute * 60,
+		},
+		Logging: logging{
+			Level:  "info",
+			Format: "text",
 		},
 	}
 }
