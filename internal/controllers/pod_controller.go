@@ -47,12 +47,12 @@ type PodReconciler struct {
 	PodReconcilerConfig
 }
 
-func NewPodReconciler(client client.Client, scheme *runtime.Scheme, validator validate.PodValidator,reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
+func NewPodReconciler(client client.Client, scheme *runtime.Scheme, validator validate.PodValidator, reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
 	return &PodReconciler{
-		client:     client,
-		scheme:     scheme,
-		validator:  validator,
-		baseLogger: logger,
+		client:              client,
+		scheme:              scheme,
+		validator:           validator,
+		baseLogger:          logger,
 		PodReconcilerConfig: reconcileCfg,
 	}
 }
@@ -102,7 +102,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // move the current state of the cluster closer to the desired state.
 func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqUUID := uuid.New().String()
-	logger := r.baseLogger.With("req", req).With("reqUUID", reqUUID)
+	logger := r.baseLogger.With("req", req).With("req-id", reqUUID)
 	ctxLogger := helpers.LoggerToContext(ctx, logger)
 
 	var pod corev1.Pod

@@ -39,7 +39,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	reqUUID := uuid.New().String()
 
-	logger := r.Log.With("req", req).With("reqUUID", reqUUID)
+	logger := r.Log.With("req", req).With("req-id", reqUUID)
 	logger.Info("reconciliation started")
 
 	var instance corev1.Namespace
@@ -63,7 +63,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(err, "while fetching list of pods")
 	}
 
-	logger.With("podCount", len(pods.Items)).Debug("pod fetching succeeded")
+	logger.With("pod-count", len(pods.Items)).Debug("pod fetching succeeded")
 
 	var labelCount int
 	// label all pods with validation pending; requeue in case any error

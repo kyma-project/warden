@@ -2,9 +2,9 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -45,10 +45,6 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 		return Invalid, errors.New("pod namespace mismatch with given namespace")
 	}
 
-	if enabled := IsValidationEnabledForNS(ns); !enabled {
-		logger.Debugw("Pod validation skipped because validation for namespace is not enabled")
-		return NoAction, nil
-	}
 	matched := make(map[string]ValidationResult)
 
 	images := getAllImages(pod)
