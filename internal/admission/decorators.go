@@ -44,8 +44,9 @@ func HandleWithTimeout(timeout time.Duration, handler Handler) Handler {
 		defer cancel()
 
 		var resp admission.Response
-		done := make(chan bool)
+		done := make(chan bool, 1)
 		go func() {
+			defer close(done)
 			resp = handler(ctxTimeout, req)
 			done <- true
 		}()
