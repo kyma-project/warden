@@ -2,9 +2,9 @@ package validate
 
 import (
 	"context"
+	"errors"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
-	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -45,16 +45,6 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 		return Invalid, errors.New("pod namespace mismatch with given namespace")
 	}
 
-	if enabled := IsValidationEnabledForNS(ns); !enabled {
-		logger.Debugw("Pod validation skipped because validation for namespace is not enabled")
-		return NoAction, nil
-	}
-
-	if enabled := IsValidationEnabledForPodValidationLabel(pod); !enabled {
-		logger.Debugw("Pod verification skipped because pod checking is not enabled for the input validation label")
-		return NoAction, nil
-	}
-
 	matched := make(map[string]ValidationResult)
 
 	images := getAllImages(pod)
@@ -78,27 +68,6 @@ func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
-func IsValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
-	validationLabelValue := getPodValidationLabelValue(pod)
-	if validationLabelValue == "" {
-		return true
-	}
-	if validationLabelValue == pkg.ValidationStatusSuccess {
-		return true
-	}
-	return false
-}
-
-func getPodValidationLabelValue(pod *corev1.Pod) string {
-	if pod.Labels == nil {
-		return ""
-	}
-	validationLabelValue, ok := pod.Labels[pkg.PodValidationLabel]
-	if !ok {
-		return ""
-	}
-	return validationLabelValue
-}
 func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationResult, error) {
 	err := a.Validator.Validate(ctx, image)
 	if err != nil {

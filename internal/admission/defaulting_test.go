@@ -127,8 +127,8 @@ func TestFlow(t *testing.T) {
 	}}}
 
 	type args struct {
-		labels    map[string]string
-		imageName string
+		labels            map[string]string
+		shouldBeValidated bool
 	}
 	type want struct {
 		patchesCount     int
@@ -140,43 +140,77 @@ func TestFlow(t *testing.T) {
 		want want
 	}{
 		{
-			name: "label Failed should pass without validation and unchanged",
+			name: "pod without label should pass with validation and set Success",
 			args: args{
-				labels:    map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
-				imageName: pkg.ValidationStatusFailed,
-			},
-			want: want{
-				patchesCount: 0,
-			},
-		},
-		{
-			name: "label Success should pass with validation",
-			args: args{
-				labels:    map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
-				imageName: pkg.ValidationStatusSuccess,
-			},
-			want: want{
-				patchesCount: 0,
-			},
-		},
-		{
-			name: "without label should pass with validation and set Success",
-			args: args{
-				labels:    nil,
-				imageName: pkg.ValidationStatusSuccess,
+				labels:            nil,
+				shouldBeValidated: true,
 			},
 			want: want{
 				patchesCount:     1,
 				validationStatus: pkg.ValidationStatusSuccess,
 			},
 		},
+		{
+			name: "pod with label Success should pass with validation",
+			args: args{
+				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
+				shouldBeValidated: true,
+			},
+			want: want{
+				patchesCount: 0,
+			},
+		},
+		{
+			name: "pod with label Failed should pass without validation and unchanged",
+			args: args{
+				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
+				shouldBeValidated: false,
+			},
+			want: want{
+				patchesCount: 0,
+			},
+		},
+		{
+			name: "pod with label Reject should pass without validation and unchanged",
+			args: args{
+				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
+				shouldBeValidated: false,
+			},
+			want: want{
+				patchesCount: 0,
+			},
+		},
+		{
+			name: "pod with label Pending should pass without validation and unchanged",
+			args: args{
+				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
+				shouldBeValidated: false,
+			},
+			want: want{
+				patchesCount: 0,
+			},
+		},
+		{
+			name: "pod with unknown label should pass without validation and unchanged",
+			args: args{
+				labels:            map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
+				shouldBeValidated: false,
+			},
+			want: want{
+				patchesCount: 0,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
+			imageName := "test:should-not-be-validated"
+			if tt.args.shouldBeValidated {
+				imageName = "test:should-be-validated"
+			}
 			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
 				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: fmt.Sprintf("%s:test", tt.args.imageName)}}},
+					Containers: []corev1.Container{{Image: imageName}}},
 			}
 			if tt.args.labels != nil {
 				pod.ObjectMeta.Labels = tt.args.labels
@@ -193,9 +227,9 @@ func TestFlow(t *testing.T) {
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 			mockValidator := mocks.ImageValidatorService{}
-			mockValidator.Mock.On("Validate", mock.Anything, pkg.ValidationStatusFailed+":test").
+			mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
 				Panic("unexpected validation call!")
-			mockValidator.Mock.On("Validate", mock.Anything, pkg.ValidationStatusSuccess+":test").
+			mockValidator.Mock.On("Validate", mock.Anything, "test:should-be-validated").
 				Return(nil).Once()
 			podValidator := validate.NewPodValidator(&mockValidator)
 			timeout := time.Second

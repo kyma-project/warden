@@ -63,6 +63,9 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
+	if !isValidationNeeded(ctx, pod, ns) {
+		return admission.Allowed("validation is not needed for pod")
+	}
 	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -79,6 +82,45 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 
 	logger.Infof("pod was validated: %s, %s, %s", result, pod.ObjectMeta.GetName(), pod.ObjectMeta.GetNamespace())
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
+}
+
+func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) bool {
+	logger := helpers.LoggerFromCtx(ctx)
+	if enabled := IsValidationEnabledForNS(ns); !enabled {
+		logger.Debugw("Pod validation skipped because validation for namespace is not enabled")
+		return false
+	}
+	if enabled := IsValidationEnabledForPodValidationLabel(pod); !enabled {
+		logger.Debugw("Pod verification skipped because pod checking is not enabled for the input validation label")
+		return false
+	}
+	return true
+}
+
+func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
+	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
+}
+
+func IsValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
+	validationLabelValue := getPodValidationLabelValue(pod)
+	if validationLabelValue == "" {
+		return true
+	}
+	if validationLabelValue == pkg.ValidationStatusSuccess {
+		return true
+	}
+	return false
+}
+
+func getPodValidationLabelValue(pod *corev1.Pod) string {
+	if pod.Labels == nil {
+		return ""
+	}
+	validationLabelValue, ok := pod.Labels[pkg.PodValidationLabel]
+	if !ok {
+		return ""
+	}
+	return validationLabelValue
 }
 
 func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
