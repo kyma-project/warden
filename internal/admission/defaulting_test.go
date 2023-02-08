@@ -120,17 +120,8 @@ func TestFlow(t *testing.T) {
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
 
-	mockValidator := mocks.ImageValidatorService{}
-	mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
-		Run(func(args mock.Arguments) {
-			t.Fatal("unexpected validation call!")
-		})
-	mockValidator.Mock.On("Validate", mock.Anything, "test:can-be-validated").
-		Return(nil)
-	podValidator := validate.NewPodValidator(&mockValidator)
-
-	testNs := "test-namespace"
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
+	nsName := "test-namespace"
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
 		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 	}}}
 
@@ -212,28 +203,10 @@ func TestFlow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
+			podValidator := setupValidatorMock(t)
 
-			imageName := "test:can-be-validated"
-			if tt.args.shouldNotBeValidated {
-				imageName = "test:should-not-be-validated"
-			}
-			pod := corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "pod", Namespace: testNs,
-					Labels: tt.args.labels,
-				},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: imageName}}},
-			}
-
-			raw, err := json.Marshal(pod)
-			require.NoError(t, err)
-
-			req := admission.Request{
-				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: raw},
-				}}
+			pod := newPodFix(nsName, tt.args.shouldNotBeValidated, tt.args.labels)
+			req := newRequestFix(t, pod)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 			timeout := time.Second
@@ -254,4 +227,44 @@ func TestFlow(t *testing.T) {
 			}
 		})
 	}
+}
+
+func setupValidatorMock(t *testing.T) validate.PodValidator {
+	mockValidator := mocks.ImageValidatorService{}
+	mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
+		Run(func(args mock.Arguments) {
+			t.Fatal("unexpected validation call!")
+		})
+	mockValidator.Mock.On("Validate", mock.Anything, "test:can-be-validated").
+		Return(nil)
+	podValidator := validate.NewPodValidator(&mockValidator)
+	return podValidator
+}
+
+func newRequestFix(t *testing.T, pod corev1.Pod) admission.Request {
+	raw, err := json.Marshal(pod)
+	require.NoError(t, err)
+
+	req := admission.Request{
+		AdmissionRequest: admissionv1.AdmissionRequest{
+			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+			Object: runtime.RawExtension{Raw: raw},
+		}}
+	return req
+}
+
+func newPodFix(nsName string, shouldNotBeValidated bool, labels map[string]string) corev1.Pod {
+	imageName := "test:can-be-validated"
+	if shouldNotBeValidated {
+		imageName = "test:should-not-be-validated"
+	}
+	pod := corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "pod", Namespace: nsName,
+			Labels: labels,
+		},
+		Spec: corev1.PodSpec{
+			Containers: []corev1.Container{{Image: imageName}}},
+	}
+	return pod
 }
