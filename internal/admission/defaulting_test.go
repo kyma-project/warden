@@ -121,14 +121,23 @@ func TestFlow(t *testing.T) {
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
 
+	mockValidator := mocks.ImageValidatorService{}
+	mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
+		Run(func(args mock.Arguments) {
+			t.Fatal("unexpected validation call!")
+		})
+	mockValidator.Mock.On("Validate", mock.Anything, "test:can-be-validated").
+		Return(nil)
+	podValidator := validate.NewPodValidator(&mockValidator)
+
 	testNs := "test-namespace"
 	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
 		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 	}}}
 
 	type args struct {
-		labels            map[string]string
-		shouldBeValidated bool
+		labels               map[string]string
+		shouldNotBeValidated bool
 	}
 	type want struct {
 		patchesCount     int
@@ -142,8 +151,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod without label should pass with validation and set Success",
 			args: args{
-				labels:            nil,
-				shouldBeValidated: true,
+				labels:               nil,
+				shouldNotBeValidated: false,
 			},
 			want: want{
 				patchesCount:     1,
@@ -153,8 +162,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod with label Success should pass with validation",
 			args: args{
-				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
-				shouldBeValidated: true,
+				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
+				shouldNotBeValidated: false,
 			},
 			want: want{
 				patchesCount: 0,
@@ -163,8 +172,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod with label Failed should pass without validation and unchanged",
 			args: args{
-				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
-				shouldBeValidated: false,
+				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
+				shouldNotBeValidated: true,
 			},
 			want: want{
 				patchesCount: 0,
@@ -173,8 +182,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod with label Reject should pass without validation and unchanged",
 			args: args{
-				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
-				shouldBeValidated: false,
+				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
+				shouldNotBeValidated: true,
 			},
 			want: want{
 				patchesCount: 0,
@@ -183,8 +192,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod with label Pending should pass without validation and unchanged",
 			args: args{
-				labels:            map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
-				shouldBeValidated: false,
+				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
+				shouldNotBeValidated: true,
 			},
 			want: want{
 				patchesCount: 0,
@@ -193,8 +202,8 @@ func TestFlow(t *testing.T) {
 		{
 			name: "pod with unknown label should pass without validation and unchanged",
 			args: args{
-				labels:            map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
-				shouldBeValidated: false,
+				labels:               map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
+				shouldNotBeValidated: true,
 			},
 			want: want{
 				patchesCount: 0,
@@ -204,16 +213,18 @@ func TestFlow(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			imageName := "test:should-not-be-validated"
-			if tt.args.shouldBeValidated {
-				imageName = "test:should-be-validated"
+
+			imageName := "test:can-be-validated"
+			if tt.args.shouldNotBeValidated {
+				imageName = "test:should-not-be-validated"
 			}
-			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "pod", Namespace: testNs,
+					Labels: tt.args.labels,
+				},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{Image: imageName}}},
-			}
-			if tt.args.labels != nil {
-				pod.ObjectMeta.Labels = tt.args.labels
 			}
 
 			raw, err := json.Marshal(pod)
@@ -226,12 +237,6 @@ func TestFlow(t *testing.T) {
 				}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
-			mockValidator := mocks.ImageValidatorService{}
-			mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
-				Panic("unexpected validation call!")
-			mockValidator.Mock.On("Validate", mock.Anything, "test:should-be-validated").
-				Return(nil).Once()
-			podValidator := validate.NewPodValidator(&mockValidator)
 			timeout := time.Second
 			webhook := NewDefaultingWebhook(client, podValidator, timeout, logger.Sugar())
 			require.NoError(t, webhook.InjectDecoder(decoder))
