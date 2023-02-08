@@ -3,14 +3,22 @@ kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}
+      app: {{ .Values.global.name }}
+      app.kubernetes.io/name: {{ .Values.global.name }}
+      app.kubernetes.io/component: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}
+        app: {{ .Values.global.name }}
+        app.kubernetes.io/name: {{ .Values.global.name }}
+        app.kubernetes.io/component: {{ .Chart.Name }}
       annotations:
         {{ toYaml .Values.global.admission.annotations | indent 8}}
     spec:

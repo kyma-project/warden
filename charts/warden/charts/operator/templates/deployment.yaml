@@ -4,16 +4,22 @@ metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
   labels:
-    role: manager
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: {{ .Chart.Name }}
+      app: {{ .Values.global.name }}
+      app.kubernetes.io/name: {{ .Values.global.name }}
+      app.kubernetes.io/component: {{ .Chart.Name }}
   template:
     metadata:
       labels:
-        app: {{ .Chart.Name }}
+        app: {{ .Values.global.name }}
+        app.kubernetes.io/name: {{ .Values.global.name }}
+        app.kubernetes.io/component: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:

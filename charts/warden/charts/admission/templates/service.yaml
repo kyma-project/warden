@@ -10,4 +10,6 @@ spec:
       protocol: TCP
       targetPort: 8443
   selector:
-    app: {{ .Chart.Name }}
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
