@@ -3,7 +3,6 @@ package admission
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
