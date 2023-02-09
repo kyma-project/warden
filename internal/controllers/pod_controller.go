@@ -18,17 +18,19 @@ package controllers
 
 import (
 	"context"
+	"github.com/google/uuid"
+	"github.com/kyma-project/warden/internal/helpers"
 	"reflect"
 	"time"
 
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
+	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/event"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
@@ -38,44 +40,21 @@ type PodReconcilerConfig struct {
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
-	client.Client
-	Scheme    *runtime.Scheme
-	Validator validate.PodValidator
+	client     client.Client
+	scheme     *runtime.Scheme
+	validator  validate.PodValidator
+	baseLogger *zap.SugaredLogger
 	PodReconcilerConfig
 }
 
-//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
-//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
-
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	l := log.FromContext(ctx)
-
-	var pod corev1.Pod
-	if err := r.Get(ctx, req.NamespacedName, &pod); err != nil {
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+func NewPodReconciler(client client.Client, scheme *runtime.Scheme, validator validate.PodValidator, reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
+	return &PodReconciler{
+		client:              client,
+		scheme:              scheme,
+		validator:           validator,
+		baseLogger:          logger,
+		PodReconcilerConfig: reconcileCfg,
 	}
-
-	result, err := r.checkPod(ctx, &pod)
-	if err != nil {
-		return ctrl.Result{}, err
-	}
-
-	shouldRetry := ctrl.Result{RequeueAfter: r.RequeueAfter}
-	switch result {
-	case validate.Valid:
-		l.Info("pod validated successfully", "name", pod.Name, "namespace", pod.Namespace)
-		shouldRetry = ctrl.Result{}
-	case validate.Invalid:
-		l.Info("pod validation failed", "name", pod.Name, "namespace", pod.Namespace)
-		shouldRetry = ctrl.Result{}
-	}
-	if err := r.labelPod(ctx, pod, result); err != nil {
-		l.Info("pod labeling failed", "name", pod.Name, "namespace", pod.Namespace, "err", err.Error())
-		shouldRetry.Requeue = true
-	}
-	return shouldRetry, nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -116,13 +95,49 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch;update
+//+kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch
+
+// Reconcile is part of the main kubernetes reconciliation loop which aims to
+// move the current state of the cluster closer to the desired state.
+func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	reqUUID := uuid.New().String()
+	logger := r.baseLogger.With("req", req).With("req-id", reqUUID)
+	ctxLogger := helpers.LoggerToContext(ctx, logger)
+
+	var pod corev1.Pod
+	if err := r.client.Get(ctxLogger, req.NamespacedName, &pod); err != nil {
+		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	result, err := r.checkPod(ctxLogger, &pod)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	shouldRetry := ctrl.Result{RequeueAfter: r.RequeueAfter}
+	switch result {
+	case validate.Valid:
+		logger.Info("pod validated successfully")
+		shouldRetry = ctrl.Result{}
+	case validate.Invalid:
+		logger.Info("pod validation failed")
+		shouldRetry = ctrl.Result{}
+	}
+	if err := r.labelPod(ctx, pod, result); err != nil {
+		logger.Info("pod labeling failed", "err", err.Error())
+		shouldRetry.Requeue = true
+	}
+	return shouldRetry, nil
+}
+
 func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate.ValidationResult, error) {
 	var ns corev1.Namespace
-	if err := r.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
+	if err := r.client.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
 		return validate.NoAction, err
 	}
 
-	result, err := r.Validator.ValidatePod(ctx, pod, &ns)
+	result, err := r.validator.ValidatePod(ctx, pod, &ns)
 	if err != nil {
 		return validate.NoAction, err
 	}
@@ -142,7 +157,7 @@ func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result val
 			out.ObjectMeta.Labels = map[string]string{}
 		}
 		out.Labels[pkg.PodValidationLabel] = resultLabel
-		if err := r.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
+		if err := r.client.Patch(ctx, out, client.MergeFrom(&pod)); client.IgnoreNotFound(err) != nil {
 			return err
 		}
 	}
@@ -158,7 +173,7 @@ func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject run
 
 func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	var ns corev1.Namespace
-	if err := r.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
+	if err := r.client.Get(context.TODO(), client.ObjectKey{Name: namespace}, &ns); err != nil {
 		return false
 	}
 	return validate.IsValidationEnabledForNS(&ns)

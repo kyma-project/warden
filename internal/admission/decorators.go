@@ -2,7 +2,6 @@ package admission
 
 import (
 	"context"
-	"fmt"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -16,7 +15,8 @@ type Handler func(ctx context.Context, req admission.Request) admission.Response
 func HandleWithLogger(baseLogger *zap.SugaredLogger, handler Handler) Handler {
 	return func(ctx context.Context, req admission.Request) admission.Response {
 		loggerWithReqId := baseLogger.With("req-id", req.UID).
-			With("resource-name", fmt.Sprintf("%s/%s", req.Namespace, req.Name))
+			With("namespace", req.Namespace).
+			With("name", req.Name)
 		ctxLogger := helpers.LoggerToContext(ctx, loggerWithReqId)
 
 		resp := handler(ctxLogger, req)
@@ -44,8 +44,9 @@ func HandleWithTimeout(timeout time.Duration, handler Handler) Handler {
 		defer cancel()
 
 		var resp admission.Response
-		done := make(chan bool)
+		done := make(chan bool, 1)
 		go func() {
+			defer close(done)
 			resp = handler(ctxTimeout, req)
 			done <- true
 		}()

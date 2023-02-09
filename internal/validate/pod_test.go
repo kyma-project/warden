@@ -17,26 +17,12 @@ import (
 func TestValidatePod(t *testing.T) {
 	testNs := "test-namespace"
 
-	validImage := "valid"
+	validImage := "validImage"
 	validContainer := v1.Container{Name: "valid-image", Image: validImage}
 	invalidImage := "invalidImage"
 	invalidContainer := v1.Container{Name: "invalid-image", Image: invalidImage}
-
-	t.Run("Pod shouldn't be validated", func(t *testing.T) {
-		//GIVEN
-		ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs}}
-		pod := &v1.Pod{
-			ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
-		}
-
-		podValidator := validate.NewPodValidator(nil)
-		//WHEN
-		result, err := podValidator.ValidatePod(context.TODO(), pod, ns)
-
-		//THEN
-		require.NoError(t, err)
-		require.Equal(t, validate.NoAction, result)
-	})
+	longResp := "long"
+	longRespContainer := v1.Container{Name: "invalid-image", Image: longResp}
 
 	t.Run("Namespace mismatch with Pod Namespace", func(t *testing.T) {
 		//GIVEN
@@ -81,6 +67,13 @@ func TestValidatePod(t *testing.T) {
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					invalidContainer}}},
 			expectedResult: validate.Invalid,
+		},
+		{
+			name: "image validator timeout",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
+				Spec: v1.PodSpec{Containers: []v1.Container{
+					longRespContainer}}},
+			expectedResult: validate.ServiceUnavailable,
 		},
 		{
 			name: "pod has invalid image among otters",
@@ -130,6 +123,7 @@ func TestValidatePod(t *testing.T) {
 			mockValidator := mocks.ImageValidatorService{}
 			mockValidator.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
 			mockValidator.Mock.On("Validate", mock.Anything, validImage).Return(nil)
+			mockValidator.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewServiceUnavailableError(nil))
 
 			podValidator := validate.NewPodValidator(&mockValidator)
 			//WHEN

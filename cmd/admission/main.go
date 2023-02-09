@@ -4,6 +4,8 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/kyma-project/warden/internal/logging"
+	"go.uber.org/zap/zapcore"
 	"os"
 
 	"github.com/go-logr/zapr"
@@ -31,39 +33,51 @@ func init() {
 	// +kubebuilder:scaffold:scheme
 }
 
+var (
+	setupLog = ctrl.Log.WithName("setup")
+)
+
 func main() {
 	var configPath string
 	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	flag.Parse()
 
-	tmpLog, err := zap.NewDevelopment()
+	appConfig, err := config.Load(configPath)
 	if err != nil {
-		fmt.Println("failed to start controller-manager", err.Error())
+		setupLog.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
 		os.Exit(1)
 	}
-	logger := tmpLog.Sugar()
 
-	config, err := config.Load(configPath)
+	atomic := zap.NewAtomicLevel()
+	parsedLevel, err := zapcore.ParseLevel(appConfig.Logging.Level)
 	if err != nil {
-		logger.Error(err, fmt.Sprintf("unable to load configuration from path '%s'", configPath))
+		setupLog.Error(err, "unable to parse logger level")
 		os.Exit(1)
 	}
+	atomic.SetLevel(parsedLevel)
+
+	l, err := logging.ConfigureLogger(appConfig.Logging.Level, appConfig.Logging.Format, atomic)
+	if err != nil {
+		setupLog.Error(err, "while configuring logger")
+		os.Exit(10)
+	}
+	logger := l.WithContext()
+	logrZap := zapr.NewLogger(logger.Desugar())
+	ctrl.SetLogger(logrZap)
 
 	if err := certs.SetupCertSecret(
 		context.Background(),
-		config.Admission.SecretName,
-		config.Admission.SystemNamespace,
-		config.Admission.ServiceName,
+		appConfig.Admission.SecretName,
+		appConfig.Admission.SystemNamespace,
+		appConfig.Admission.ServiceName,
 		logger); err != nil {
 		logger.Error("failed to setup certificates and webhook secret", err.Error())
 		os.Exit(1)
 	}
 
-	logrZap := zapr.NewLogger(logger.Desugar())
-
-	mgr, err := manager.New(ctrl.GetConfigOrDie(), manager.Options{
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:             scheme,
-		Port:               config.Admission.Port,
+		Port:               appConfig.Admission.Port,
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
 	})
@@ -73,20 +87,20 @@ func main() {
 	}
 
 	if err := certs.SetupResourcesController(context.TODO(), mgr,
-		config.Admission.ServiceName,
-		config.Admission.SystemNamespace,
-		config.Admission.SecretName,
+		appConfig.Admission.ServiceName,
+		appConfig.Admission.SystemNamespace,
+		appConfig.Admission.SecretName,
 		logger); err != nil {
 
 		logger.Error("failed to setup webhook resource controller ", err.Error())
 		os.Exit(5)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: config.Notary.Timeout}
-	allowedRegistries := validate.ParseAllowedRegistries(config.Notary.AllowedRegistries)
+	repoFactory := validate.NotaryRepoFactory{Timeout: appConfig.Notary.Timeout}
+	allowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.AllowedRegistries)
 
 	validatorSvcConfig := validate.ServiceConfig{
-		NotaryConfig:      validate.NotaryConfig{Url: config.Notary.URL},
+		NotaryConfig:      validate.NotaryConfig{Url: appConfig.Notary.URL},
 		AllowedRegistries: allowedRegistries,
 	}
 	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
@@ -103,14 +117,14 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, config.Admission.Timeout, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, appConfig.Admission.Timeout, logger.With("webhook", "defaulting")),
 	})
 
-	logrZap.Info("starting the controller-manager")
+	logger.Info("starting the controller-manager")
 	// start the server manager
 	err = mgr.Start(ctrl.SetupSignalHandler())
 	if err != nil {
-		logrZap.Error(err, "failed to start controller-manager")
+		logger.Error(err, "failed to start controller-manager")
 		os.Exit(1)
 	}
 }

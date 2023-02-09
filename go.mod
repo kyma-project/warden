@@ -6,12 +6,14 @@ require (
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/go-logr/zapr v1.2.3
 	github.com/google/go-containerregistry v0.12.1
+	github.com/google/uuid v1.1.2
+	github.com/kyma-project/kyma/common/logging v0.0.0-20230202094231-eaaef03503fe
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.0
 	github.com/theupdateframework/notary v0.7.0
-	github.com/vrischmann/envconfig v1.3.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/net v0.2.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.25.4
 	k8s.io/apiextensions-apiserver v0.25.0
 	k8s.io/apimachinery v0.25.4
@@ -53,7 +55,6 @@ require (
 	github.com/google/gnostic v0.5.7-v3refs // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.1.0 // indirect
-	github.com/google/uuid v1.1.2 // indirect
 	github.com/gorilla/mux v1.7.0 // indirect
 	github.com/imdario/mergo v0.3.12 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
@@ -89,7 +90,6 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/component-base v0.25.0 // indirect
 	k8s.io/klog/v2 v2.70.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220803162953-67bda5d908f1 // indirect

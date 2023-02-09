@@ -36,5 +36,5 @@ func LogStartTime(ctx context.Context, message string) time.Time {
 func LogEndTime(ctx context.Context, message string, startTime time.Time) {
 	logger := LoggerFromCtx(ctx)
 	duration := time.Since(startTime)
-	logger.Debugw(fmt.Sprintf("%s end", message), "exec-time", duration)
+	logger.Debugw(fmt.Sprintf("%s end", message), "exec-time", duration.String())
 }
