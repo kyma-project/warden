@@ -5,20 +5,20 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Values.global.name }}
-    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: {{ .Values.global.name }}
-      app.kubernetes.io/name: {{ .Values.global.name }}
+      app.kubernetes.io/part-of: {{ .Values.global.name }}
       app.kubernetes.io/component: {{ .Chart.Name }}
   template:
     metadata:
       labels:
         app: {{ .Values.global.name }}
-        app.kubernetes.io/name: {{ .Values.global.name }}
+        app.kubernetes.io/part-of: {{ .Values.global.name }}
         app.kubernetes.io/component: {{ .Chart.Name }}
     spec:
       serviceAccountName: {{ .Chart.Name }}

@@ -5,7 +5,7 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Values.global.name }}
-    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   ports:
@@ -15,5 +15,5 @@ spec:
       targetPort: https
   selector:
     app: {{ .Values.global.name }}
-    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/component: {{ .Chart.Name }}
