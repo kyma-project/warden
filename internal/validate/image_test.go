@@ -75,7 +75,7 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
 	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.ErrorContains(t, err, "does not have trust data for")
-	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
+	require.Equal(t, pkg.ValidationError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *testing.T) {
