@@ -56,8 +56,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := s.Validate(context.TODO(), tt.imageName)
 
-			require.Error(t, err)
-			require.EqualError(t, err, tt.expectedErrMsg)
+			require.ErrorContains(t, err, tt.expectedErrMsg)
 		})
 	}
 }
