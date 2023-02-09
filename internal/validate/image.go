@@ -20,12 +20,11 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/hex"
-	"errors"
-	"fmt"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
+	"github.com/pkg/errors"
 	"strings"
 )
 
@@ -117,21 +116,21 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
-		return []byte{}, pkg.NewValidationError(fmt.Errorf("ref parse: %w", err))
+		return []byte{}, pkg.NewValidationError(errors.Wrap(err, "ref parse"))
 	}
 	i, err := remote.Image(ref)
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("get image: %w", err))
+		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "get image"))
 	}
 	m, err := i.Manifest()
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("image manifest: %w", err))
+		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "image manifest"))
 	}
 
 	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
 
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(fmt.Errorf("checksum error: %w", err))
+		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "checksum error: %w"))
 	}
 
 	return bytes, nil
@@ -163,7 +162,7 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	target, err := c.GetTargetByName(imgTag)
 	helpers.LogEndTime(ctx, messageGetTargetByName, startTimeGetTargetByName)
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(err)
+		return []byte{}, parseNotaryErr(err)
 	}
 
 	if len(target.Hashes) == 0 {
@@ -180,4 +179,12 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	}
 
 	return target.Hashes[key], nil
+}
+
+func parseNotaryErr(err error) error {
+	errMsg := err.Error()
+	if strings.Contains(errMsg, "does not have trust data for") {
+		return pkg.NewValidationError(err)
+	}
+	return pkg.NewServiceUnavailableError(err)
 }

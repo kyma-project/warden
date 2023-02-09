@@ -20,6 +20,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	"github.com/theupdateframework/notary/client"
 	"github.com/theupdateframework/notary/trustpinning"
@@ -90,7 +91,7 @@ func (f NotaryRepoFactory) NewRepoClient(img string, c NotaryConfig) (client.Rep
 		// If we didn't get a 2XX range or 401 status code, we're not talking to a notary server.
 		// The http client should be configured to handle redirects so at this point, 3XX is
 		// not a valid status code.
-		return nil, errors.Errorf("couldn't correctly connect to notary, status code: %d", resp.StatusCode)
+		return nil, pkg.NewServiceUnavailableError(errors.Errorf("couldn't correctly connect to notary, status code: %d", resp.StatusCode))
 	}
 
 	cm := challenge.NewSimpleManager()
