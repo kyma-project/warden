@@ -55,8 +55,8 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 		result, err := a.validateImage(ctx, s)
 		matched[s] = result
 
-		if result == Invalid {
-			admitResult = Invalid
+		if result != Valid {
+			admitResult = result
 			logger.Info(err.Error())
 		}
 	}
@@ -71,6 +71,9 @@ func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationResult, error) {
 	err := a.Validator.Validate(ctx, image)
 	if err != nil {
+		if pkg.ErrorCode(err) == pkg.ServiceUnavailableError {
+			return ServiceUnavailable, err
+		}
 		return Invalid, err
 	}
 
