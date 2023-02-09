@@ -57,7 +57,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 
 		if result != Valid {
 			admitResult = result
-			logger.Info(err.Error())
+			logger.With("image", s).Info(err.Error())
 		}
 	}
 

@@ -17,5 +17,5 @@ func TestErrorMsg(t *testing.T) {
 	out := err.Error()
 
 	//THEN
-	require.Equal(t, "notary service unavailable error: error: root err", out)
+	require.Equal(t, "notary service unknown error: error: root err", out)
 }
