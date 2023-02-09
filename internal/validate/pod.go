@@ -71,7 +71,7 @@ func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationResult, error) {
 	err := a.Validator.Validate(ctx, image)
 	if err != nil {
-		if pkg.ErrorCode(err) == pkg.ServiceUnavailableError {
+		if pkg.ErrorCode(err) == pkg.UnknownResult {
 			return ServiceUnavailable, err
 		}
 		return Invalid, err

@@ -12,7 +12,7 @@ func TestErrorMsg(t *testing.T) {
 	err := errors.New("root err")
 	err = fmt.Errorf("error: %w", err)
 
-	err = NewServiceUnavailableError(err)
+	err = NewUnknownResultErr(err)
 	//WHEN
 	out := err.Error()
 

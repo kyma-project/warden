@@ -75,21 +75,21 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithFunc(f).Build()
 	err := s.Validate(context.TODO(), UntrustedImageName)
 	require.ErrorContains(t, err, "does not have trust data for")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().Build()
 	err := s.Validate(context.TODO(), "eu.gcr.io/kyma-project/function-controller:unknown")
 	require.ErrorContains(t, err, "MANIFEST_UNKNOWN: Failed to fetch")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_WhenNotaryNotResponding_ShouldReturnError(t *testing.T) {
 	s := NewDefaultMockNotaryService().WithRepoFactory(MockNotaryRepoFactoryNoSuchHost{}).Build()
 	err := s.Validate(context.TODO(), TrustedImageName)
 	require.ErrorContains(t, err, "no such host")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
@@ -97,7 +97,7 @@ func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
 	err := s.Validate(context.TODO(), "some.unknown.registry/kyma-project/function-controller:unknown")
 	require.ErrorContains(t, err, "no such host")
 	require.ErrorContains(t, err, "lookup some.unknown.registry")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testing.T) {
@@ -172,7 +172,7 @@ func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T
 	//THEN
 	assert.ErrorContains(t, err, "context deadline exceeded")
 	require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_WhenNotaryRespondWithError_ShouldReturnServiceNotAvailable(t *testing.T) {
@@ -198,7 +198,7 @@ func Test_Validate_WhenNotaryRespondWithError_ShouldReturnServiceNotAvailable(t 
 
 	//THEN
 	require.ErrorContains(t, err, "couldn't correctly connect to notary")
-	require.Equal(t, pkg.ServiceUnavailableError, pkg.ErrorCode(err))
+	require.Equal(t, pkg.UnknownResult, pkg.ErrorCode(err))
 }
 
 func Test_Validate_DEV(t *testing.T) {

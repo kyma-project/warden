@@ -63,7 +63,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
-		return pkg.NewValidationError(errors.New("image name is not formatted correctly"))
+		return pkg.NewValidationFailedErr(errors.New("image name is not formatted correctly"))
 	}
 
 	imgRepo := split[0]
@@ -85,7 +85,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 	}
 
 	if subtle.ConstantTimeCompare(shaBytes, expectedShaBytes) == 0 {
-		return pkg.NewValidationError(errors.New("unexpected image hash value"))
+		return pkg.NewValidationFailedErr(errors.New("unexpected image hash value"))
 	}
 
 	return nil
@@ -111,26 +111,26 @@ func (s *notaryService) loggedGetImageDigestHash(ctx context.Context, image stri
 
 func (s *notaryService) getImageDigestHash(image string) ([]byte, error) {
 	if len(image) == 0 {
-		return []byte{}, pkg.NewValidationError(errors.New("empty image provided"))
+		return []byte{}, pkg.NewValidationFailedErr(errors.New("empty image provided"))
 	}
 
 	ref, err := name.ParseReference(image)
 	if err != nil {
-		return []byte{}, pkg.NewValidationError(errors.Wrap(err, "ref parse"))
+		return []byte{}, pkg.NewValidationFailedErr(errors.Wrap(err, "ref parse"))
 	}
 	i, err := remote.Image(ref)
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "get image"))
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "get image"))
 	}
 	m, err := i.Manifest()
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "image manifest"))
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "image manifest"))
 	}
 
 	bytes, err := hex.DecodeString(m.Config.Digest.Hex)
 
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(errors.Wrap(err, "checksum error: %w"))
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "checksum error: %w"))
 	}
 
 	return bytes, nil
@@ -146,7 +146,7 @@ func (s *notaryService) loggedGetNotaryImageDigestHash(ctx context.Context, imgR
 
 func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, imgTag string) ([]byte, error) {
 	if len(imgRepo) == 0 || len(imgTag) == 0 {
-		return []byte{}, pkg.NewValidationError(errors.New("empty arguments provided"))
+		return []byte{}, pkg.NewValidationFailedErr(errors.New("empty arguments provided"))
 	}
 
 	const messageNewRepoClient = "request to notary (NewRepoClient)"
@@ -154,7 +154,7 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	c, err := s.RepoFactory.NewRepoClient(imgRepo, s.NotaryConfig)
 	helpers.LogEndTime(ctx, messageNewRepoClient, startTimeNewRepoClient)
 	if err != nil {
-		return []byte{}, pkg.NewServiceUnavailableError(err)
+		return []byte{}, pkg.NewUnknownResultErr(err)
 	}
 
 	const messageGetTargetByName = "request to notary (GetTargetByName)"
@@ -166,11 +166,11 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 	}
 
 	if len(target.Hashes) == 0 {
-		return []byte{}, pkg.NewValidationError(errors.New("image hash is missing"))
+		return []byte{}, pkg.NewValidationFailedErr(errors.New("image hash is missing"))
 	}
 
 	if len(target.Hashes) > 1 {
-		return []byte{}, pkg.NewValidationError(errors.New("more than one hash for image"))
+		return []byte{}, pkg.NewValidationFailedErr(errors.New("more than one hash for image"))
 	}
 
 	key := ""
@@ -184,7 +184,7 @@ func (s *notaryService) getNotaryImageDigestHash(ctx context.Context, imgRepo, i
 func parseNotaryErr(err error) error {
 	errMsg := err.Error()
 	if strings.Contains(errMsg, "does not have trust data for") {
-		return pkg.NewValidationError(err)
+		return pkg.NewValidationFailedErr(err)
 	}
-	return pkg.NewServiceUnavailableError(err)
+	return pkg.NewUnknownResultErr(err)
 }
