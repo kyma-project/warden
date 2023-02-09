@@ -186,5 +186,8 @@ func parseNotaryErr(err error) error {
 	if strings.Contains(errMsg, "does not have trust data for") {
 		return pkg.NewValidationFailedErr(err)
 	}
+	if strings.Contains(errMsg, "No valid trust data for") {
+		return pkg.NewValidationFailedErr(err)
+	}
 	return pkg.NewUnknownResultErr(err)
 }
