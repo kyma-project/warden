@@ -153,7 +153,7 @@ func TestStrictMode(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{Image: "test:test"}}},
 	}
-	req := newRequestFix(t, pod)
+	req := newRequestFix(t, pod, admissionv1.Create)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 	t.Run("Strict mode on", func(t *testing.T) {
@@ -222,38 +222,76 @@ func TestFlow(t *testing.T) {
 
 	tests := []struct {
 		name               string
+		operation          admissionv1.Operation
 		inputLabels        map[string]string
 		shouldCallValidate bool
 	}{
 		{
-			name:               "pod without label should pass with validation and set Success",
+			name:               "update pod without label should pass with validation",
+			operation:          admissionv1.Update,
 			inputLabels:        nil,
 			shouldCallValidate: true,
 		},
 		{
-			name:               "pod with label Success should pass with validation",
+			name:               "update pod with label Success should pass with validation",
+			operation:          admissionv1.Update,
 			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
 			shouldCallValidate: true,
 		},
 		{
-			name:               "pod with unknown label should pass with validation",
+			name:               "update pod with unknown label should pass with validation",
+			operation:          admissionv1.Update,
 			inputLabels:        map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
 			shouldCallValidate: true,
 		},
 		{
-			name:               "pod with label Failed should pass without validation and unchanged",
+			name:               "update pod with label Failed should pass without validation",
+			operation:          admissionv1.Update,
 			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
 			shouldCallValidate: false,
 		},
 		{ // TODO: it will be Failed status with annotation Reject (now should be impossible on webhook input - it's like unknown label)
-			name:               "pod with label Reject should pass with",
+			name:               "update pod with label Reject should pass with",
+			operation:          admissionv1.Update,
 			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
 			shouldCallValidate: true,
 		},
 		{
-			name:               "pod with label Pending should pass without validation and unchanged",
+			name:               "update pod with label Pending should pass without validation",
+			operation:          admissionv1.Update,
 			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
 			shouldCallValidate: false,
+		},
+		// create always should be validated
+		{
+			name:               "create pod without label should pass with validation",
+			operation:          admissionv1.Create,
+			inputLabels:        nil,
+			shouldCallValidate: true,
+		},
+		{
+			name:               "create pod with label Success should pass with validation",
+			operation:          admissionv1.Create,
+			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
+			shouldCallValidate: true,
+		},
+		{
+			name:               "create pod with unknown label should pass with validation",
+			operation:          admissionv1.Create,
+			inputLabels:        map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
+			shouldCallValidate: true,
+		},
+		{
+			name:               "create pod with label Failed should pass with validation",
+			operation:          admissionv1.Create,
+			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
+			shouldCallValidate: true,
+		},
+		{
+			name:               "create pod with label Pending should pass wit validation",
+			operation:          admissionv1.Create,
+			inputLabels:        map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
+			shouldCallValidate: true,
 		},
 	}
 	for _, tt := range tests {
@@ -263,7 +301,7 @@ func TestFlow(t *testing.T) {
 			mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 			pod := newPodFix(nsName, tt.inputLabels)
-			req := newRequestFix(t, pod)
+			req := newRequestFix(t, pod, tt.operation)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 			timeout := time.Second
@@ -309,14 +347,15 @@ func setupValidatorMock() mocks.ImageValidatorService {
 	return mockValidator
 }
 
-func newRequestFix(t *testing.T, pod corev1.Pod) admission.Request {
+func newRequestFix(t *testing.T, pod corev1.Pod, operation admissionv1.Operation) admission.Request {
 	raw, err := json.Marshal(pod)
 	require.NoError(t, err)
 
 	req := admission.Request{
 		AdmissionRequest: admissionv1.AdmissionRequest{
-			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-			Object: runtime.RawExtension{Raw: raw},
+			Kind:      metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+			Operation: operation,
+			Object:    runtime.RawExtension{Raw: raw},
 		}}
 	return req
 }
