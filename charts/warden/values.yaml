@@ -13,7 +13,7 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230209-8d75ccee
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230209-8d75ccee
 
   admission:
     image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230209-8d75ccee
