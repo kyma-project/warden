@@ -117,13 +117,10 @@ func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 
 func IsValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
 	validationLabelValue := getPodValidationLabelValue(pod)
-	if validationLabelValue == "" {
-		return true
+	if validationLabelValue == pkg.ValidationStatusFailed || validationLabelValue == pkg.ValidationStatusPending {
+		return false
 	}
-	if validationLabelValue == pkg.ValidationStatusSuccess {
-		return true
-	}
-	return false
+	return true
 }
 
 func getPodValidationLabelValue(pod *corev1.Pod) string {
