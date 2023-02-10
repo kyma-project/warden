@@ -11,11 +11,12 @@ fullnameOverride: ""
 
 #Service configuration
 global:
+  name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-52
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-59
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-52
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-59
     annotations:
       sidecar.istio.io/inject: "false"
   config:

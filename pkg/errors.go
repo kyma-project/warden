@@ -8,9 +8,18 @@ import (
 type ErrorType int
 
 const (
-	UnknownError ErrorType = iota + 1
+	// UnexpectedError
+	// The error is not known
+	UnexpectedError ErrorType = iota + 1
+	// ValidationError
+	// This error describe when the input image is not valid
+	//
 	ValidationError
-	ServiceUnavailableError
+	// UnknownResult
+	//	This error appears when during validation strange error come up and we don't know the validation result.
+	//	e.g.: communication errors
+	//
+	UnknownResult
 )
 
 type NotaryError struct {
@@ -42,10 +51,10 @@ func ErrorCode(e error) ErrorType {
 	if found := errors.As(e, &customErr); found {
 		return customErr.code
 	}
-	return UnknownError
+	return UnexpectedError
 }
 
-func NewValidationError(err error) error {
+func NewValidationFailedErr(err error) error {
 	return NotaryError{
 		code:    ValidationError,
 		Message: "notary validation error",
@@ -53,10 +62,10 @@ func NewValidationError(err error) error {
 	}
 }
 
-func NewServiceUnavailableError(err error) error {
+func NewUnknownResultErr(err error) error {
 	return NotaryError{
-		code:    ServiceUnavailableError,
-		Message: "notary service unavailable error",
+		code:    UnknownResult,
+		Message: "notary service unknown error",
 		parent:  err,
 	}
 }

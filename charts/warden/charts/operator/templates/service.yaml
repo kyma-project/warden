@@ -1,10 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  labels:
-    app: {{ .Chart.Name }}
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   ports:
     - name: https
@@ -12,4 +14,6 @@ spec:
       protocol: TCP
       targetPort: https
   selector:
-    app: {{ .Chart.Name }}
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}

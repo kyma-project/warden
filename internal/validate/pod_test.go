@@ -123,7 +123,7 @@ func TestValidatePod(t *testing.T) {
 			mockValidator := mocks.ImageValidatorService{}
 			mockValidator.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
 			mockValidator.Mock.On("Validate", mock.Anything, validImage).Return(nil)
-			mockValidator.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewServiceUnavailableError(nil))
+			mockValidator.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewUnknownResultErr(nil))
 
 			podValidator := validate.NewPodValidator(&mockValidator)
 			//WHEN
