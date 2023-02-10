@@ -11,6 +11,7 @@ fullnameOverride: ""
 
 #Service configuration
 global:
+  name: warden
   operator:
     image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-59
 

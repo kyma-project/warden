@@ -3,6 +3,10 @@ kind: Service
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   ports:
     - name: https-admission
@@ -10,4 +14,6 @@ spec:
       protocol: TCP
       targetPort: 8443
   selector:
-    app: {{ .Chart.Name }}
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
