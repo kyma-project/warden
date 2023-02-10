@@ -5,7 +5,7 @@
 replicaCount: 1
 
 
-imagePullSecrets: [ ]
+imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
@@ -13,10 +13,10 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:v20230209-8d75ccee
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230209-8d75ccee
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:v20230209-8d75ccee
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230209-8d75ccee
     annotations:
       sidecar.istio.io/inject: "false"
   config:
@@ -58,7 +58,7 @@ serviceAccount:
   # Specifies whether a service account should be created
   create: true
   # Annotations to add to the service account
-  annotations: { }
+  annotations: {}
   # The name of the service account to use.
   # If not set and create is true, a name is generated using the fullname template
   name: "warden-controller-manager"
@@ -68,12 +68,12 @@ service:
   port: 8443
 
 resources:
-  limits:
-    cpu: 256m
-    memory: 128Mi
-  requests:
-    cpu: 20m
-    memory: 64Mi
+   limits:
+     cpu: 256m
+     memory: 128Mi
+   requests:
+     cpu: 20m
+     memory: 64Mi
 
 autoscaling:
   enabled: false
@@ -82,10 +82,10 @@ autoscaling:
   targetCPUUtilizationPercentage: 80
   # targetMemoryUtilizationPercentage: 80
 
-nodeSelector: { }
+nodeSelector: {}
 
-tolerations: [ ]
+tolerations: []
 
-affinity: { }
+affinity: {}
 
-imageRenderer: { }
+imageRenderer: {}
