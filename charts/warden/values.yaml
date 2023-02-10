@@ -13,10 +13,10 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-59
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230210-60aa2d88
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-59
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230210-60aa2d88
     annotations:
       sidecar.istio.io/inject: "false"
   config:
