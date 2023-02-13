@@ -75,13 +75,31 @@ func TestTimeout(t *testing.T) {
 		require.True(t, res.AdmissionResponse.Allowed)
 	})
 
-	t.Run("Defaulting webhook timeout", func(t *testing.T) {
+	t.Run("Defaulting webhook timeout, allowed", func(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
 		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			After(timeout*2).
 			Return(validate.Valid, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
+		require.NoError(t, webhook.InjectDecoder(decoder))
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		require.NotNil(t, res)
+		require.NotNil(t, res.Result)
+		assert.Equal(t, int32(http.StatusOK), res.Result.Code)
+		assert.Contains(t, res.Result.Reason, "request exceeded desired timeout")
+	})
+
+	t.Run("Defaulting webhook timeout strict mode on, errored", func(t *testing.T) {
+		validationSvc := mocks.NewPodValidator(t)
+		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			After(timeout*2).
+			Return(validate.Valid, nil).Once()
+		defer validationSvc.AssertExpectations(t)
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOn, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -111,9 +129,9 @@ func TestTimeout(t *testing.T) {
 
 		//THEN
 		require.NotNil(t, res)
-		require.NotNil(t, res.Result, "response is ok")
-		assert.Equal(t, int32(http.StatusRequestTimeout), res.Result.Code)
-		assert.Contains(t, res.Result.Message, "context deadline exceeded")
+		require.NotNil(t, res.Result)
+		assert.Equal(t, int32(http.StatusOK), res.Result.Code)
+		assert.Contains(t, res.Result.Reason, "request exceeded desired timeout")
 		require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
 	})
 }

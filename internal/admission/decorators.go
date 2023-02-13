@@ -3,9 +3,7 @@ package admission
 import (
 	"context"
 	"github.com/kyma-project/warden/internal/helpers"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"time"
 )
@@ -38,7 +36,9 @@ func HandlerWithTimeMeasure(handler Handler) Handler {
 	}
 }
 
-func HandleWithTimeout(timeout time.Duration, handler Handler) Handler {
+type TimeoutHandler func(ctx context.Context, err error) admission.Response
+
+func HandleWithTimeout(timeout time.Duration, handler Handler, timeoutHandler TimeoutHandler) Handler {
 	return func(ctx context.Context, req admission.Request) admission.Response {
 		ctxTimeout, cancel := context.WithTimeout(ctx, timeout)
 		defer cancel()
@@ -55,8 +55,7 @@ func HandleWithTimeout(timeout time.Duration, handler Handler) Handler {
 		case <-done:
 		case <-ctxTimeout.Done():
 			if err := ctxTimeout.Err(); err != nil {
-				helpers.LoggerFromCtx(ctx).Infof("request exceeded desired timeout: %s", timeout.String())
-				return admission.Errored(http.StatusRequestTimeout, errors.Wrapf(err, "request exceeded desired timeout: %s", timeout.String()))
+				return timeoutHandler(ctxTimeout, err)
 			}
 		}
 		return resp
