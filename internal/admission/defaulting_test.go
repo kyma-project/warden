@@ -359,28 +359,6 @@ func TestFlow(t *testing.T) {
 				mockImageValidator.AssertNumberOfCalls(t, "Validate", 0)
 			}
 			require.Equal(t, tt.want.patches, res.Patches)
-
-			//if tt.want.shouldCallValidate {
-			//	mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
-			//	// with validation we should have patch if input status was not Success
-			//	if tt.inputLabels != nil && tt.inputLabels[pkg.PodValidationLabel] == pkg.ValidationStatusSuccess {
-			//		require.Equal(t, 0, len(res.Patches))
-			//	} else {
-			//		require.Equal(t, 1, len(res.Patches))
-			//		if res.Patches[0].Operation == "replace" {
-			//			patchValue := (res.Patches[0].Value).(string)
-			//			require.Equal(t, pkg.ValidationStatusSuccess, patchValue)
-			//		} else {
-			//			patchValue := (res.Patches[0].Value).(map[string]interface{})
-			//			require.Contains(t, patchValue, pkg.PodValidationLabel)
-			//			require.Equal(t, pkg.ValidationStatusSuccess, patchValue[pkg.PodValidationLabel])
-			//		}
-			//	}
-			//} else {
-			//	mockImageValidator.AssertNumberOfCalls(t, "Validate", 0)
-			//	// without validation we should have no patch
-			//	require.Equal(t, 0, len(res.Patches))
-			//}
 		})
 	}
 }
