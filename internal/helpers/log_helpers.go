@@ -26,11 +26,13 @@ func LoggerFromCtx(ctx context.Context) *zap.SugaredLogger {
 	return logger
 }
 
-func LogStartTime(ctx context.Context, message string) time.Time {
+func LogStartTime(ctx context.Context, message string) (closeLog func()) {
 	logger := LoggerFromCtx(ctx)
 	logger.Debugf("%s start", message)
 	startTime := time.Now()
-	return startTime
+	return func() {
+		LogEndTime(ctx, message, startTime)
+	}
 }
 
 func LogEndTime(ctx context.Context, message string, startTime time.Time) {
