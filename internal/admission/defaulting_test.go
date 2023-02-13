@@ -336,7 +336,7 @@ func TestFlow(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
 			mockImageValidator := setupValidatorMock()
-			mockPodValidator := validate.NewPodValidator(&mockImageValidator)
+			mockPodValidator := validate.NewPodValidator(mockImageValidator)
 
 			pod := newPodFix(nsName, tt.inputLabels)
 			req := newRequestFix(t, pod, tt.operation)
@@ -363,11 +363,11 @@ func TestFlow(t *testing.T) {
 	}
 }
 
-func setupValidatorMock() mocks.ImageValidatorService {
+func setupValidatorMock() *mocks.ImageValidatorService {
 	mockValidator := mocks.ImageValidatorService{}
 	mockValidator.Mock.On("Validate", mock.Anything, "test:test").
 		Return(nil)
-	return mockValidator
+	return &mockValidator
 }
 
 func newRequestFix(t *testing.T, pod corev1.Pod, operation admissionv1.Operation) admission.Request {
