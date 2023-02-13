@@ -4,7 +4,7 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: validation.webhook.warden.kyma-project.io
   labels:
-    {{- include "warden.labels" . | nindent 4 }}
+    app: {{ .Values.global.name }}
 webhooks:
   - clientConfig:
       service:
@@ -22,7 +22,7 @@ kind: MutatingWebhookConfiguration
 metadata:
   name: defaulting.webhook.warden.kyma-project.io
   labels:
-    {{- include "warden.labels" . | nindent 4 }}
+    app: {{ .Values.global.name }}
 webhooks:
   - clientConfig:
       service:
