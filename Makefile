@@ -196,4 +196,7 @@ clean:
 	rm bin/operator
 
 run-integration-tests:
-	( cd ./tests && go test -count=1 -v ./ )
+	( cd ./tests && go test -tags integration -count=1 ./  )
+
+unit-test:
+	go test ./...

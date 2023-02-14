@@ -41,15 +41,21 @@ type NotaryConfig struct {
 type NotaryValidator struct {
 }
 
+//go:generate mockery --name NotaryRepoClient
+type NotaryRepoClient interface {
+	client.Repository
+}
+
+//go:generate mockery --name RepoFactory
 type RepoFactory interface {
-	NewRepoClient(string, NotaryConfig) (client.Repository, error)
+	NewRepoClient(string, NotaryConfig) (NotaryRepoClient, error)
 }
 
 type NotaryRepoFactory struct {
 	Timeout time.Duration
 }
 
-func (f NotaryRepoFactory) NewRepoClient(img string, c NotaryConfig) (client.Repository, error) {
+func (f NotaryRepoFactory) NewRepoClient(img string, c NotaryConfig) (NotaryRepoClient, error) {
 	base := &http.Transport{
 		Proxy:               http.ProxyFromEnvironment,
 		TLSHandshakeTimeout: 10 * time.Second,
