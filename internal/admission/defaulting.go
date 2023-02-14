@@ -27,14 +27,16 @@ type DefaultingWebHook struct {
 	client        k8sclient.Client
 	decoder       *admission.Decoder
 	baseLogger    *zap.SugaredLogger
+	strictMode    bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
 		baseLogger:    logger,
 		timeout:       timeout,
+		strictMode:    strictMode,
 	}
 }
 
@@ -74,7 +76,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Allowed("validation is not enabled for pod")
 	}
 
-	labeledPod := labelPod(ctx, result, pod)
+	labeledPod := labelPod(ctx, result, pod, w.strictMode)
 	fBytes, err := json.Marshal(labeledPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -128,8 +130,8 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 	return nil
 }
 
-func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod) *corev1.Pod {
-	labelToApply := LabelForValidationResult(result)
+func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
+	labelToApply := LabelForValidationResult(result, strictMode)
 	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s`", labelToApply)
 	if labelToApply == "" {
 		return pod
@@ -143,7 +145,7 @@ func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1
 	return labeledPod
 }
 
-func LabelForValidationResult(result validate.ValidationResult) string {
+func LabelForValidationResult(result validate.ValidationResult, strictMode bool) string {
 	switch result {
 	case validate.NoAction:
 		return ""
@@ -152,6 +154,9 @@ func LabelForValidationResult(result validate.ValidationResult) string {
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess
 	case validate.ServiceUnavailable:
+		if strictMode {
+			return pkg.ValidationStatusReject
+		}
 		return pkg.ValidationStatusPending
 	default:
 		return pkg.ValidationStatusPending
