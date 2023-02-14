@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
@@ -137,58 +138,80 @@ func TestTimeout(t *testing.T) {
 	})
 }
 
-func TestStrictMode(t *testing.T) {
-	logger := zap.NewNop()
+func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
+	//GIVEN
+	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
 	decoder, err := admission.NewDecoder(scheme)
 	require.NoError(t, err)
-	timeout := time.Millisecond * 30
+	timeout := time.Second
 
-	testNs := "test-namespace"
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
+	nsName := "test-namespace"
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
 		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 	}}}
 
-	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{Image: "test:test"}}},
-	}
-	req := newRequestFix(t, pod, admissionv1.Create)
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+	t.Run("should return success for valid image", func(t *testing.T) {
+		//GIVEN
+		mockImageValidator := mocks.ImageValidatorService{}
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
+			Return(nil)
+		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
-	t.Run("Strict mode on", func(t *testing.T) {
-		validationSvc := mocks.NewPodValidator(t)
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			Return(validate.ServiceUnavailable, nil).Once()
-		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOn, logger.Sugar())
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
 
 		//THEN
+		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
 		require.NotNil(t, res)
-		require.Nil(t, res.Result)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Len(t, res.Patches, 1)
-		require.Len(t, res.Patches[0].Value, 1)
-		require.Equal(t, "add", res.Patches[0].Operation)
-		require.Equal(t, "/metadata/labels", res.Patches[0].Path)
-		patchValue := (res.Patches[0].Value).(map[string]interface{})
-		require.Contains(t, patchValue, pkg.PodValidationLabel)
-		require.Equal(t, pkg.ValidationStatusReject, patchValue[pkg.PodValidationLabel])
+		require.Equal(t, patchWithAddSuccessLabel(), res.Patches)
 	})
 
-	t.Run("Strict mode off", func(t *testing.T) {
-		validationSvc := mocks.NewPodValidator(t)
+	t.Run("should return reject for invalid image", func(t *testing.T) {
+		//GIVEN
+		mockImageValidator := mocks.ImageValidatorService{}
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
+			Return(pkg.NewValidationFailedErr(errors.New("validation failed")))
+		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			Return(validate.ServiceUnavailable, nil).Once()
-		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
+		require.NoError(t, webhook.InjectDecoder(decoder))
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
+		require.NotNil(t, res)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusReject), res.Patches)
+	})
+
+	t.Run("should return reject for service unavailable with strict mode on", func(t *testing.T) {
+		//GIVEN
+		mockPodValidator := mocks.NewPodValidator(t)
+		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			Return(validate.ServiceUnavailable, nil)
+		defer mockPodValidator.AssertExpectations(t)
+
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOn, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
 
 		//WHEN
@@ -198,17 +221,35 @@ func TestStrictMode(t *testing.T) {
 		require.NotNil(t, res)
 		require.Nil(t, res.Result)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Len(t, res.Patches, 1)
-		require.Len(t, res.Patches[0].Value, 1)
-		require.Equal(t, "add", res.Patches[0].Operation)
-		require.Equal(t, "/metadata/labels", res.Patches[0].Path)
-		patchValue := (res.Patches[0].Value).(map[string]interface{})
-		require.Contains(t, patchValue, pkg.PodValidationLabel)
-		require.Equal(t, pkg.ValidationStatusPending, patchValue[pkg.PodValidationLabel])
+		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusReject), res.Patches)
+	})
+
+	t.Run("should return pending for service unavailable with strict mode off", func(t *testing.T) {
+		//GIVEN
+		mockPodValidator := mocks.NewPodValidator(t)
+		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			Return(validate.ServiceUnavailable, nil)
+		defer mockPodValidator.AssertExpectations(t)
+
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOff, logger.Sugar())
+		require.NoError(t, webhook.InjectDecoder(decoder))
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		require.NotNil(t, res)
+		require.Nil(t, res.Result)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 }
 
-func TestFlow(t *testing.T) {
+func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 	//GIVEN
 	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
@@ -395,16 +436,20 @@ func newPodFix(nsName string, labels map[string]string) corev1.Pod {
 	return pod
 }
 
-func patchWithAddSuccessLabel() []jsonpatch.JsonPatchOperation {
+func patchWithAddLabel(labelValue string) []jsonpatch.JsonPatchOperation {
 	return []jsonpatch.JsonPatchOperation{
 		{
 			Operation: "add",
 			Path:      "/metadata/labels",
 			Value: map[string]interface{}{
-				"pods.warden.kyma-project.io/validate": "success",
+				"pods.warden.kyma-project.io/validate": labelValue,
 			},
 		},
 	}
+}
+
+func patchWithAddSuccessLabel() []jsonpatch.JsonPatchOperation {
+	return patchWithAddLabel(pkg.ValidationStatusSuccess)
 }
 
 func patchWithReplaceSuccessLabel() []jsonpatch.JsonPatchOperation {
