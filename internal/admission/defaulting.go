@@ -101,15 +101,15 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, err error) admissi
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
 	logger := helpers.LoggerFromCtx(ctx)
-	if enabled := IsValidationEnabledForNS(ns); !enabled {
+	if enabled := isValidationEnabledForNS(ns); !enabled {
 		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false
 	}
 	if needed := IsValidationNeededForOperation(operation); needed {
 		return true
 	}
-	if enabled := IsValidationEnabledForPodValidationLabel(pod); !enabled {
-		logger.Debugw("pod verification skipped because pod checking is not enabled for the input validation label")
+	if enabled := isValidationEnabledForPodValidationLabel(pod); !enabled {
+		logger.Debugw("pod validation skipped because pod checking is not enabled for the input validation label")
 		return false
 	}
 	return true
@@ -119,11 +119,11 @@ func IsValidationNeededForOperation(operation admissionv1.Operation) bool {
 	return operation == admissionv1.Create
 }
 
-func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
+func isValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
-func IsValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
+func isValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
 	validationLabelValue := getPodValidationLabelValue(pod)
 	if validationLabelValue == pkg.ValidationStatusFailed || validationLabelValue == pkg.ValidationStatusPending {
 		return false
@@ -148,7 +148,7 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 }
 
 func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
-	labelToApply := LabelForValidationResult(result, strictMode)
+	labelToApply := labelForValidationResult(result, strictMode)
 	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s`", labelToApply)
 	if labelToApply == "" {
 		return pod
@@ -162,7 +162,7 @@ func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1
 	return labeledPod
 }
 
-func LabelForValidationResult(result validate.ValidationResult, strictMode bool) string {
+func labelForValidationResult(result validate.ValidationResult, strictMode bool) string {
 	switch result {
 	case validate.NoAction:
 		return ""
