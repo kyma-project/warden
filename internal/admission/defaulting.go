@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
@@ -43,7 +44,7 @@ func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodVal
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
 	return HandleWithLogger(w.baseLogger,
 		HandlerWithTimeMeasure(
-			HandleWithTimeout(w.timeout, w.handle)))(ctx, req)
+			HandleWithTimeout(w.timeout, w.handle, w.handleTimeout)))(ctx, req)
 }
 
 func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) admission.Response {
@@ -68,6 +69,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	if !isValidationNeeded(ctx, pod, ns) {
 		return admission.Allowed("validation is not needed for pod")
 	}
+
 	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -84,6 +86,16 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 
 	logger.Infow("pod was validated", "result", result)
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
+}
+
+func (w DefaultingWebHook) handleTimeout(ctx context.Context, err error) admission.Response {
+	msg := fmt.Sprintf("request exceeded desired timeout: %s", w.timeout.String())
+	helpers.LoggerFromCtx(ctx).Info(msg)
+	if w.strictMode {
+		err := errors.Wrap(err, msg)
+		return admission.Errored(http.StatusRequestTimeout, err)
+	}
+	return admission.Allowed(msg)
 }
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) bool {
