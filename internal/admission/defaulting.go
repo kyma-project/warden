@@ -9,6 +9,7 @@ import (
 	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,7 +67,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	if !isValidationNeeded(ctx, pod, ns) {
+	if !isValidationNeeded(ctx, pod, ns, req.Operation) {
 		return admission.Allowed("validation is not needed for pod")
 	}
 
@@ -98,11 +99,14 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, err error) admissi
 	return admission.Allowed(msg)
 }
 
-func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) bool {
+func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
 	logger := helpers.LoggerFromCtx(ctx)
 	if enabled := IsValidationEnabledForNS(ns); !enabled {
 		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false
+	}
+	if needed := IsValidationNeededForOperation(operation); needed {
+		return true
 	}
 	if enabled := IsValidationEnabledForPodValidationLabel(pod); !enabled {
 		logger.Debugw("pod verification skipped because pod checking is not enabled for the input validation label")
@@ -111,19 +115,20 @@ func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespa
 	return true
 }
 
+func IsValidationNeededForOperation(operation admissionv1.Operation) bool {
+	return operation == admissionv1.Create
+}
+
 func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
 func IsValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
 	validationLabelValue := getPodValidationLabelValue(pod)
-	if validationLabelValue == "" {
-		return true
+	if validationLabelValue == pkg.ValidationStatusFailed || validationLabelValue == pkg.ValidationStatusPending {
+		return false
 	}
-	if validationLabelValue == pkg.ValidationStatusSuccess {
-		return true
-	}
-	return false
+	return true
 }
 
 func getPodValidationLabelValue(pod *corev1.Pod) string {

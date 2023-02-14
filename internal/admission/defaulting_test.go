@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"gomodules.xyz/jsonpatch/v2"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -153,7 +154,7 @@ func TestStrictMode(t *testing.T) {
 		Spec: corev1.PodSpec{
 			Containers: []corev1.Container{{Image: "test:test"}}},
 	}
-	req := newRequestFix(t, pod)
+	req := newRequestFix(t, pod, admissionv1.Create)
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 	t.Run("Strict mode on", func(t *testing.T) {
@@ -220,92 +221,129 @@ func TestFlow(t *testing.T) {
 		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 	}}}
 
-	type args struct {
-		labels               map[string]string
-		shouldNotBeValidated bool
-	}
 	type want struct {
-		patchesCount     int
-		validationStatus string
+		shouldCallValidate bool
+		patches            []jsonpatch.JsonPatchOperation
 	}
 	tests := []struct {
-		name string
-		args args
-		want want
+		name        string
+		operation   admissionv1.Operation
+		inputLabels map[string]string
+		want        want
 	}{
 		{
-			name: "pod without label should pass with validation and set Success",
-			args: args{
-				labels:               nil,
-				shouldNotBeValidated: false,
-			},
+			name:        "update pod without label should pass with validation",
+			operation:   admissionv1.Update,
+			inputLabels: nil,
 			want: want{
-				patchesCount:     1,
-				validationStatus: pkg.ValidationStatusSuccess,
+				shouldCallValidate: true,
+				patches:            patchWithAddSuccessLabel(),
 			},
 		},
 		{
-			name: "pod with label Success should pass with validation",
-			args: args{
-				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
-				shouldNotBeValidated: false,
-			},
+			name:        "update pod with label Success should pass with validation",
+			operation:   admissionv1.Update,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
 			want: want{
-				patchesCount: 0,
+				shouldCallValidate: true,
+				patches:            []jsonpatch.JsonPatchOperation{},
 			},
 		},
 		{
-			name: "pod with label Failed should pass without validation and unchanged",
-			args: args{
-				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
-				shouldNotBeValidated: true,
-			},
+			name:        "update pod with unknown label should pass with validation",
+			operation:   admissionv1.Update,
+			inputLabels: map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
 			want: want{
-				patchesCount: 0,
+				shouldCallValidate: true,
+				patches:            patchWithReplaceSuccessLabel(),
 			},
 		},
 		{
-			name: "pod with label Reject should pass without validation and unchanged",
-			args: args{
-				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
-				shouldNotBeValidated: true,
-			},
+			name:        "update pod with label Failed should pass without validation",
+			operation:   admissionv1.Update,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
 			want: want{
-				patchesCount: 0,
+				shouldCallValidate: false,
+				patches:            []jsonpatch.JsonPatchOperation(nil),
+			},
+		},
+		{ // TODO: it will be Failed status with annotation Reject (now should be impossible on webhook input - it's like unknown label)
+			name:        "update pod with label Reject should pass with validation",
+			operation:   admissionv1.Update,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
+			want: want{
+				shouldCallValidate: true,
+				patches:            patchWithReplaceSuccessLabel(),
 			},
 		},
 		{
-			name: "pod with label Pending should pass without validation and unchanged",
-			args: args{
-				labels:               map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
-				shouldNotBeValidated: true,
-			},
+			name:        "update pod with label Pending should pass without validation",
+			operation:   admissionv1.Update,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
 			want: want{
-				patchesCount: 0,
+				shouldCallValidate: false,
+				patches:            []jsonpatch.JsonPatchOperation(nil),
+			},
+		},
+		// create always should be validated
+		{
+			name:        "create pod without label should pass with validation",
+			operation:   admissionv1.Create,
+			inputLabels: nil,
+			want: want{
+				shouldCallValidate: true,
+				patches:            patchWithAddSuccessLabel(),
 			},
 		},
 		{
-			name: "pod with unknown label should pass without validation and unchanged",
-			args: args{
-				labels:               map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
-				shouldNotBeValidated: true,
-			},
+			name:        "create pod with label Success should pass with validation",
+			operation:   admissionv1.Create,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusSuccess},
 			want: want{
-				patchesCount: 0,
+				shouldCallValidate: true,
+				patches:            []jsonpatch.JsonPatchOperation{},
+			},
+		},
+		{
+			name:        "create pod with unknown label should pass with validation",
+			operation:   admissionv1.Create,
+			inputLabels: map[string]string{pkg.PodValidationLabel: "some-unknown-label"},
+			want: want{
+				shouldCallValidate: true,
+				patches:            patchWithReplaceSuccessLabel(),
+			},
+		},
+		{
+			name:        "create pod with label Failed should pass with validation",
+			operation:   admissionv1.Create,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusFailed},
+			want: want{
+				shouldCallValidate: true,
+				patches:            patchWithReplaceSuccessLabel(),
+			},
+		},
+		{
+			name:        "create pod with label Pending should pass wit validation",
+			operation:   admissionv1.Create,
+			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
+			want: want{
+				shouldCallValidate: true,
+				patches:            patchWithReplaceSuccessLabel(),
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			podValidator := setupValidatorMock(t)
+			mockImageValidator := setupValidatorMock()
+			mockPodValidator := validate.NewPodValidator(mockImageValidator)
 
-			pod := newPodFix(nsName, tt.args.shouldNotBeValidated, tt.args.labels)
-			req := newRequestFix(t, pod)
+			pod := newPodFix(nsName, tt.inputLabels)
+			req := newRequestFix(t, pod, tt.operation)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
 
 			timeout := time.Second
-			webhook := NewDefaultingWebhook(client, podValidator, timeout, false, logger.Sugar())
+			webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
 			require.NoError(t, webhook.InjectDecoder(decoder))
 
 			//WHEN
@@ -314,52 +352,67 @@ func TestFlow(t *testing.T) {
 			//THEN
 			require.NotNil(t, res)
 			require.True(t, res.AdmissionResponse.Allowed)
-			require.Equal(t, tt.want.patchesCount, len(res.Patches))
-			if tt.want.patchesCount > 0 {
-				patchValue := (res.Patches[0].Value).(map[string]interface{})
-				require.Contains(t, patchValue, pkg.PodValidationLabel)
-				require.Equal(t, tt.want.validationStatus, patchValue[pkg.PodValidationLabel])
+
+			if tt.want.shouldCallValidate {
+				mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
+			} else {
+				mockImageValidator.AssertNumberOfCalls(t, "Validate", 0)
 			}
+			require.Equal(t, tt.want.patches, res.Patches)
 		})
 	}
 }
 
-func setupValidatorMock(t *testing.T) validate.PodValidator {
+func setupValidatorMock() *mocks.ImageValidatorService {
 	mockValidator := mocks.ImageValidatorService{}
-	mockValidator.Mock.On("Validate", mock.Anything, "test:should-not-be-validated").
-		Run(func(args mock.Arguments) {
-			t.Fatal("unexpected validation call!")
-		})
-	mockValidator.Mock.On("Validate", mock.Anything, "test:can-be-validated").
+	mockValidator.Mock.On("Validate", mock.Anything, "test:test").
 		Return(nil)
-	podValidator := validate.NewPodValidator(&mockValidator)
-	return podValidator
+	return &mockValidator
 }
 
-func newRequestFix(t *testing.T, pod corev1.Pod) admission.Request {
+func newRequestFix(t *testing.T, pod corev1.Pod, operation admissionv1.Operation) admission.Request {
 	raw, err := json.Marshal(pod)
 	require.NoError(t, err)
 
 	req := admission.Request{
 		AdmissionRequest: admissionv1.AdmissionRequest{
-			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-			Object: runtime.RawExtension{Raw: raw},
+			Kind:      metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+			Operation: operation,
+			Object:    runtime.RawExtension{Raw: raw},
 		}}
 	return req
 }
 
-func newPodFix(nsName string, shouldNotBeValidated bool, labels map[string]string) corev1.Pod {
-	imageName := "test:can-be-validated"
-	if shouldNotBeValidated {
-		imageName = "test:should-not-be-validated"
-	}
+func newPodFix(nsName string, labels map[string]string) corev1.Pod {
 	pod := corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "pod", Namespace: nsName,
 			Labels: labels,
 		},
 		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{Image: imageName}}},
+			Containers: []corev1.Container{{Image: "test:test"}}},
 	}
 	return pod
+}
+
+func patchWithAddSuccessLabel() []jsonpatch.JsonPatchOperation {
+	return []jsonpatch.JsonPatchOperation{
+		{
+			Operation: "add",
+			Path:      "/metadata/labels",
+			Value: map[string]interface{}{
+				"pods.warden.kyma-project.io/validate": "success",
+			},
+		},
+	}
+}
+
+func patchWithReplaceSuccessLabel() []jsonpatch.JsonPatchOperation {
+	return []jsonpatch.JsonPatchOperation{
+		{
+			Operation: "replace",
+			Path:      "/metadata/labels/pods.warden.kyma-project.io~1validate",
+			Value:     "success",
+		},
+	}
 }
