@@ -14,4 +14,7 @@ const (
 	ValidationStatusFailed = "failed"
 	//Reject is used to pass status between webhooks
 	ValidationStatusReject = "reject"
+
+	PodValidationRejectAnnotation = "pods.warden.kyma-project.io/validate-reject"
+	ValidationReject              = "reject"
 )

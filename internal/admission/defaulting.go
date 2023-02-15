@@ -79,8 +79,8 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return admission.Allowed("validation is not enabled for pod")
 	}
 
-	labeledPod := labelPod(ctx, result, pod, w.strictMode)
-	fBytes, err := json.Marshal(labeledPod)
+	markedPod := markPod(ctx, result, pod, w.strictMode)
+	fBytes, err := json.Marshal(markedPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
@@ -147,35 +147,45 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 	return nil
 }
 
-func labelPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
-	labelToApply := labelForValidationResult(result, strictMode)
-	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s`", labelToApply)
-	if labelToApply == "" {
+func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
+	label, annotation := podMarkersForValidationResult(result, strictMode)
+	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s` and annotate: `%s`", label, annotation)
+	if label == "" && annotation == "" {
 		return pod
 	}
-	labeledPod := pod.DeepCopy()
-	if labeledPod.Labels == nil {
-		labeledPod.Labels = map[string]string{}
+
+	markedPod := pod.DeepCopy()
+	if label != "" {
+		if markedPod.Labels == nil {
+			markedPod.Labels = map[string]string{}
+		}
+		markedPod.Labels[pkg.PodValidationLabel] = label
 	}
 
-	labeledPod.Labels[pkg.PodValidationLabel] = labelToApply
-	return labeledPod
+	if annotation != "" {
+		if markedPod.Annotations == nil {
+			markedPod.Annotations = map[string]string{}
+		}
+		markedPod.Annotations[pkg.PodValidationRejectAnnotation] = annotation
+	}
+	return markedPod
 }
 
-func labelForValidationResult(result validate.ValidationResult, strictMode bool) string {
+func podMarkersForValidationResult(result validate.ValidationResult, strictMode bool) (label string, annotation string) {
 	switch result {
 	case validate.NoAction:
-		return ""
+		return "", ""
 	case validate.Invalid:
-		return pkg.ValidationStatusReject
+		return pkg.ValidationStatusFailed, pkg.ValidationReject
 	case validate.Valid:
-		return pkg.ValidationStatusSuccess
+		return pkg.ValidationStatusSuccess, ""
 	case validate.ServiceUnavailable:
+		annotation = ""
 		if strictMode {
-			return pkg.ValidationStatusReject
+			annotation = pkg.ValidationReject
 		}
-		return pkg.ValidationStatusPending
+		return pkg.ValidationStatusPending, annotation
 	default:
-		return pkg.ValidationStatusPending
+		return pkg.ValidationStatusPending, ""
 	}
 }

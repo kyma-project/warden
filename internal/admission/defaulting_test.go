@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"sort"
 	"testing"
 	"time"
 )
@@ -152,7 +153,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 	}}}
 
-	t.Run("should return success for valid image", func(t *testing.T) {
+	t.Run("when valid image should return success", func(t *testing.T) {
 		//GIVEN
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
@@ -176,7 +177,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.Equal(t, patchWithAddSuccessLabel(), res.Patches)
 	})
 
-	t.Run("should return reject for invalid image", func(t *testing.T) {
+	t.Run("when invalid image should return failed and annotation reject", func(t *testing.T) {
 		//GIVEN
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
@@ -197,10 +198,10 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
 		require.NotNil(t, res)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusReject), res.Patches)
+		equivalentPatches(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
 	})
 
-	t.Run("should return reject for service unavailable with strict mode on", func(t *testing.T) {
+	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
@@ -221,10 +222,10 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.NotNil(t, res)
 		require.Nil(t, res.Result)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusReject), res.Patches)
+		equivalentPatches(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
 	})
 
-	t.Run("should return pending for service unavailable with strict mode off", func(t *testing.T) {
+	t.Run("when service unavailable and strict mode off should return pending", func(t *testing.T) {
 		//GIVEN
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
@@ -460,4 +461,31 @@ func patchWithReplaceSuccessLabel() []jsonpatch.JsonPatchOperation {
 			Value:     "success",
 		},
 	}
+}
+
+func withAddRejectAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.JsonPatchOperation {
+	return append(patch, jsonpatch.JsonPatchOperation{
+		Operation: "add",
+		Path:      "/metadata/annotations",
+		Value: map[string]interface{}{
+			"pods.warden.kyma-project.io/validate-reject": "reject",
+		},
+	})
+}
+
+type byOperationAndPath []jsonpatch.JsonPatchOperation
+
+func (a byOperationAndPath) Len() int { return len(a) }
+func (a byOperationAndPath) Less(i, j int) bool {
+	if a[i].Operation == a[j].Operation {
+		return a[i].Path < a[j].Path
+	}
+	return a[i].Operation < a[j].Operation
+}
+func (a byOperationAndPath) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+
+func equivalentPatches(t *testing.T, expected []jsonpatch.JsonPatchOperation, actual []jsonpatch.JsonPatchOperation) {
+	sort.Sort(byOperationAndPath(expected))
+	sort.Sort(byOperationAndPath(actual))
+	require.Equal(t, expected, actual)
 }
