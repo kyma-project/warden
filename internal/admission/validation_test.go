@@ -35,30 +35,19 @@ func TestValidationWebhook(t *testing.T) {
 			name: "Pod should be rejected",
 			pod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-pod",
-					Labels: map[string]string{
-						pkg.PodValidationLabel: pkg.ValidationStatusReject,
+					Annotations: map[string]string{
+						pkg.PodValidationRejectAnnotation: pkg.ValidationReject,
 					}},
 			},
 			expectedStatus:  int32(http.StatusForbidden),
 			expectedMessage: "images validation failed",
 		},
 		{
-			name: "Pod should be allowed, validation success",
+			name: "Pod should be allowed, any label",
 			pod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-pod",
 					Labels: map[string]string{
-						pkg.PodValidationLabel: pkg.ValidationStatusSuccess,
-					}},
-			},
-			expectedStatus:  int32(http.StatusOK),
-			expectedMessage: "nothing to do",
-		},
-		{
-			name: "Pod should be allowed, validation pending",
-			pod: &corev1.Pod{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-pod",
-					Labels: map[string]string{
-						pkg.PodValidationLabel: pkg.ValidationStatusPending,
+						pkg.PodValidationLabel: "anything",
 					}},
 			},
 			expectedStatus:  int32(http.StatusOK),

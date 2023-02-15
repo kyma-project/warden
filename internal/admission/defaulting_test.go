@@ -309,15 +309,6 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 				patches:            []jsonpatch.JsonPatchOperation(nil),
 			},
 		},
-		{ // TODO: it will be Failed status with annotation Reject (now should be impossible on webhook input - it's like unknown label)
-			name:        "update pod with label Reject should pass with validation",
-			operation:   admissionv1.Update,
-			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusReject},
-			want: want{
-				shouldCallValidate: true,
-				patches:            patchWithReplaceSuccessLabel(),
-			},
-		},
 		{
 			name:        "update pod with label Pending should pass without validation",
 			operation:   admissionv1.Update,
