@@ -2,7 +2,6 @@ package admission
 
 import (
 	"context"
-	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -46,13 +45,12 @@ func (w *ValidationWebhook) handle(_ context.Context, req admission.Request) adm
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	if pod.Labels == nil {
+	if pod.Annotations == nil {
 		return admission.Allowed("nothing to do")
 	}
 
-	if pod.Labels[pkg.PodValidationLabel] != pkg.ValidationStatusReject {
+	if pod.Annotations[PodValidationRejectAnnotation] != ValidationReject {
 		return admission.Allowed("nothing to do")
-
 	}
 
 	return admission.Denied("Pod images validation failed")
