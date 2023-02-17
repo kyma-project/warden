@@ -56,7 +56,7 @@ func TestTimeout(t *testing.T) {
 			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
 			Object: runtime.RawExtension{Raw: raw},
 		}}
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 	t.Run("Success", func(t *testing.T) {
 		//GIVEN
@@ -161,7 +161,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -185,7 +185,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -209,7 +209,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOn, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -233,7 +233,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOff, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -372,7 +372,7 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 
 			pod := newPodFix(nsName, tt.inputLabels)
 			req := newRequestFix(t, pod, tt.operation)
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns, &pod).Build()
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 			timeout := time.Second
 			webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
