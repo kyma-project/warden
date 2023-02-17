@@ -74,7 +74,7 @@ func TestTimeout(t *testing.T) {
 		//THEN
 		require.NotNil(t, res)
 		require.Nil(t, res.Result)
-		require.True(t, res.AdmissionResponse.Allowed)
+		assert.True(t, res.Allowed)
 	})
 
 	t.Run("Defaulting webhook timeout, allowed", func(t *testing.T) {
@@ -91,8 +91,9 @@ func TestTimeout(t *testing.T) {
 		//THEN
 		require.NotNil(t, res)
 		require.NotNil(t, res.Result)
-		assert.Equal(t, int32(http.StatusOK), res.Result.Code)
-		assert.Contains(t, res.Result.Reason, "request exceeded desired timeout")
+		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
+		assert.True(t, res.Allowed)
+		assert.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout strict mode on, errored", func(t *testing.T) {
@@ -109,8 +110,9 @@ func TestTimeout(t *testing.T) {
 		//THEN
 		require.NotNil(t, res)
 		require.NotNil(t, res.Result, "response is ok")
-		assert.Equal(t, int32(http.StatusRequestTimeout), res.Result.Code)
-		assert.Contains(t, res.Result.Message, "context deadline exceeded")
+		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
+		assert.True(t, res.Allowed)
+		assert.Equal(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout - all layers", func(t *testing.T) {
@@ -132,9 +134,11 @@ func TestTimeout(t *testing.T) {
 		//THEN
 		require.NotNil(t, res)
 		require.NotNil(t, res.Result)
-		assert.Equal(t, int32(http.StatusOK), res.Result.Code)
-		assert.Contains(t, res.Result.Reason, "request exceeded desired timeout")
-		require.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
+		assert.True(t, res.AdmissionResponse.Allowed)
+		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
+		assert.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
+		assert.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+
 	})
 }
 
