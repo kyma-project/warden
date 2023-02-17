@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const finalizerKey = "finalizer"
+
 type Handler func(ctx context.Context, req admission.Request) admission.Response
 
 func HandleWithLogger(baseLogger *zap.SugaredLogger, handler Handler) Handler {
@@ -36,7 +38,7 @@ func HandlerWithTimeMeasure(handler Handler) Handler {
 	}
 }
 
-type TimeoutHandler func(ctx context.Context, err error) admission.Response
+type TimeoutHandler func(ctx context.Context, err error, req admission.Request) admission.Response
 
 func HandleWithTimeout(timeout time.Duration, handler Handler, timeoutHandler TimeoutHandler) Handler {
 	return func(ctx context.Context, req admission.Request) admission.Response {
@@ -55,7 +57,7 @@ func HandleWithTimeout(timeout time.Duration, handler Handler, timeoutHandler Ti
 		case <-done:
 		case <-ctxTimeout.Done():
 			if err := ctxTimeout.Err(); err != nil {
-				return timeoutHandler(ctxTimeout, err)
+				return timeoutHandler(ctxTimeout, err, req)
 			}
 		}
 		return resp
