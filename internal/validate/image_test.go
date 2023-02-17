@@ -265,7 +265,7 @@ func Test_Validate_WhenNotaryRespondWithError_ShouldReturnServiceNotAvailable(t 
 			Url: testServer.URL,
 		},
 	}
-	f := validate.NotaryRepoFactory{5 * time.Second}
+	f := validate.NotaryRepoFactory{Timeout: 5 * time.Second}
 	validator := validate.NewImageValidator(sc, f)
 
 	//WHEN

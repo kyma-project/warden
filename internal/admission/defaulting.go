@@ -11,6 +11,7 @@ import (
 	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
@@ -78,7 +79,26 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	if result == validate.NoAction {
 		return admission.Allowed("validation is not enabled for pod")
 	}
+	res := w.createResponse(ctx, req, result, pod, logger)
+	return res
+}
 
+func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, req admission.Request) admission.Response {
+	pod := &corev1.Pod{}
+	if err := w.decoder.Decode(req, pod); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	msg := fmt.Sprintf("request exceeded desired timeout: %s, reason: %s", w.timeout.String(), timeoutErr.Error())
+	logger := helpers.LoggerFromCtx(ctx)
+	logger.Info(msg)
+
+	res := w.createResponse(ctx, req, validate.ServiceUnavailable, pod, logger)
+	res.Result = &metav1.Status{Message: msg}
+	return res
+}
+
+func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Request, result validate.ValidationResult, pod *corev1.Pod, logger *zap.SugaredLogger) admission.Response {
 	markedPod := markPod(ctx, result, pod, w.strictMode)
 	fBytes, err := json.Marshal(markedPod)
 	if err != nil {
@@ -87,16 +107,6 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 
 	logger.Infow("pod was validated", "result", result)
 	return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
-}
-
-func (w DefaultingWebHook) handleTimeout(ctx context.Context, err error) admission.Response {
-	msg := fmt.Sprintf("request exceeded desired timeout: %s", w.timeout.String())
-	helpers.LoggerFromCtx(ctx).Info(msg)
-	if w.strictMode {
-		err := errors.Wrap(err, msg)
-		return admission.Errored(http.StatusRequestTimeout, err)
-	}
-	return admission.Allowed(msg)
 }
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
