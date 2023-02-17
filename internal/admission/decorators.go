@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-const finalizerKey = "finalizer"
-
 type Handler func(ctx context.Context, req admission.Request) admission.Response
 
 func HandleWithLogger(baseLogger *zap.SugaredLogger, handler Handler) Handler {
