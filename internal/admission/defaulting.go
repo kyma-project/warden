@@ -149,7 +149,7 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 
 func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
 	label, annotation := podMarkersForValidationResult(result, strictMode)
-	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s` and annotate: `%s`", label, annotation)
+	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s` and annotated: `%s`", label, annotation)
 	if label == "" && annotation == "" {
 		return pod
 	}
