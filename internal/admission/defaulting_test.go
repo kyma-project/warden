@@ -21,7 +21,6 @@ import (
 	"net/http/httptest"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"sort"
 	"testing"
 	"time"
 )
@@ -198,7 +197,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
 		require.NotNil(t, res)
 		require.True(t, res.AdmissionResponse.Allowed)
-		equivalentPatches(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
+		require.ElementsMatch(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
 	})
 
 	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
@@ -222,7 +221,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.NotNil(t, res)
 		require.Nil(t, res.Result)
 		require.True(t, res.AdmissionResponse.Allowed)
-		equivalentPatches(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
+		require.ElementsMatch(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
 	})
 
 	t.Run("when service unavailable and strict mode off should return pending", func(t *testing.T) {
@@ -462,21 +461,4 @@ func withAddRejectAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.J
 			"pods.warden.kyma-project.io/validate-reject": "reject",
 		},
 	})
-}
-
-type byOperationAndPath []jsonpatch.JsonPatchOperation
-
-func (a byOperationAndPath) Len() int { return len(a) }
-func (a byOperationAndPath) Less(i, j int) bool {
-	if a[i].Operation == a[j].Operation {
-		return a[i].Path < a[j].Path
-	}
-	return a[i].Operation < a[j].Operation
-}
-func (a byOperationAndPath) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-
-func equivalentPatches(t *testing.T, expected []jsonpatch.JsonPatchOperation, actual []jsonpatch.JsonPatchOperation) {
-	sort.Sort(byOperationAndPath(expected))
-	sort.Sort(byOperationAndPath(actual))
-	require.Equal(t, expected, actual)
 }
