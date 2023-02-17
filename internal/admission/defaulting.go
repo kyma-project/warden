@@ -166,7 +166,7 @@ func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.
 		if markedPod.Annotations == nil {
 			markedPod.Annotations = map[string]string{}
 		}
-		markedPod.Annotations[pkg.PodValidationRejectAnnotation] = annotation
+		markedPod.Annotations[PodValidationRejectAnnotation] = annotation
 	}
 	return markedPod
 }
@@ -176,13 +176,13 @@ func podMarkersForValidationResult(result validate.ValidationResult, strictMode 
 	case validate.NoAction:
 		return "", ""
 	case validate.Invalid:
-		return pkg.ValidationStatusFailed, pkg.ValidationReject
+		return pkg.ValidationStatusFailed, ValidationReject
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess, ""
 	case validate.ServiceUnavailable:
 		annotation = ""
 		if strictMode {
-			annotation = pkg.ValidationReject
+			annotation = ValidationReject
 		}
 		return pkg.ValidationStatusPending, annotation
 	default:

@@ -36,7 +36,7 @@ func TestValidationWebhook(t *testing.T) {
 			pod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-pod",
 					Annotations: map[string]string{
-						pkg.PodValidationRejectAnnotation: pkg.ValidationReject,
+						PodValidationRejectAnnotation: ValidationReject,
 					}},
 			},
 			expectedStatus:  int32(http.StatusForbidden),
