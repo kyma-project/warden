@@ -92,13 +92,14 @@ For both cases, once all changes are in the release branch you need to do the fo
    git push upstream v0.2.0-rc2
    ```
    
+ - checkout locally from the tag, go to `chart` directory and create an archive
+   ```bash
+   tar czf warden-0.2.0-rc2.tgz warden
+   ```
+
  - go to warden project on github and create release from the new tag
 
- - checkout locally from the tag and create an archive
-   ```bash
-   tar -czf warden-0.2.0-rc2.tgz warden
-   ```
- - add the archive to the assets of the github release 
+ - attach the archive to the github release (or later add it to the assets)
 
 ## License
 
