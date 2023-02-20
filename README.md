@@ -76,6 +76,31 @@ make manifests
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
+### How to release new version
+
+In this project we follow git flow. Every minor release is maintaned in its separate branch.
+
+If you want to patch a version, cherry pick all fix commits into the release branch.
+
+If you want to create a new release, create a new branch from main for the release.
+
+For both cases, once all changes are in the release branch you need to do the following:
+
+ - create a new tag for the release using semantic versioning, i.e `v0.2.0-rc2`
+   ```bash
+   git tag -a v0.2.0-rc2 -m "v0.2.0-rc2"
+   git push upstream v0.2.0-rc2
+   ```
+   
+ - checkout locally from the tag, go to `chart` directory and create an archive
+   ```bash
+   tar czf warden-0.2.0-rc2.tgz warden
+   ```
+
+ - go to warden project on github and create release from the new tag
+
+ - attach the archive to the github release (or later add it to the assets)
+
 ## License
 
 Copyright 2022.
