@@ -75,7 +75,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 				// trigger, if there is container images including init container changes
-				if areImagesChanged(e.ObjectOld.DeepCopyObject(), e.ObjectNew.DeepCopyObject()) {
+				if areImagesChanged(e.ObjectOld.DeepCopyObject().(*corev1.Pod), e.ObjectNew.DeepCopyObject().(*corev1.Pod)) {
 					return true
 				}
 				// trigger, only if validation label is failed or missing
@@ -164,9 +164,9 @@ func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result val
 	return nil
 }
 
-func areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
-	oldImages := getPodImages(oldObject.(*corev1.Pod))
-	newImages := getPodImages(newObject.(*corev1.Pod))
+func areImagesChanged(oldPod *corev1.Pod, newPod *corev1.Pod) bool {
+	oldImages := getPodImages(oldPod)
+	newImages := getPodImages(newPod)
 	if len(oldImages) != len(newImages) {
 		return true
 	}
