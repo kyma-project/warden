@@ -109,3 +109,127 @@ func Test_PodReconcile(t *testing.T) {
 		})
 	}
 }
+
+func Test_areImagesChanged(t *testing.T) {
+	type podImages struct {
+		Containers     []corev1.Container
+		InitContainers []corev1.Container
+	}
+	type args struct {
+		oldPod podImages
+		newPod podImages
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "the same images in different order",
+			args: args{
+				oldPod: podImages{InitContainers: []corev1.Container{
+					{Image: "image-alpha", Name: "container-alpha"},
+					{Image: "image-bravo", Name: "container-bravo"},
+				},
+					Containers: []corev1.Container{
+						{Image: "image-oscar", Name: "container-oscar"},
+						{Image: "image-papa", Name: "container-papa"},
+					},
+				},
+				newPod: podImages{
+					InitContainers: []corev1.Container{
+						{Image: "image-oscar", Name: "container-juliett"},
+						{Image: "image-bravo", Name: "container-yankee"},
+					},
+					Containers: []corev1.Container{
+						{Image: "image-alpha", Name: "container-zulu"},
+						{Image: "image-papa", Name: "container-india"},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "no images",
+			args: args{
+				oldPod: podImages{},
+				newPod: podImages{},
+			},
+			want: false,
+		},
+		{
+			name: "added image",
+			args: args{
+				oldPod: podImages{
+					Containers: []corev1.Container{
+						{Image: "image-mike", Name: "container-mike"},
+					},
+				},
+				newPod: podImages{
+					Containers: []corev1.Container{
+						{Image: "image-lima", Name: "container-lima"},
+						{Image: "image-mike", Name: "container-mike"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "removed image",
+			args: args{
+				oldPod: podImages{
+					InitContainers: []corev1.Container{
+						{Image: "image-quebec"},
+						{Image: "image-romeo"},
+						{Image: "image-sierra"},
+					},
+				},
+				newPod: podImages{
+					InitContainers: []corev1.Container{
+						{Image: "image-quebec"},
+						{Image: "image-sierra"},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "changed image",
+			args: args{
+				oldPod: podImages{
+					Containers: []corev1.Container{
+						{Image: "image-foxtrot:1", Name: "container-foxtrot"},
+					},
+				},
+				newPod: podImages{
+					Containers: []corev1.Container{
+						{Image: "image-foxtrot:2", Name: "container-foxtrot"},
+					},
+				},
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			//GIVEN
+			oldPod := fixPod(tt.args.oldPod.InitContainers, tt.args.oldPod.Containers)
+			newPod := fixPod(tt.args.newPod.InitContainers, tt.args.newPod.Containers)
+			//WHEN
+			got := areImagesChanged(oldPod, newPod)
+
+			//THEN
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func fixPod(initContainers []corev1.Container, containers []corev1.Container) *corev1.Pod {
+	return &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "new"},
+		Spec: corev1.PodSpec{
+			InitContainers: initContainers,
+			Containers:     containers,
+		},
+	}
+}
