@@ -93,7 +93,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res.Result)
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.True(t, res.Allowed)
-		assert.EqualValues(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+		assert.ElementsMatch(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout strict mode on, errored", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res.Result, "response is ok")
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.True(t, res.Allowed)
-		assert.EqualValues(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
+		assert.ElementsMatch(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout - all layers", func(t *testing.T) {
@@ -137,7 +137,7 @@ func TestTimeout(t *testing.T) {
 		assert.True(t, res.AdmissionResponse.Allowed)
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
-		assert.EqualValues(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+		assert.ElementsMatch(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 }
 
@@ -176,7 +176,32 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
 		require.NotNil(t, res)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Equal(t, patchWithAddSuccessLabel(), res.Patches)
+		require.ElementsMatch(t, patchWithAddSuccessLabel(), res.Patches)
+	})
+
+	t.Run("when valid image with annotation reject should return success and remove the annotation", func(t *testing.T) {
+		//GIVEN
+		mockImageValidator := mocks.ImageValidatorService{}
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
+			Return(nil)
+		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
+
+		pod := newPodFix(nsName, nil)
+		pod.ObjectMeta.Annotations = map[string]string{PodValidationRejectAnnotation: ValidationReject}
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
+		require.NoError(t, webhook.InjectDecoder(decoder))
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
+		require.NotNil(t, res)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.ElementsMatch(t, withRemovedAnnotation(patchWithAddSuccessLabel()), res.Patches)
 	})
 
 	t.Run("when invalid image should return failed and annotation reject", func(t *testing.T) {
@@ -248,7 +273,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.NotNil(t, res)
 		require.Nil(t, res.Result)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+		require.ElementsMatch(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 }
 
@@ -454,6 +479,13 @@ func patchWithReplaceSuccessLabel() []jsonpatch.JsonPatchOperation {
 			Value:     "success",
 		},
 	}
+}
+
+func withRemovedAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.JsonPatchOperation {
+	return append(patch, jsonpatch.JsonPatchOperation{
+		Operation: "remove",
+		Path:      "/metadata/annotations",
+	})
 }
 
 func withAddRejectAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.JsonPatchOperation {

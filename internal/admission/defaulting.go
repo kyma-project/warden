@@ -172,6 +172,8 @@ func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.
 		markedPod.Labels[pkg.PodValidationLabel] = label
 	}
 
+	// Fixes: https://github.com/kyma-project/warden/issues/77
+	removeInternalAnnotation(markedPod.Annotations)
 	if annotation != "" {
 		if markedPod.Annotations == nil {
 			markedPod.Annotations = map[string]string{}
@@ -198,4 +200,8 @@ func podMarkersForValidationResult(result validate.ValidationResult, strictMode 
 	default:
 		return pkg.ValidationStatusPending, ""
 	}
+}
+
+func removeInternalAnnotation(annotations map[string]string) {
+	delete(annotations, PodValidationRejectAnnotation)
 }
