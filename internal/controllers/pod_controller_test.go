@@ -150,7 +150,7 @@ func (c *MockK8sClient) assertCalled(t *testing.T) {
 
 func TestReconcile_K8sOperationFails(t *testing.T) {
 	imageValidator := mocks.NewImageValidatorService(t)
-	imageValidator.On("Validate", mock.Anything, invalidImage).Return(pkg.NewUnknownResultErr(errors.New(""))).Maybe()
+	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()
 	podValidator := validate.NewPodValidator(imageValidator)
 
 	validatableNs := "warden-enabled"
@@ -163,7 +163,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 	requeueTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
 
-	t.Run("Image is invalid, patching failed", func(t *testing.T) {
+	t.Run("Image is valid, patching failed, should requeue", func(t *testing.T) {
 		builder := fake.ClientBuilder{}
 		k8sClient := builder.Build()
 		mockK8Client := &MockK8sClient{k8sClient, false}
@@ -173,7 +173,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 			Namespace: validatableNs,
 			Name:      "unavailable-pod"},
-			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: invalidImage, Name: "container"}}}}
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}}}
 		require.NoError(t, mockK8Client.Create(context.TODO(), &pod))
 
 		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, PodReconcilerConfig{
@@ -183,7 +183,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 			Namespace: validatableNs,
 			Name:      pod.Name},
 		}
-		expectedRes := reconcile.Result{RequeueAfter: requeueTime, Requeue: true}
+		expectedRes := reconcile.Result{Requeue: true}
 
 		//WHEN
 		res, err := ctrl.Reconcile(context.TODO(), req)
