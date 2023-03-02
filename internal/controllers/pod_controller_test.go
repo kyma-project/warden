@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 	"time"
 
@@ -131,6 +132,67 @@ func Test_PodReconcile(t *testing.T) {
 
 func deletePod(t *testing.T, k8sClient ctrlclient.Client, pod *corev1.Pod) {
 	require.NoError(t, k8sClient.Delete(context.TODO(), pod))
+}
+
+type MockK8sClient struct {
+	ctrlclient.Client
+	called bool
+}
+
+func (c *MockK8sClient) Patch(ctx context.Context, obj ctrlclient.Object, patch ctrlclient.Patch, opts ...ctrlclient.PatchOption) error {
+	c.called = true
+	return errors.New("Error occurred")
+}
+
+func (c *MockK8sClient) assertCalled(t *testing.T) {
+	require.True(t, c.called)
+}
+
+func TestReconcile_NotaryNotAvailable_PatchFailed(t *testing.T) {
+	imageValidator := mocks.NewImageValidatorService(t)
+	imageValidator.On("Validate", mock.Anything, unavailableImage).Return(pkg.NewUnknownResultErr(errors.New(""))).Maybe()
+	podValidator := validate.NewPodValidator(imageValidator)
+
+	validatableNs := "warden-enabled"
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+		Name: validatableNs,
+		Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}},
+	}
+	requeueTime := 60 * time.Minute
+	testLogger := test_helpers.NewTestZapLogger(t)
+
+	t.Run("Notary not available, patching failed", func(t *testing.T) {
+		builder := fake.ClientBuilder{}
+		k8sClient := builder.Build()
+		mockK8Client := &MockK8sClient{k8sClient, false}
+		defer mockK8Client.assertCalled(t)
+		require.NoError(t, mockK8Client.Create(context.TODO(), &ns))
+
+		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Namespace: validatableNs,
+			Name:      "unavailable-pod"},
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: unavailableImage, Name: "container"}}}}
+		require.NoError(t, mockK8Client.Create(context.TODO(), &pod))
+
+		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, PodReconcilerConfig{
+			RequeueAfter: requeueTime,
+		}, testLogger.Sugar())
+		req := reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: validatableNs,
+			Name:      pod.Name},
+		}
+		expectedRes := reconcile.Result{RequeueAfter: requeueTime, Requeue: true}
+
+		//WHEN
+		res, err := ctrl.Reconcile(context.TODO(), req)
+
+		//THEN
+		require.NoError(t, err)
+		assert.Equal(t, expectedRes, res)
+	})
+
 }
 
 func Test_areImagesChanged(t *testing.T) {
