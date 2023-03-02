@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 
@@ -22,8 +23,9 @@ import (
 )
 
 const (
-	validImage   = "valid"
-	invalidImage = "invalid"
+	validImage       = "valid"
+	invalidImage     = "invalid"
+	unavailableImage = "unavailable"
 )
 
 func Test_PodReconcile(t *testing.T) {
@@ -33,6 +35,7 @@ func Test_PodReconcile(t *testing.T) {
 	imageValidator := mocks.NewImageValidatorService(t)
 	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()
 	imageValidator.On("Validate", mock.Anything, invalidImage).Return(errors.New("")).Maybe()
+	imageValidator.On("Validate", mock.Anything, unavailableImage).Return(pkg.NewUnknownResultErr(errors.New(""))).Maybe()
 
 	podValidator := validate.NewPodValidator(imageValidator)
 
@@ -45,15 +48,17 @@ func Test_PodReconcile(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(context.TODO(), &ns))
 
+	requeueireTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
 	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig{
-		RequeueAfter: time.Minute * 60,
+		RequeueAfter: requeueireTime,
 	}, testLogger.Sugar())
 
 	testCases := []struct {
-		name          string
-		pod           corev1.Pod
-		expectedLabel string
+		name           string
+		pod            corev1.Pod
+		expectedLabel  string
+		expectedResult reconcile.Result
 	}{
 		{
 			name: "Success",
@@ -62,7 +67,8 @@ func Test_PodReconcile(t *testing.T) {
 				Name:      "valid-pod"},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}},
 			},
-			expectedLabel: pkg.ValidationStatusSuccess,
+			expectedLabel:  pkg.ValidationStatusSuccess,
+			expectedResult: reconcile.Result{},
 		},
 		{
 			name: "Image is not valid and have pending label",
@@ -73,7 +79,8 @@ func Test_PodReconcile(t *testing.T) {
 			},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: invalidImage, Name: "container"}}},
 			},
-			expectedLabel: pkg.ValidationStatusFailed,
+			expectedLabel:  pkg.ValidationStatusFailed,
+			expectedResult: reconcile.Result{},
 		},
 		{
 			name: "Image is not valid",
@@ -82,7 +89,16 @@ func Test_PodReconcile(t *testing.T) {
 				Name:      "invalid-pod"},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: invalidImage, Name: "container"}}},
 			},
-			expectedLabel: pkg.ValidationStatusFailed,
+			expectedLabel:  pkg.ValidationStatusFailed,
+			expectedResult: reconcile.Result{}},
+		{
+			name: "Image has label pending and unknown error occurred",
+			pod: corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				Namespace: validatableNs,
+				Name:      "unavailable-pod"},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: unavailableImage, Name: "container"}}}},
+			expectedLabel:  pkg.ValidationStatusPending,
+			expectedResult: reconcile.Result{RequeueAfter: requeueireTime},
 		},
 	}
 
@@ -90,14 +106,17 @@ func Test_PodReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			//GIVEN
 			require.NoError(t, k8sClient.Create(context.TODO(), &tc.pod))
+			defer k8sClient.Delete(context.TODO(), &tc.pod)
 			req := reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: validatableNs,
 				Name:      tc.pod.Name},
 			}
 			//WHEN
-			_, err := ctrl.Reconcile(context.TODO(), req)
+			res, err := ctrl.Reconcile(context.TODO(), req)
 			//THEN
 			require.NoError(t, err)
+			assert.Equal(t, tc.expectedResult, res)
+
 			key := ctrlclient.ObjectKeyFromObject(&tc.pod)
 
 			finalPod := corev1.Pod{}
