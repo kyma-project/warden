@@ -93,7 +93,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res.Result)
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.True(t, res.Allowed)
-		assert.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+		assert.EqualValues(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout strict mode on, errored", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestTimeout(t *testing.T) {
 		require.NotNil(t, res.Result, "response is ok")
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.True(t, res.Allowed)
-		assert.Equal(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
+		assert.EqualValues(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
 	})
 
 	t.Run("Defaulting webhook timeout - all layers", func(t *testing.T) {
@@ -137,8 +137,7 @@ func TestTimeout(t *testing.T) {
 		assert.True(t, res.AdmissionResponse.Allowed)
 		assert.Contains(t, res.Result.Message, "request exceeded desired timeout")
 		assert.InDelta(t, timeout.Seconds(), time.Since(start).Seconds(), 0.1, "timeout duration is not respected")
-		assert.Equal(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
-
+		assert.EqualValues(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
 	})
 }
 
