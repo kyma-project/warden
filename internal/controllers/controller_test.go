@@ -106,7 +106,7 @@ func Test_PodReconcile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			//GIVEN
 			require.NoError(t, k8sClient.Create(context.TODO(), &tc.pod))
-			defer k8sClient.Delete(context.TODO(), &tc.pod)
+			defer deletePod(t, k8sClient, &tc.pod)
 			req := reconcile.Request{NamespacedName: types.NamespacedName{
 				Namespace: validatableNs,
 				Name:      tc.pod.Name},
@@ -127,6 +127,10 @@ func Test_PodReconcile(t *testing.T) {
 			require.Equal(t, tc.expectedLabel, labelValue)
 		})
 	}
+}
+
+func deletePod(t *testing.T, k8sClient ctrlclient.Client, pod *corev1.Pod) {
+	require.NoError(t, k8sClient.Delete(context.TODO(), pod))
 }
 
 func Test_areImagesChanged(t *testing.T) {
