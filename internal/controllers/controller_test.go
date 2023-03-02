@@ -48,10 +48,10 @@ func Test_PodReconcile(t *testing.T) {
 	}
 	require.NoError(t, k8sClient.Create(context.TODO(), &ns))
 
-	requeueireTime := 60 * time.Minute
+	requeueTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
 	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig{
-		RequeueAfter: requeueireTime,
+		RequeueAfter: requeueTime,
 	}, testLogger.Sugar())
 
 	testCases := []struct {
@@ -98,7 +98,7 @@ func Test_PodReconcile(t *testing.T) {
 				Name:      "unavailable-pod"},
 				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: unavailableImage, Name: "container"}}}},
 			expectedLabel:  pkg.ValidationStatusPending,
-			expectedResult: reconcile.Result{RequeueAfter: requeueireTime},
+			expectedResult: reconcile.Result{RequeueAfter: requeueTime},
 		},
 	}
 
@@ -122,9 +122,9 @@ func Test_PodReconcile(t *testing.T) {
 			finalPod := corev1.Pod{}
 			require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
 
-			labeValue, found := finalPod.Labels[pkg.PodValidationLabel]
+			labelValue, found := finalPod.Labels[pkg.PodValidationLabel]
 			require.True(t, found)
-			require.Equal(t, tc.expectedLabel, labeValue)
+			require.Equal(t, tc.expectedLabel, labelValue)
 		})
 	}
 }
