@@ -204,6 +204,25 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.ElementsMatch(t, withRemovedAnnotation(patchWithAddSuccessLabel()), res.Patches)
 	})
 
+	t.Run("when pod labeled by ns controller with pending label and annotation reject should remove the annotation", func(t *testing.T) {
+		//GIVEN
+		pod := newPodFix(nsName, map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending})
+		pod.ObjectMeta.Annotations = map[string]string{PodValidationRejectAnnotation: ValidationReject}
+		req := newRequestFix(t, pod, admissionv1.Update)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+		webhook := NewDefaultingWebhook(client, nil, timeout, false, logger.Sugar())
+		require.NoError(t, webhook.InjectDecoder(decoder))
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		require.NotNil(t, res)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.ElementsMatch(t, withRemovedAnnotation([]jsonpatch.JsonPatchOperation{}), res.Patches)
+	})
+
 	t.Run("when invalid image should return failed and annotation reject", func(t *testing.T) {
 		//GIVEN
 		mockImageValidator := mocks.ImageValidatorService{}

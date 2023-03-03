@@ -69,7 +69,8 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	}
 
 	if !isValidationNeeded(ctx, pod, ns, req.Operation) {
-		return admission.Allowed("validation is not needed for pod")
+		result := cleanAnnotationIfNeeded(ctx, pod, ns, req)
+		return result
 	}
 
 	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
@@ -81,6 +82,20 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	}
 	res := w.createResponse(ctx, req, result, pod, logger)
 	return res
+}
+
+func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, req admission.Request) admission.Response {
+	if enabled := isValidationEnabledForNS(ns); !enabled {
+		return admission.Allowed("validation is not needed for pod")
+	}
+	if removed := removeInternalAnnotation(ctx, pod.ObjectMeta.Annotations); removed {
+		fBytes, err := json.Marshal(pod)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+		return admission.PatchResponseFromRaw(req.Object.Raw, fBytes)
+	}
+	return admission.Allowed("validation is not needed for pod")
 }
 
 func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, req admission.Request) admission.Response {
@@ -173,7 +188,7 @@ func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.
 	}
 
 	// Fixes: https://github.com/kyma-project/warden/issues/77
-	removeInternalAnnotation(markedPod.Annotations)
+	removeInternalAnnotation(ctx, markedPod.Annotations)
 	if annotation != "" {
 		if markedPod.Annotations == nil {
 			markedPod.Annotations = map[string]string{}
@@ -202,6 +217,12 @@ func podMarkersForValidationResult(result validate.ValidationResult, strictMode 
 	}
 }
 
-func removeInternalAnnotation(annotations map[string]string) {
-	delete(annotations, PodValidationRejectAnnotation)
+func removeInternalAnnotation(ctx context.Context, annotations map[string]string) bool {
+	logger := helpers.LoggerFromCtx(ctx)
+	if _, ok := annotations[PodValidationRejectAnnotation]; ok {
+		delete(annotations, PodValidationRejectAnnotation)
+		logger.Debug("Internal Annotation deleted")
+		return true
+	}
+	return false
 }
