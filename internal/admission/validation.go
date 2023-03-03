@@ -2,6 +2,7 @@ package admission
 
 import (
 	"context"
+	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
@@ -30,7 +31,8 @@ func (w *ValidationWebhook) Handle(ctx context.Context, req admission.Request) a
 		HandlerWithTimeMeasure(w.handle))(ctx, req)
 }
 
-func (w *ValidationWebhook) handle(_ context.Context, req admission.Request) admission.Response {
+func (w *ValidationWebhook) handle(ctx context.Context, req admission.Request) admission.Response {
+	logger := helpers.LoggerFromCtx(ctx)
 	if req.Operation == admissionv1.Delete {
 		return admission.Allowed("")
 	}
@@ -53,6 +55,7 @@ func (w *ValidationWebhook) handle(_ context.Context, req admission.Request) adm
 		return admission.Allowed("nothing to do")
 	}
 
+	logger.Info("Pod images validation failed")
 	return admission.Denied("Pod images validation failed")
 }
 

@@ -68,7 +68,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	var labelCount int
 	// label all pods with validation pending; requeue in case any error
 	for i, pod := range pods.Items {
-		loopLogger := logger.With("name", pod.Name).With("namespace", pod.Namespace).
+		loopLogger := logger.With("name", pod.Name).With("namespace", pod.Namespace)
 		if err := labelWithValidationPending(ctx, &pod, r.Patch); err != nil {
 			loopLogger.Errorf("pod labeling error: %s", err)
 			continue
