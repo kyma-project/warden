@@ -87,3 +87,4 @@ func getAllImages(pod *corev1.Pod) map[string]struct{} {
 	}
 	return images
 }
+
