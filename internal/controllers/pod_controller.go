@@ -20,7 +20,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/kyma-project/warden/internal/helpers"
-	"reflect"
+	"sort"
 	"time"
 
 	"github.com/kyma-project/warden/internal/validate"
@@ -75,7 +75,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 				// trigger, if there is container images including init container changes
-				if r.areImagesChanged(e.ObjectOld.DeepCopyObject(), e.ObjectNew.DeepCopyObject()) {
+				if areImagesChanged(e.ObjectOld.DeepCopyObject().(*corev1.Pod), e.ObjectNew.DeepCopyObject().(*corev1.Pod)) {
 					return true
 				}
 				// trigger, only if validation label is failed or missing
@@ -125,7 +125,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 		shouldRetry = ctrl.Result{}
 	}
 	if err := r.labelPod(ctx, pod, result); err != nil {
-		logger.Info("pod labeling failed", "err", err.Error())
+		logger.Info("pod labeling failed ", "err", err.Error())
 		shouldRetry.Requeue = true
 	}
 	return shouldRetry, nil
@@ -164,11 +164,31 @@ func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result val
 	return nil
 }
 
-// TODO: This function should check images not the whole spec.
-func (r *PodReconciler) areImagesChanged(oldObject runtime.Object, newObject runtime.Object) bool {
-	oldPod := oldObject.(*corev1.Pod)
-	newPod := newObject.(*corev1.Pod)
-	return !reflect.DeepEqual(oldPod.Spec.InitContainers, newPod.Spec.InitContainers) || !reflect.DeepEqual(oldPod.Spec.Containers, newPod.Spec.Containers)
+func areImagesChanged(oldPod *corev1.Pod, newPod *corev1.Pod) bool {
+	oldImages := getPodImages(oldPod)
+	newImages := getPodImages(newPod)
+	if len(oldImages) != len(newImages) {
+		return true
+	}
+	sort.Strings(oldImages)
+	sort.Strings(newImages)
+	for i := 0; i < len(oldImages); i++ {
+		if oldImages[i] != newImages[i] {
+			return true
+		}
+	}
+	return false
+}
+
+func getPodImages(pod *corev1.Pod) []string {
+	var result []string
+	for _, container := range pod.Spec.InitContainers {
+		result = append(result, container.Image)
+	}
+	for _, container := range pod.Spec.Containers {
+		result = append(result, container.Image)
+	}
+	return result
 }
 
 func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {

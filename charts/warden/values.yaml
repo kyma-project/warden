@@ -4,7 +4,6 @@
 
 replicaCount: 1
 
-
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
@@ -13,9 +12,9 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230217-2089419a
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-82
   admission:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230217-2089419a
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-82
     annotations:
       sidecar.istio.io/inject: "false"
   config:
