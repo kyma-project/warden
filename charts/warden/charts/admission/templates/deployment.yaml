@@ -50,4 +50,6 @@ spec:
         - name: certs
           secret:
             secretName: {{ .Chart.Name }}-cert
-
+    {{- if .Values.global.highPriorityClassName }}
+      priorityClassName: {{ .Values.global.highPriorityClassName }}
+    {{- end }}
