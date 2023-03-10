@@ -43,7 +43,6 @@ global:
         format: json
         level: info
 
-
   securityContext:
     runAsNonRoot: true
     runAsUser: 1000

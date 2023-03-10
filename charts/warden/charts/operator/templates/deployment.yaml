@@ -49,3 +49,6 @@ spec:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
+    {{- if .Values.global.highPriorityClassName }}
+      priorityClassName: {{ .Values.global.highPriorityClassName }}
+    {{- end }}
