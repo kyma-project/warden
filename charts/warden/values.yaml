@@ -42,7 +42,6 @@ global:
       logging:
         format: json
         level: info
-  highPriorityClassName: "kyma-system-priority"
 
   securityContext:
     runAsNonRoot: true
