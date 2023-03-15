@@ -29,6 +29,8 @@ spec:
             {{- toYaml .Values.global.securityContext | nindent 12 }}
           imagePullPolicy: IfNotPresent
           image: "{{ .Values.global.admission.image }}"
+          resources:
+            {{- toYaml .Values.global.admission.resources | nindent 12 }}
           args:
             - --config-path={{- .Values.global.config.dir }}/{{- .Values.global.config.filename }}
           ports:

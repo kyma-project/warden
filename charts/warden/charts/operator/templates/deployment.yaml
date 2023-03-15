@@ -28,6 +28,8 @@ spec:
             {{- toYaml .Values.global.securityContext | nindent 12 }}
           image: "{{ .Values.global.operator.image }}"
           imagePullPolicy: IfNotPresent
+          resources:
+            {{- toYaml .Values.global.operator.resources | nindent 12 }}
           args:
             - --config-path={{- .Values.global.config.dir }}/{{- .Values.global.config.filename }}
           ports:
