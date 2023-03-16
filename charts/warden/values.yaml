@@ -19,7 +19,7 @@ global:
         memory: 32Mi
       limits:
         cpu: 300m
-        memory: 160Mi
+        memory: 300Mi
 
   admission:
     image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230308-656f93ee
