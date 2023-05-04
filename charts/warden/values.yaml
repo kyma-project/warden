@@ -12,7 +12,7 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230308-656f93ee
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-94
     resources:
       requests:
         cpu: 10m
@@ -22,7 +22,7 @@ global:
         memory: 300Mi
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230308-656f93ee
+    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-94
     resources:
       requests:
         cpu: 10m
@@ -31,8 +31,6 @@ global:
         cpu: 300m
         memory: 300Mi
 
-    annotations:
-      sidecar.istio.io/inject: "false"
   config:
     dir: /workspace
     filename: config.yaml
