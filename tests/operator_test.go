@@ -12,7 +12,7 @@ import (
 
 const (
 	UntrustedImageName = "nginx:latest"
-	TrustedImageName   = "eu.gcr.io/kyma-project/function-controller:PR-16481"
+	TrustedImageName   = "europe-docker.pkg.dev/kyma-project/prod/function-controller:v20230428-1ea34f8e"
 )
 
 //TODO: as unit tests:
