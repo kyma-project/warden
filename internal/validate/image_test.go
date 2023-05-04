@@ -3,6 +3,11 @@ package validate_test
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
@@ -11,10 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/theupdateframework/notary/client"
 	"golang.org/x/net/context"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
 )
 
 type image struct {
@@ -29,9 +30,9 @@ func (i image) image() string {
 
 var (
 	trustedImage = image{
-		name: "eu.gcr.io/kyma-project/function-controller",
-		tag:  "PR-16481",
-		hash: []byte{243, 155, 151, 155, 35, 94, 175, 164, 30, 8, 73, 56, 233, 106, 9, 124, 3, 46, 36, 141, 41, 227, 150, 143, 207, 210, 152, 26, 190, 95, 17, 166},
+		name: "europe-docker.pkg.dev/kyma-project/prod/function-controller",
+		tag:  "v20230428-1ea34f8e",
+		hash: []byte{244, 18, 77, 237, 156, 176, 43, 214, 188, 171, 25, 208, 79, 227, 163, 71, 22, 44, 31, 78, 117, 94, 30, 156, 54, 216, 160, 253, 117, 117, 78, 190},
 	}
 	differentHashImage = image{
 		name: "nginx",

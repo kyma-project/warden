@@ -20,7 +20,8 @@ spec:
         app.kubernetes.io/part-of: {{ .Values.global.name }}
         app.kubernetes.io/component: {{ .Chart.Name }}
       annotations:
-        {{ toYaml .Values.global.admission.annotations | indent 8}}
+        sidecar.istio.io/inject: "false"
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:

@@ -20,6 +20,8 @@ spec:
         app: {{ .Values.global.name }}
         app.kubernetes.io/part-of: {{ .Values.global.name }}
         app.kubernetes.io/component: {{ .Chart.Name }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
