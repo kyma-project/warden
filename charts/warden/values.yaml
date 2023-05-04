@@ -12,7 +12,7 @@ fullnameOverride: ""
 global:
   name: warden
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-94
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230504-2f7f7e7b
     resources:
       requests:
         cpu: 10m
@@ -22,7 +22,7 @@ global:
         memory: 300Mi
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-94
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230504-2f7f7e7b
     resources:
       requests:
         cpu: 10m
