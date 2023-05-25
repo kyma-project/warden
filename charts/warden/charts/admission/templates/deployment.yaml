@@ -21,7 +21,6 @@ spec:
         app.kubernetes.io/component: {{ .Chart.Name }}
       annotations:
         sidecar.istio.io/inject: "false"
-        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
