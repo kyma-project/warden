@@ -6,13 +6,7 @@ import (
 	"go.uber.org/zap"
 	"os"
 	"path"
-	"time"
 )
-
-type watcher struct {
-	lastCheck time.Time
-	checksum  string
-}
 
 func Watch(filePath string, log *zap.SugaredLogger) error {
 	watcher, err := fsnotify.NewWatcher()
