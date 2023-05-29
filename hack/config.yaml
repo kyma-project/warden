@@ -1,3 +1,5 @@
 notary:
   URL: "https://signing-dev.repositories.cloud.sap"
   allowedRegistries: ""
+logging:
+  format: text

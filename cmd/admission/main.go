@@ -62,6 +62,12 @@ func main() {
 		os.Exit(10)
 	}
 	logger := l.WithContext()
+
+	if err := config.Watch(configPath, logger.Named("config watcher")); err != nil {
+		setupLog.Error(err, "while setup file watcher")
+		os.Exit(2)
+	}
+
 	logrZap := zapr.NewLogger(logger.Desugar())
 	ctrl.SetLogger(logrZap)
 
