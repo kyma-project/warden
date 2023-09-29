@@ -52,5 +52,5 @@ spec:
         - name: certs
           secret:
             secretName: {{ .Chart.Name }}-cert
-      priorityClassName: {{ .Values.global.priorityClassName }}
+      priorityClassName: {{ .Values.global.wardenPriorityClassName }}
     

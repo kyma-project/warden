@@ -1,7 +1,7 @@
 apiVersion: scheduling.k8s.io/v1
 kind: PriorityClass
 metadata:
-  name: {{ .Values.global.priorityClassName }}
-value: {{ .Values.global.priorityClassValue }}
+  name: {{ .Values.global.wardenPriorityClassName }}
+value: {{ .Values.global.wardenPriorityClassValue }}
 globalDefault: false
 description: "Scheduling priority of warden workloads. By default, warden workloads should not be blocked by unschedulable user workloads."
