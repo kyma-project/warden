@@ -14,7 +14,7 @@ global:
   priorityClassName: warden-priority
   priorityClassValue: 2000000
   operator:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-97
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230529-2de25d82
     resources:
       requests:
         cpu: 10m
@@ -24,7 +24,7 @@ global:
         memory: 160Mi
 
   admission:
-    image: europe-docker.pkg.dev/kyma-project/dev/warden/admission:PR-97
+    image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20230529-2de25d82
     resources:
       requests:
         cpu: 10m
