@@ -11,6 +11,8 @@ fullnameOverride: ""
 #Service configuration
 global:
   name: warden
+  priorityClassName: warden-priority
+  priorityClassValue: 2000000
   operator:
     image: europe-docker.pkg.dev/kyma-project/dev/warden/operator:PR-97
     resources:
