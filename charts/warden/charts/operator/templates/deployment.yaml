@@ -51,4 +51,4 @@ spec:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
-      priorityClassName: {{ .Values.global.priorityClassName }}
+      priorityClassName: {{ .Values.global.wardenPriorityClassName }}
