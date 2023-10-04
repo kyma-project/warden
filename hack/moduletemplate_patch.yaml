@@ -1,0 +1,5 @@
+spec:
+  customStateCheck:
+    - jsonPath: '.spec.ready'
+      value: 'true'
+      mappedState: 'Ready'

@@ -34,9 +34,21 @@ kubectl create namespace kyma-system
 
 ## create module
 printf "\n${BLUE_COLOR}[ 4 ]${NORMAL_COLOR} Create module\n"
-kyma alpha create module --path . --output=moduletemplate.yaml \
+kyma-dev alpha create module --path . --output=moduletemplate.yaml \
 		--module-config-file=module-config.yaml \
         --registry localhost:${K3D_REGISTRY_PORT} --insecure
+
+##edit spec to add missing fields
+printf "\n${BLUE_COLOR}[ BONUS 4.1 ]${NORMAL_COLOR} Patch moduletemplate\n"
+SPEC_LOCATION="$(grep -n -m1 "spec:" moduletemplate.yaml | sed 's/:spec://g')"
+FILE_LENGTH="$(wc -l moduletemplate.yaml | sed 's/moduletemplate.yaml//g' |  sed 's/ //g')"
+PARAGRAPH1="$(cat moduletemplate.yaml | head -n $((SPEC_LOCATION-1)))"
+PARAGRAPH2="$(cat hack/moduletemplate_patch.yaml)"
+PARAGRAPH3="$(cat moduletemplate.yaml | tail -n $((FILE_LENGTH-SPEC_LOCATION)))"
+printf "${PARAGRAPH1}\n" > moduletemplate.yaml
+printf "${PARAGRAPH2}\n" >> moduletemplate.yaml
+printf "${PARAGRAPH3}\n" >> moduletemplate.yaml
+
 
 ## fix moduletemplate (to able pulling artifacts by the k8s internally)
 printf "\n${BLUE_COLOR}[ 5 ]${NORMAL_COLOR} Fix moduletemplate\n"
@@ -56,7 +68,7 @@ kubectl apply -f moduletemplate-k3d.yaml
 
 ## enable warden module
 printf "\n${BLUE_COLOR}[ 8 ]${NORMAL_COLOR} Enable warden module\n"
-kyma alpha enable module warden -c fast
+kyma-dev alpha enable module warden -c fast
 
 ## verify
 printf "\n${BLUE_COLOR}[ 9 ]${NORMAL_COLOR} Verify\n"
