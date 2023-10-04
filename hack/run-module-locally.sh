@@ -1,6 +1,6 @@
 #!/bin/bash
 
-NAME="warden"
+NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-name: //g')
 CHANNEL="fast"
 RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
 
