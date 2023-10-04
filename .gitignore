@@ -23,3 +23,6 @@ vendor
 *.swo
 *~
 *.DS_Store
+
+# modularization generated files
+warden-manifest.yaml
