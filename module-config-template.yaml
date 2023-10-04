@@ -1,7 +1,7 @@
 name: {{.Name}}
 channel: {{.Channel}}
 version: {{.Version}}
-# defaultCR: config/samples/warden_cr.yaml
+defaultCR: config/samples/default_warden_cr.yaml
 manifest: warden-manifest.yaml
 security: sec-scanners-config.yaml
 annotations:

@@ -9,7 +9,7 @@ NORMAL_COLOR=$(tput sgr0)
 # k3d config
 K3D_CLUSTER_NAME="kyma"
 K3D_REGISTRY_PORT=5001
-K3D_REGISTRY_NAME="registry-${K3D_CLUSTER_NAME}"
+K3D_REGISTRY_NAME="${K3D_CLUSTER_NAME}-registry"
 
 # module config
 CHANNEL="fast"
@@ -18,7 +18,7 @@ RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
 
 ## generate manifest
 printf "${BLUE_COLOR}[ 1 ]${NORMAL_COLOR} Generate manifest to the warden-manifest.yaml file\n"
-helm template warden charts/warden > warden-manifest.yaml
+helm template --namespace kyma-system warden charts/warden > warden-manifest.yaml
 
 ## generate module-config.yaml template
 printf "${BLUE_COLOR}[ 2 ]${NORMAL_COLOR} Generate the module-config.yaml from template\n"
