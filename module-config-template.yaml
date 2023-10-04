@@ -1,9 +1,9 @@
 name: {{.Name}}
 channel: {{.Channel}}
 version: {{.Version}}
-defaultCR: config/samples/default_serverless_cr.yaml
-manifest: serverless-operator.yaml
+# defaultCR: config/samples/warden_cr.yaml
+manifest: warden-manifest.yaml
 security: sec-scanners-config.yaml
 annotations:
-  "operator.kyma-project.io/doc-url": "https://kyma-project.io/#/serverless-manager/user/README"
-moduleRepo: https://github.com/kyma-project/serverless-manager.git
+  "operator.kyma-project.io/doc-url": "https://github.com/kyma-project/warden/blob/{{.Version}}/README.md"
+moduleRepo: https://github.com/kyma-project/warden.git
