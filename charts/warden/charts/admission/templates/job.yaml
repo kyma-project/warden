@@ -1,0 +1,52 @@
+# TODO: think about other way to create/support cert secrets  apiVersion: batch/v1
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Chart.Name }}-create-secret
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    spec:
+      serviceAccountName: {{ .Chart.Name }}-create-secret
+      containers:
+      - name: create-secret
+        image: bitnami/kubectl:latest
+        args:
+        - create
+        - secret
+        - generic
+        - -n 
+        - {{ .Release.Namespace }}
+        - {{ .Chart.Name }}-cert
+      restartPolicy: OnFailure
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Chart.Name }}-create-secret-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Chart.Name }}-create-secret
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Chart.Name }}-create-secret-role
+subjects:
+  - kind: ServiceAccount
+    name: {{ .Chart.Name }}-create-secret
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Chart.Name }}-create-secret
+  namespace: {{ .Release.Namespace }}
