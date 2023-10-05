@@ -45,8 +45,8 @@ global:
         allowedRegistries: ""
       admission:
         systemNamespace: "{{ .Release.Namespace }}"
-        serviceName: "{{ .Chart.Name }}-admission"
-        secretName: "{{ .Chart.Name }}-admission-cert"
+        serviceName: "{{ .Chart.Name }}-operator"
+        secretName: "{{ .Chart.Name }}-operator-cert"
         timeout: 10s
         port: 8443
         strictMode: false

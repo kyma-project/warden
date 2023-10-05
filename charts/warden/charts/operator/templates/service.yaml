@@ -13,6 +13,10 @@ spec:
       port: 8443
       protocol: TCP
       targetPort: https
+    - name: https-admission
+      port: 443
+      protocol: TCP
+      targetPort: https-admission
   selector:
     app: {{ .Values.global.name }}
     app.kubernetes.io/part-of: {{ .Values.global.name }}

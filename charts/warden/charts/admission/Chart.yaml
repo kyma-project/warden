@@ -1,4 +1,0 @@
-apiVersion: v1
-description: A Helm subchart for warden admission
-name: warden-admission
-version: 0.0.1

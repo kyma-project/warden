@@ -20,9 +20,32 @@ spec:
         app: {{ .Values.global.name }}
         app.kubernetes.io/part-of: {{ .Values.global.name }}
         app.kubernetes.io/component: {{ .Chart.Name }}
+      annotations:
+        sidecar.istio.io/inject: "false" #TODO Copied from admission webhook deployment
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:
+        - name: admission
+          securityContext:
+            {{- toYaml .Values.global.securityContext | nindent 12 }}
+          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.global.admission.image }}"
+          resources:
+            {{- toYaml .Values.global.admission.resources | nindent 12 }}
+          args:
+            - --config-path={{- .Values.global.config.dir }}/{{- .Values.global.config.filename }}
+          ports:
+            - name: https-admission
+              containerPort: 8443
+            - name: http-metrics
+              containerPort: 9090
+            - name: http-profiling
+              containerPort: 8008
+          volumeMounts:
+            - name: config
+              mountPath: {{ .Values.global.config.dir }}
+            - name: certs
+              mountPath: /tmp/k8s-webhook-server/serving-certs
         - name: operator
           securityContext:
             {{- toYaml .Values.global.securityContext | nindent 12 }}
@@ -51,4 +74,8 @@ spec:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
+        - name: certs
+          secret:
+            secretName: {{ .Chart.Name }}-cert
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
+

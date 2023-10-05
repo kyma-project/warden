@@ -4,6 +4,17 @@ metadata:
   name: {{ .Chart.Name }}-role
 rules:
   - apiGroups:
+      - admissionregistration.k8s.io
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - patch
+      - list
+      - update
+      - watch
+  - apiGroups:
       - ""
     resources:
       - namespaces
@@ -15,12 +26,22 @@ rules:
       - ""
     resources:
       - pods
+      - secrets
     verbs:
       - list
       - get
       - update
       - patch
       - watch
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - create
+      - update
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
