@@ -18,7 +18,10 @@ RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
 
 ## generate manifest
 printf "${BLUE_COLOR}[ 1 ]${NORMAL_COLOR} Generate manifest to the warden-manifest.yaml file\n"
-helm template --namespace kyma-system warden charts/warden > warden-manifest.yaml
+helm template --namespace kyma-system warden charts/warden --set global.enableDeployment=false > warden-manifest.yaml
+
+printf "${BLUE_COLOR}[ BONUS 1.1 ]${NORMAL_COLOR} Generate deployment as default_cr.yaml file\n"
+helm template --namespace kyma-system warden charts/warden --show-only  charts/warden-operator/templates/deployment.yaml > warden-deployment.yaml
 
 ## generate module-config.yaml template
 printf "${BLUE_COLOR}[ 2 ]${NORMAL_COLOR} Generate the module-config.yaml from template\n"

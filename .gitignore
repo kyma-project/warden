@@ -29,3 +29,4 @@ moduletemplate-k3d.yaml
 moduletemplate.yaml
 warden-manifest.yaml
 module-config.yaml
+warden-deployment.yaml

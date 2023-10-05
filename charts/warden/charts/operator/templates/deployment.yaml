@@ -1,3 +1,4 @@
+{{ if .Values.global.enableDeployment }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -78,4 +79,4 @@ spec:
           secret:
             secretName: {{ .Chart.Name }}-cert
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
-
+  {{ end }}

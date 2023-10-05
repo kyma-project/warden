@@ -13,6 +13,7 @@ global:
   name: warden
   wardenPriorityClassName: warden-priority
   wardenPriorityClassValue: 2000000
+  enableDeployment: true
   operator:
     image: europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20230529-2de25d82
     resources:
