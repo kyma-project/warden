@@ -3,4 +3,4 @@ kind: Warden
 metadata:
     name: default
 spec:
-    ready: 'true'
+    ready: 'yes'
