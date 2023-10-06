@@ -5,16 +5,19 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/client-go/util/cert"
+	"os"
 	"strings"
 	"time"
 
+	"k8s.io/client-go/util/cert"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -66,7 +69,7 @@ func EnsureWebhookSecret(ctx context.Context, client ctrlclient.Client, secretNa
 }
 
 func createSecret(ctx context.Context, client ctrlclient.Client, name, namespace, serviceName string) error {
-	secret, err := buildSecret(name, namespace, serviceName)
+	secret, err := buildSecret(ctx, client, name, namespace, serviceName)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret object")
 	}
@@ -85,12 +88,13 @@ func updateSecret(ctx context.Context, client ctrlclient.Client, log *zap.Sugare
 		log.Error(err, "invalid certificate")
 	}
 
-	newSecret, err := buildSecret(secret.Name, secret.Namespace, serviceName)
+	newSecret, err := buildSecret(ctx, client, secret.Name, secret.Namespace, serviceName)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret object")
 	}
 
 	secret.Data = newSecret.Data
+	secret.OwnerReferences = newSecret.OwnerReferences
 	if err := client.Update(ctx, secret); err != nil {
 		return errors.Wrap(err, "failed to update secret")
 	}
@@ -153,21 +157,46 @@ func hasRequiredKeys(data map[string][]byte) bool {
 	return true
 }
 
-func buildSecret(name, namespace, serviceName string) (*corev1.Secret, error) {
+func buildSecret(ctx context.Context, client ctrlclient.Client, name, namespace, serviceName string) (*corev1.Secret, error) {
 	cert, key, err := generateWebhookCertificates(serviceName, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate webhook certificates")
 	}
+
+	deployName := os.Getenv("ADMISSION_DEPLOYMENT_NAME")
+	deployUID, err := getDeploymentUID(ctx, client, deployName, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get deployment UID")
+	}
+
 	return &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion: "apps/v1",
+					Kind:       "Deployment",
+					Name:       deployName,
+					UID:        deployUID,
+				},
+			},
 		},
 		Data: map[string][]byte{
 			CertFile: cert,
 			KeyFile:  key,
 		},
 	}, nil
+}
+
+func getDeploymentUID(ctx context.Context, client ctrlclient.Client, deployName, deployNamespace string) (types.UID, error) {
+	deploy := &appsv1.Deployment{}
+	err := client.Get(ctx, types.NamespacedName{Namespace: deployNamespace, Name: deployName}, deploy)
+	if err != nil {
+		return "", err
+	}
+
+	return deploy.GetUID(), nil
 }
 
 func generateWebhookCertificates(serviceName, namespace string) ([]byte, []byte, error) {
