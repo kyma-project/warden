@@ -1,4 +1,4 @@
-package certs
+package webhook
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kyma-project/warden/internal/webhook/certs"
 	"github.com/pkg/errors"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -22,7 +23,7 @@ import (
 
 func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName, deployName string, addOwnerRef bool, log *zap.SugaredLogger) error {
 	logger := log.Named("resource-ctrl")
-	certPath := path.Join(DefaultCertDir, CertFile)
+	certPath := path.Join(certs.DefaultCertDir, certs.CertFile)
 	certBytes, err := os.ReadFile(certPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read caBundel file: %s", certPath)
@@ -140,7 +141,7 @@ func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request recon
 	if request.NamespacedName.String() != secretNamespaced.String() {
 		return nil
 	}
-	if err := EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, deployName, addOwnerRef, r.logger); err != nil {
+	if err := certs.EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, deployName, addOwnerRef, r.logger); err != nil {
 		return errors.Wrap(err, "failed to reconcile webhook secret")
 	}
 	return nil
