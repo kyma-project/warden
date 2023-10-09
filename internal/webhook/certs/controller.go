@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName string, log *zap.SugaredLogger) error {
+func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName, deployName, addOwnerRef string, log *zap.SugaredLogger) error {
 	logger := log.Named("resource-ctrl")
 	certPath := path.Join(DefaultCertDir, CertFile)
 	certBytes, err := os.ReadFile(certPath)
@@ -56,6 +56,8 @@ func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName
 	c, err := controller.New("webhook-resources-controller", mgr, controller.Options{
 		Reconciler: &resourceReconciler{
 			webhookConfig: webhookConfig,
+			deployName:    deployName,
+			addOwnerRef:   addOwnerRef,
 			client:        mgr.GetClient(),
 			secretName:    secretName,
 			logger:        log.Named("webhook-resource-controller"),
@@ -90,14 +92,13 @@ func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName
 type resourceReconciler struct {
 	webhookConfig WebhookConfig
 	secretName    string
+	deployName    string
+	addOwnerRef   string
 	client        ctrlclient.Client
 	logger        *zap.SugaredLogger
 }
 
 func (r *resourceReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
-	addOwnerRef := os.Getenv("ADDMISSION_ADD_CERT_OWNER_REF")
-	deployName := os.Getenv("ADMISSION_DEPLOYMENT_NAME")
-
 	// if the request is not one of our managed resources, we bail.
 	secretNamespaced := types.NamespacedName{Name: r.secretName, Namespace: r.webhookConfig.ServiceNamespace}
 	if request.Name != DefaultingWebhookName &&
@@ -110,7 +111,7 @@ func (r *resourceReconciler) Reconcile(ctx context.Context, request reconcile.Re
 	if err := r.reconcilerWebhooks(ctx, request); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
-	if err := r.reconcilerSecret(ctx, request, deployName, addOwnerRef); err != nil {
+	if err := r.reconcilerSecret(ctx, request, r.deployName, r.addOwnerRef); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
 	r.logger.With("name", request.Name).Info("webhook resources reconciled successfully")

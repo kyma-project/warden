@@ -111,6 +111,8 @@ func main() {
 		appConfig.Admission.ServiceName,
 		appConfig.Admission.SystemNamespace,
 		appConfig.Admission.SecretName,
+		deployName,
+		addOwnerRef,
 		logger); err != nil {
 
 		logger.Error("failed to setup webhook resource controller ", err.Error())
