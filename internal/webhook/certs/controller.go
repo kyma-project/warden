@@ -95,6 +95,9 @@ type resourceReconciler struct {
 }
 
 func (r *resourceReconciler) Reconcile(ctx context.Context, request reconcile.Request) (reconcile.Result, error) {
+	addOwnerRef := os.Getenv("ADDMISSION_ADD_CERT_OWNER_REF")
+	deployName := os.Getenv("ADMISSION_DEPLOYMENT_NAME")
+
 	// if the request is not one of our managed resources, we bail.
 	secretNamespaced := types.NamespacedName{Name: r.secretName, Namespace: r.webhookConfig.ServiceNamespace}
 	if request.Name != DefaultingWebhookName &&
@@ -107,7 +110,7 @@ func (r *resourceReconciler) Reconcile(ctx context.Context, request reconcile.Re
 	if err := r.reconcilerWebhooks(ctx, request); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
-	if err := r.reconcilerSecret(ctx, request); err != nil {
+	if err := r.reconcilerSecret(ctx, request, deployName, addOwnerRef); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
 	r.logger.With("name", request.Name).Info("webhook resources reconciled successfully")
@@ -130,13 +133,13 @@ func (r *resourceReconciler) reconcilerWebhooks(ctx context.Context, request rec
 	return nil
 }
 
-func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request) error {
+func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request, deployName, addOwnerRef string) error {
 	ctrl.LoggerFrom(ctx).Info("reconciling webhook secret")
 	secretNamespaced := types.NamespacedName{Name: r.secretName, Namespace: r.webhookConfig.ServiceNamespace}
 	if request.NamespacedName.String() != secretNamespaced.String() {
 		return nil
 	}
-	if err := EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, r.logger); err != nil {
+	if err := EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, deployName, addOwnerRef, r.logger); err != nil {
 		return errors.Wrap(err, "failed to reconcile webhook secret")
 	}
 	return nil

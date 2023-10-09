@@ -72,11 +72,15 @@ func main() {
 	logrZap := zapr.NewLogger(logger.Desugar())
 	ctrl.SetLogger(logrZap)
 
+	addOwnerRef := os.Getenv("ADDMISSION_ADD_CERT_OWNER_REF")
+	deployName := os.Getenv("ADMISSION_DEPLOYMENT_NAME")
 	if err := certs.SetupCertSecret(
 		context.Background(),
 		appConfig.Admission.SecretName,
 		appConfig.Admission.SystemNamespace,
 		appConfig.Admission.ServiceName,
+		deployName,
+		addOwnerRef,
 		logger); err != nil {
 		logger.Error("failed to setup certificates and webhook secret", err.Error())
 		os.Exit(1)
