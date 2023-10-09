@@ -34,6 +34,8 @@ spec:
           args:
             - --config-path={{- .Values.global.config.dir }}/{{- .Values.global.config.filename }}
           env:
+            - name: ADDMISSION_ADD_CERT_OWNER_REF
+              value: "true"
             - name: ADMISSION_DEPLOYMENT_NAME
               value: {{ .Chart.Name }}
           ports:

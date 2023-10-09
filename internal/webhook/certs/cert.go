@@ -163,28 +163,42 @@ func buildSecret(ctx context.Context, client ctrlclient.Client, name, namespace,
 		return nil, errors.Wrap(err, "failed to generate webhook certificates")
 	}
 
+	ownerRefs, err := buildOwnerRefs(ctx, client, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build owner reference for secret")
+	}
+
+	return &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       namespace,
+			OwnerReferences: ownerRefs,
+		},
+		Data: map[string][]byte{
+			CertFile: cert,
+			KeyFile:  key,
+		},
+	}, nil
+}
+
+func buildOwnerRefs(ctx context.Context, client ctrlclient.Client, namespace string) ([]metav1.OwnerReference, error) {
+	addOwnerRef := os.Getenv("ADDMISSION_ADD_CERT_OWNER_REF")
+	if addOwnerRef != "true" {
+		return []metav1.OwnerReference{}, nil
+	}
+
 	deployName := os.Getenv("ADMISSION_DEPLOYMENT_NAME")
 	deployUID, err := getDeploymentUID(ctx, client, deployName, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get deployment UID")
 	}
 
-	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: "apps/v1",
-					Kind:       "Deployment",
-					Name:       deployName,
-					UID:        deployUID,
-				},
-			},
-		},
-		Data: map[string][]byte{
-			CertFile: cert,
-			KeyFile:  key,
+	return []metav1.OwnerReference{
+		{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       deployName,
+			UID:        deployUID,
 		},
 	}, nil
 }
