@@ -72,17 +72,6 @@ func main() {
 	logrZap := zapr.NewLogger(logger.Desugar())
 	ctrl.SetLogger(logrZap)
 
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
-		Scheme:             scheme,
-		Port:               appConfig.Admission.Port,
-		MetricsBindAddress: ":9090",
-		Logger:             logrZap,
-	})
-	if err != nil {
-		logger.Error("failed to start manager", err.Error())
-		os.Exit(2)
-	}
-
 	if err := certs.SetupCertSecret(
 		context.Background(),
 		appConfig.Admission.SecretName,
@@ -101,6 +90,17 @@ func main() {
 		logger); err != nil {
 		logger.Error("failed to save certificate from secret", err.Error())
 		os.Exit(1)
+	}
+
+	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
+		Scheme:             scheme,
+		Port:               appConfig.Admission.Port,
+		MetricsBindAddress: ":9090",
+		Logger:             logrZap,
+	})
+	if err != nil {
+		logger.Error("failed to start manager", err.Error())
+		os.Exit(2)
 	}
 
 	if err := certs.SetupResourcesController(context.TODO(), mgr,
