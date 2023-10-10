@@ -20,7 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName, deployName, addOwnerRef string, log *zap.SugaredLogger) error {
+func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName, deployName string, addOwnerRef bool, log *zap.SugaredLogger) error {
 	logger := log.Named("resource-ctrl")
 	certPath := path.Join(DefaultCertDir, CertFile)
 	certBytes, err := os.ReadFile(certPath)
@@ -93,7 +93,7 @@ type resourceReconciler struct {
 	webhookConfig WebhookConfig
 	secretName    string
 	deployName    string
-	addOwnerRef   string
+	addOwnerRef   bool
 	client        ctrlclient.Client
 	logger        *zap.SugaredLogger
 }
@@ -134,7 +134,7 @@ func (r *resourceReconciler) reconcilerWebhooks(ctx context.Context, request rec
 	return nil
 }
 
-func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request, deployName, addOwnerRef string) error {
+func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request, deployName string, addOwnerRef bool) error {
 	ctrl.LoggerFrom(ctx).Info("reconciling webhook secret")
 	secretNamespaced := types.NamespacedName{Name: r.secretName, Namespace: r.webhookConfig.ServiceNamespace}
 	if request.NamespacedName.String() != secretNamespaced.String() {
