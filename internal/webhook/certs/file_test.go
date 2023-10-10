@@ -24,40 +24,38 @@ func Test_saveToFile(t *testing.T) {
 			WithObjects(secret).
 			Build()
 
-		tmpDir := path.Join(os.TempDir(), "k8s-cert", "webhook")
-		defer os.RemoveAll(tmpDir)
+		certDir := path.Join(t.TempDir(), "k8s-cert", "webhook")
 
 		err := saveToFile(
 			context.Background(),
 			client,
 			secretName,
 			namespace,
-			tmpDir,
+			certDir,
 			zap.NewNop().Sugar(),
 		)
 
 		require.NoError(t, err)
 
-		expectedCertFile, err := os.ReadFile(path.Join(tmpDir, CertFile))
+		expectedCertFile, err := os.ReadFile(path.Join(certDir, CertFile))
 		require.NoError(t, err)
 		require.Equal(t, certData, expectedCertFile)
 
-		expectedKeyFile, err := os.ReadFile(path.Join(tmpDir, KeyFile))
+		expectedKeyFile, err := os.ReadFile(path.Join(certDir, KeyFile))
 		require.NoError(t, err)
 		require.Equal(t, keyData, expectedKeyFile)
 	})
 
 	t.Run("failed to get secret", func(t *testing.T) {
 		client := fake.NewClientBuilder().Build()
-		tmpDir := path.Join(os.TempDir(), "k8s-cert", "webhook")
-		defer os.RemoveAll(tmpDir)
+		certDir := path.Join(t.TempDir(), "k8s-cert", "webhook")
 
 		err := saveToFile(
 			context.Background(),
 			client,
 			"test-secret",
 			"default",
-			tmpDir,
+			certDir,
 			zap.NewNop().Sugar(),
 		)
 
