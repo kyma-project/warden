@@ -33,6 +33,11 @@ spec:
             {{- toYaml .Values.global.admission.resources | nindent 12 }}
           args:
             - --config-path={{- .Values.global.config.dir }}/{{- .Values.global.config.filename }}
+          env:
+            - name: ADDMISSION_ADD_CERT_OWNER_REF
+              value: "true"
+            - name: ADMISSION_DEPLOYMENT_NAME
+              value: {{ .Chart.Name }}
           ports:
             - name: https-admission
               containerPort: 8443
@@ -43,14 +48,9 @@ spec:
           volumeMounts:
             - name: config
               mountPath: {{ .Values.global.config.dir }}
-            - name: certs
-              mountPath: /tmp/k8s-webhook-server/serving-certs
       volumes:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
-        - name: certs
-          secret:
-            secretName: {{ .Chart.Name }}-cert
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
     

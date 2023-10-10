@@ -4,9 +4,11 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+
+	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
 	"go.uber.org/zap/zapcore"
-	"os"
 
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/admission"
@@ -71,13 +73,32 @@ func main() {
 	logrZap := zapr.NewLogger(logger.Desugar())
 	ctrl.SetLogger(logrZap)
 
+	deployName := env.Get("ADMISSION_DEPLOYMENT_NAME")
+	addOwnerRef, err := env.GetBool("ADDMISSION_ADD_CERT_OWNER_REF")
+	if err != nil {
+		setupLog.Error(err, "while configuring env")
+		os.Exit(1)
+	}
+
 	if err := certs.SetupCertSecret(
 		context.Background(),
 		appConfig.Admission.SecretName,
 		appConfig.Admission.SystemNamespace,
 		appConfig.Admission.ServiceName,
+		deployName,
+		addOwnerRef,
 		logger); err != nil {
 		logger.Error("failed to setup certificates and webhook secret", err.Error())
+		os.Exit(1)
+	}
+
+	if err := certs.SaveToDirectory(
+		context.Background(),
+		appConfig.Admission.SecretName,
+		appConfig.Admission.SystemNamespace,
+		certs.DefaultCertDir,
+		logger); err != nil {
+		logger.Error("failed to save certificate from secret", err.Error())
 		os.Exit(1)
 	}
 
@@ -96,6 +117,8 @@ func main() {
 		appConfig.Admission.ServiceName,
 		appConfig.Admission.SystemNamespace,
 		appConfig.Admission.SecretName,
+		deployName,
+		addOwnerRef,
 		logger); err != nil {
 
 		logger.Error("failed to setup webhook resource controller ", err.Error())
