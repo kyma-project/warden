@@ -5,16 +5,18 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"k8s.io/client-go/util/cert"
 	"strings"
 	"time"
 
+	"k8s.io/client-go/util/cert"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,7 +28,7 @@ const (
 	DefaultCertDir = "/tmp/k8s-webhook-server/serving-certs"
 )
 
-func SetupCertSecret(ctx context.Context, secretName, secretNamespace, serviceName string, logger *zap.SugaredLogger) error {
+func SetupCertSecret(ctx context.Context, secretName, secretNamespace, serviceName, deployName string, addOwnerRef bool, logger *zap.SugaredLogger) error {
 	// We are going to talk to the API server _before_ we start the manager.
 	// Since the default manager client reads from cache, we will get an error.
 	// So, we create a "serverClient" that would read from the API directly.
@@ -39,13 +41,13 @@ func SetupCertSecret(ctx context.Context, secretName, secretNamespace, serviceNa
 		return errors.Wrap(err, "while adding apiextensions.v1 schema to k8s client")
 	}
 
-	if err := EnsureWebhookSecret(ctx, serverClient, secretName, secretNamespace, serviceName, logger); err != nil {
+	if err := EnsureWebhookSecret(ctx, serverClient, secretName, secretNamespace, serviceName, deployName, addOwnerRef, logger); err != nil {
 		return errors.Wrap(err, "failed to ensure webhook secret")
 	}
 	return nil
 }
 
-func EnsureWebhookSecret(ctx context.Context, client ctrlclient.Client, secretName, secretNamespace, serviceName string, log *zap.SugaredLogger) error {
+func EnsureWebhookSecret(ctx context.Context, client ctrlclient.Client, secretName, secretNamespace, serviceName, deployName string, addOwnerRef bool, log *zap.SugaredLogger) error {
 	secret := &corev1.Secret{}
 	log.Info("ensuring webhook secret")
 	err := client.Get(ctx, types.NamespacedName{Name: secretName, Namespace: secretNamespace}, secret)
@@ -55,18 +57,18 @@ func EnsureWebhookSecret(ctx context.Context, client ctrlclient.Client, secretNa
 
 	if apiErrors.IsNotFound(err) {
 		log.Info("creating webhook secret")
-		return createSecret(ctx, client, secretName, secretNamespace, serviceName)
+		return createSecret(ctx, client, secretName, secretNamespace, serviceName, deployName, addOwnerRef)
 	}
 
 	log.Info("updating pre-exiting webhook secret")
-	if err := updateSecret(ctx, client, log, secret, serviceName); err != nil {
+	if err := updateSecret(ctx, client, log, secret, serviceName, deployName, addOwnerRef); err != nil {
 		return errors.Wrap(err, "failed to update secret")
 	}
 	return nil
 }
 
-func createSecret(ctx context.Context, client ctrlclient.Client, name, namespace, serviceName string) error {
-	secret, err := buildSecret(name, namespace, serviceName)
+func createSecret(ctx context.Context, client ctrlclient.Client, name, namespace, serviceName, deployName string, addOwnerRef bool) error {
+	secret, err := buildSecret(ctx, client, name, namespace, serviceName, deployName, addOwnerRef)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret object")
 	}
@@ -76,7 +78,7 @@ func createSecret(ctx context.Context, client ctrlclient.Client, name, namespace
 	return nil
 }
 
-func updateSecret(ctx context.Context, client ctrlclient.Client, log *zap.SugaredLogger, secret *corev1.Secret, serviceName string) error {
+func updateSecret(ctx context.Context, client ctrlclient.Client, log *zap.SugaredLogger, secret *corev1.Secret, serviceName, deployName string, addOwnerRef bool) error {
 	valid, err := isValidSecret(secret)
 	if valid {
 		return nil
@@ -85,12 +87,13 @@ func updateSecret(ctx context.Context, client ctrlclient.Client, log *zap.Sugare
 		log.Error(err, "invalid certificate")
 	}
 
-	newSecret, err := buildSecret(secret.Name, secret.Namespace, serviceName)
+	newSecret, err := buildSecret(ctx, client, secret.Name, secret.Namespace, serviceName, deployName, addOwnerRef)
 	if err != nil {
 		return errors.Wrap(err, "failed to create secret object")
 	}
 
 	secret.Data = newSecret.Data
+	secret.OwnerReferences = newSecret.OwnerReferences
 	if err := client.Update(ctx, secret); err != nil {
 		return errors.Wrap(err, "failed to update secret")
 	}
@@ -153,21 +156,58 @@ func hasRequiredKeys(data map[string][]byte) bool {
 	return true
 }
 
-func buildSecret(name, namespace, serviceName string) (*corev1.Secret, error) {
+func buildSecret(ctx context.Context, client ctrlclient.Client, name, namespace, serviceName, deployName string, addOwnerRef bool) (*corev1.Secret, error) {
 	cert, key, err := generateWebhookCertificates(serviceName, namespace)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate webhook certificates")
 	}
+
+	ownerRefs, err := buildOwnerRefs(ctx, client, namespace, deployName, addOwnerRef)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build owner reference for secret")
+	}
+
 	return &corev1.Secret{
-		ObjectMeta: v1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       namespace,
+			OwnerReferences: ownerRefs,
 		},
 		Data: map[string][]byte{
 			CertFile: cert,
 			KeyFile:  key,
 		},
 	}, nil
+}
+
+func buildOwnerRefs(ctx context.Context, client ctrlclient.Client, namespace, deployName string, addOwnerRef bool) ([]metav1.OwnerReference, error) {
+	if addOwnerRef != true {
+		return []metav1.OwnerReference{}, nil
+	}
+
+	deployUID, err := getDeploymentUID(ctx, client, deployName, namespace)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get deployment UID")
+	}
+
+	return []metav1.OwnerReference{
+		{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       deployName,
+			UID:        deployUID,
+		},
+	}, nil
+}
+
+func getDeploymentUID(ctx context.Context, client ctrlclient.Client, deployName, deployNamespace string) (types.UID, error) {
+	deploy := &appsv1.Deployment{}
+	err := client.Get(ctx, types.NamespacedName{Namespace: deployNamespace, Name: deployName}, deploy)
+	if err != nil {
+		return "", err
+	}
+
+	return deploy.GetUID(), nil
 }
 
 func generateWebhookCertificates(serviceName, namespace string) ([]byte, []byte, error) {

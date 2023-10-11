@@ -1,9 +1,10 @@
-package certs
+package webhook
 
 import (
 	"context"
-	"github.com/kyma-project/warden/internal/admission"
 	"reflect"
+
+	"github.com/kyma-project/warden/internal/admission"
 
 	"github.com/pkg/errors"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"

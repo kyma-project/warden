@@ -1,6 +1,8 @@
 module warden.kyma-project.io/tests
 
-go 1.19
+go 1.21
+
+toolchain go1.21.0
 
 require (
 	github.com/kyma-project/warden v0.0.0-00010101000000-000000000000

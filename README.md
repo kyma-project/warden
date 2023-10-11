@@ -1,3 +1,5 @@
+[![REUSE status](https://api.reuse.software/badge/github.com/kyma-project/warden)](https://api.reuse.software/info/github.com/kyma-project/warden)
+
 # Warden
 K8s image authenticity validator
 

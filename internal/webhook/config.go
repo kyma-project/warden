@@ -1,4 +1,4 @@
-package certs
+package webhook
 
 type WebhookConfig struct {
 	CABundel         []byte

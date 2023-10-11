@@ -1,4 +1,4 @@
-package certs
+package webhook
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/kyma-project/warden/internal/webhook/certs"
 	"github.com/pkg/errors"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -20,9 +21,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
-func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName string, log *zap.SugaredLogger) error {
+func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName, serviceNamespace, secretName, deployName string, addOwnerRef bool, log *zap.SugaredLogger) error {
 	logger := log.Named("resource-ctrl")
-	certPath := path.Join(DefaultCertDir, CertFile)
+	certPath := path.Join(certs.DefaultCertDir, certs.CertFile)
 	certBytes, err := os.ReadFile(certPath)
 	if err != nil {
 		return errors.Wrapf(err, "failed to read caBundel file: %s", certPath)
@@ -56,6 +57,8 @@ func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName
 	c, err := controller.New("webhook-resources-controller", mgr, controller.Options{
 		Reconciler: &resourceReconciler{
 			webhookConfig: webhookConfig,
+			deployName:    deployName,
+			addOwnerRef:   addOwnerRef,
 			client:        mgr.GetClient(),
 			secretName:    secretName,
 			logger:        log.Named("webhook-resource-controller"),
@@ -90,6 +93,8 @@ func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName
 type resourceReconciler struct {
 	webhookConfig WebhookConfig
 	secretName    string
+	deployName    string
+	addOwnerRef   bool
 	client        ctrlclient.Client
 	logger        *zap.SugaredLogger
 }
@@ -107,7 +112,7 @@ func (r *resourceReconciler) Reconcile(ctx context.Context, request reconcile.Re
 	if err := r.reconcilerWebhooks(ctx, request); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
-	if err := r.reconcilerSecret(ctx, request); err != nil {
+	if err := r.reconcilerSecret(ctx, request, r.deployName, r.addOwnerRef); err != nil {
 		return reconcile.Result{}, errors.Wrap(err, "failed to reconcile webhook resources")
 	}
 	r.logger.With("name", request.Name).Info("webhook resources reconciled successfully")
@@ -130,13 +135,13 @@ func (r *resourceReconciler) reconcilerWebhooks(ctx context.Context, request rec
 	return nil
 }
 
-func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request) error {
+func (r *resourceReconciler) reconcilerSecret(ctx context.Context, request reconcile.Request, deployName string, addOwnerRef bool) error {
 	ctrl.LoggerFrom(ctx).Info("reconciling webhook secret")
 	secretNamespaced := types.NamespacedName{Name: r.secretName, Namespace: r.webhookConfig.ServiceNamespace}
 	if request.NamespacedName.String() != secretNamespaced.String() {
 		return nil
 	}
-	if err := EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, r.logger); err != nil {
+	if err := certs.EnsureWebhookSecret(ctx, r.client, request.Name, request.Namespace, r.webhookConfig.ServiceName, deployName, addOwnerRef, r.logger); err != nil {
 		return errors.Wrap(err, "failed to reconcile webhook secret")
 	}
 	return nil
