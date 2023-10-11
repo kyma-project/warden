@@ -8,6 +8,7 @@ import (
 
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
+	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
 
 	"github.com/go-logr/zapr"
@@ -113,7 +114,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	if err := certs.SetupResourcesController(context.TODO(), mgr,
+	if err := webhook.SetupResourcesController(context.TODO(), mgr,
 		appConfig.Admission.ServiceName,
 		appConfig.Admission.SystemNamespace,
 		appConfig.Admission.SecretName,
