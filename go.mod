@@ -1,6 +1,6 @@
 module github.com/kyma-project/warden
 
-go 1.19
+go 1.21
 
 require (
 	github.com/docker/distribution v2.8.1+incompatible
