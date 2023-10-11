@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
-	"reflect"
 	"testing"
 	"time"
 
@@ -53,9 +52,7 @@ func Test_serviceAltNames(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := serviceAltNames(tt.args.serviceName, tt.args.namespace)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("invalid serviec altNames: serviceAltNames() = %v, want %v", got, tt.want)
-			}
+			require.ElementsMatch(t, got, tt.want)
 		})
 	}
 }
