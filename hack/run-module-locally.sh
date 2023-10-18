@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# script creates k3d cluster with lifecycle-manager,
+# installs self prepared moduletemplate on it and enables warden module
+
 set -eo pipefail
 
 # colors :)
