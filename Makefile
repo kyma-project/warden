@@ -19,6 +19,12 @@ endif
 SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
+# Operating system architecture
+OS_ARCH ?= $(shell uname -m)
+
+# Operating system type
+OS_TYPE ?= $(shell uname)
+
 .PHONY: all
 all: build
 
@@ -138,6 +144,7 @@ ENVTEST ?= $(LOCALBIN)/setup-envtest
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v4.5.5
 CONTROLLER_TOOLS_VERSION ?= v0.9.2
+HELM_VERSION ?= v3.13.1
 
 KUSTOMIZE_INSTALL_SCRIPT ?= "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"
 .PHONY: kustomize
@@ -154,6 +161,31 @@ $(CONTROLLER_GEN): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
+
+
+KYMA_STABILITY ?= unstable
+# $(call os_error, os-type, os-architecture)
+define os_error
+$(error Error: unsuported platform OS_TYPE:$1, OS_ARCH:$2; to mitigate this problem set variable KYMA with absolute path to kyma-cli binary compatible with your operating system and architecture)
+endef
+
+KYMA_FILE_NAME ?= $(shell ./hack/get_kyma_file_name.sh ${OS_TYPE} ${OS_ARCH})
+
+KYMA ?= $(LOCALBIN)/kyma-$(KYMA_STABILITY)
+kyma: $(LOCALBIN) $(KYMA) ## Download kyma locally if necessary.
+$(KYMA):
+	## Detect if operating system
+	$(if $(KYMA_FILE_NAME),,$(call os_error, ${OS_TYPE}, ${OS_ARCH}))
+	test -f $@ || curl -s -Lo $(KYMA) https://storage.googleapis.com/kyma-cli-$(KYMA_STABILITY)/$(KYMA_FILE_NAME)
+	chmod 0100 $(KYMA)
+
+HELM_FILE_NAME ?= $(shell ./hack/get_helm_file_name.sh ${HELM_VERSION} ${OS_TYPE} ${OS_ARCH})
+HELM ?= $(LOCALBIN)/helm
+helm: $(LOCALBIN) $(HELM)
+$(HELM):
+	curl -Ss https://get.helm.sh/${HELM_FILE_NAME} > $(LOCALBIN)/helm.tar.gz
+	tar zxf $(LOCALBIN)/helm.tar.gz -C $(LOCALBIN) --strip-components=1 $(shell tar tzf ala2.tar.gz | grep helm)
+	rm $(LOCALBIN)/helm.tar.gz
 
 ## Operator
 
