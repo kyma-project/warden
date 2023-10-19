@@ -162,27 +162,27 @@ envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 
-
-KYMA_STABILITY ?= unstable
 # $(call os_error, os-type, os-architecture)
 define os_error
-$(error Error: unsuported platform OS_TYPE:$1, OS_ARCH:$2; to mitigate this problem set variable KYMA with absolute path to kyma-cli binary compatible with your operating system and architecture)
+$(error Error: unsuported platform OS_TYPE:$2, OS_ARCH:$3; to mitigate this problem set variable $1 with absolute path to the binary compatible with your operating system and architecture)
 endef
 
 KYMA_FILE_NAME ?= $(shell ./hack/get_kyma_file_name.sh ${OS_TYPE} ${OS_ARCH})
-
+KYMA_STABILITY ?= unstable
 KYMA ?= $(LOCALBIN)/kyma-$(KYMA_STABILITY)
-kyma: $(LOCALBIN) $(KYMA) ## Download kyma locally if necessary.
+kyma: $(LOCALBIN) $(KYMA) ## Download kyma-cli locally if necessary.
 $(KYMA):
 	## Detect if operating system
-	$(if $(KYMA_FILE_NAME),,$(call os_error, ${OS_TYPE}, ${OS_ARCH}))
+	$(if $(KYMA_FILE_NAME),,$(call os_error, "KYMA" ${OS_TYPE}, ${OS_ARCH}))
 	test -f $@ || curl -s -Lo $(KYMA) https://storage.googleapis.com/kyma-cli-$(KYMA_STABILITY)/$(KYMA_FILE_NAME)
 	chmod 0100 $(KYMA)
 
 HELM_FILE_NAME ?= $(shell ./hack/get_helm_file_name.sh ${HELM_VERSION} ${OS_TYPE} ${OS_ARCH})
 HELM ?= $(LOCALBIN)/helm
-helm: $(LOCALBIN) $(HELM)
+helm: $(LOCALBIN) $(HELM) ## Download helm locally if necessary.
 $(HELM):
+	## Detect if operating system
+	$(if $(HELM_FILE_NAME),,$(call os_error, "HELM" ${OS_TYPE}, ${OS_ARCH}))
 	curl -Ss https://get.helm.sh/${HELM_FILE_NAME} > $(LOCALBIN)/helm.tar.gz
 	tar zxf $(LOCALBIN)/helm.tar.gz -C $(LOCALBIN) --strip-components=1 $(shell tar tzf ala2.tar.gz | grep helm)
 	rm $(LOCALBIN)/helm.tar.gz
