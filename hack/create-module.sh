@@ -13,8 +13,8 @@ DEFAULT_NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-n
 NAME="${NAME:-$DEFAULT_NAME}"
 DEFAULT_RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
 
-if [[ -n "$MODULE_SHA" ]]; then
-    DEFAULT_RELEASE="$DEFAULT_RELEASE-$MODULE_SHA"
+if [[ -n "${MODULE_SHA}" ]]; then
+    DEFAULT_RELEASE="$DEFAULT_RELEASE-${MODULE_SHA}"
 fi
 
 RELEASE="${RELEASE:-$DEFAULT_RELEASE}"
