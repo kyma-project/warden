@@ -25,7 +25,7 @@ ${KYMA} provision k3d --registry-port ${K3D_REGISTRY_PORT} --name ${K3D_CLUSTER_
 kubectl create namespace kyma-system
 
 printf "\n${EXTRA_COLOR}[ 2 ]${NORMAL_COLOR} Create module template\n"
-export REGISTRY_ADDRESS=$K3D_REGISTRY_ADDRESS
+export MODULE_REGISTRY=$K3D_REGISTRY_ADDRESS
 export CREATE_MODULE_EXTRA_ARGS="--insecure"
 ./hack/create-module.sh
 

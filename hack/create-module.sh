@@ -5,7 +5,7 @@ set -eo pipefail
 # requirements
 KYMA=${KYMA?"Define KYMA env"}
 HELM=${HELM?"Define HELM env"}
-REGISTRY_ADDRESS=${REGISTRY_ADDRESS?"Define REGISTRY_ADDRESS env"}
+MODULE_REGISTRY=${MODULE_REGISTRY?"Define MODULE_REGISTRY env"}
 
 # module config
 CHANNEL="${CHANNEL:-fast}"
@@ -31,4 +31,4 @@ cat module-config-template.yaml |
 printf "Create module\n"
 ${KYMA} alpha create module --path . --output=moduletemplate.yaml \
     --module-config-file=module-config.yaml \
-    --registry ${REGISTRY_ADDRESS} ${CREATE_MODULE_EXTRA_ARGS}
+    --registry ${MODULE_REGISTRY} ${CREATE_MODULE_EXTRA_ARGS}
