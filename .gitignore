@@ -24,3 +24,9 @@ vendor
 *~
 *.DS_Store
 .vscode
+
+# modularization generated files
+moduletemplate-k3d.yaml
+moduletemplate.yaml
+warden-manifest.yaml
+module-config.yaml
