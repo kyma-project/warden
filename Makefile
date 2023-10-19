@@ -114,10 +114,17 @@ module-build: kyma helm ## create moduletemplate and push manifest artifacts
 ##@ CI
 
 .PHONY: ci-module-build
-ci-module-build: module-build
+ci-module-build: configure-git-origin module-build
 	@echo "=======MODULE TEMPLATE======="
 	@cat moduletemplate.yaml
 	@echo "============================="
+
+.PHONY: configure-git-origin
+configure-git-origin:
+#	test-infra does not include origin remote in the .git directory.
+#	the CLI is looking for the origin url in the .git dir so first we need to be sure it's not empty
+	@git remote | grep '^origin$$' -q || \
+		git remote add origin https://github.com/kyma-project/serverless-manager
 
 ##@ Deployment
 
