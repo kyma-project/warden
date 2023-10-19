@@ -113,8 +113,8 @@ module-build: kyma helm ## create moduletemplate and push manifest artifacts
 
 ##@ CI
 
-.PHONY: module-build-ci
-module-build-ci: module-build
+.PHONY: ci-module-build
+ci-module-build: module-build
 	@echo "=======MODULE TEMPLATE======="
 	@cat moduletemplate.yaml
 	@echo "============================="
