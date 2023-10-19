@@ -12,6 +12,11 @@ CHANNEL="${CHANNEL:-fast}"
 DEFAULT_NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-name: //g')
 NAME="${NAME:-$DEFAULT_NAME}"
 DEFAULT_RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
+
+if [[ -n "$MODULE_SHA" ]]; then
+    DEFAULT_RELEASE="$DEFAULT_RELEASE-$MODULE_SHA"
+else
+
 RELEASE="${RELEASE:-$DEFAULT_RELEASE}"
 
 CREATE_MODULE_EXTRA_ARGS="${CREATE_MODULE_EXTRA_ARGS:-}"
