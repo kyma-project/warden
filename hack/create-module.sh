@@ -2,6 +2,11 @@
 
 set -eo pipefail
 
+# requirements
+KYMA=${KYMA?"Define KYMA env"}
+HELM=${HELM?"Define HELM env"}
+REGISTRY_ADDRESS=${REGISTRY_ADDRESS?"Define REGISTRY_ADDRESS env"}
+
 # module config
 CHANNEL="${CHANNEL:-fast}"
 DEFAULT_NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-name: //g')
@@ -13,7 +18,7 @@ CREATE_MODULE_EXTRA_ARGS="${CREATE_MODULE_EXTRA_ARGS:-}"
 
 ## generate manifest
 printf "Generate manifest to the warden-manifest.yaml file\n"
-helm template --namespace kyma-system warden charts/warden > warden-manifest.yaml
+${HELM} template --namespace kyma-system warden charts/warden > warden-manifest.yaml
 
 ## generate module-config.yaml template
 printf "Generate the module-config.yaml from template\n"
@@ -24,6 +29,6 @@ cat module-config-template.yaml |
 
 ## create module
 printf "Create module\n"
-kyma-dev alpha create module --path . --output=moduletemplate.yaml \
+${KYMA} alpha create module --path . --output=moduletemplate.yaml \
     --module-config-file=module-config.yaml \
     --registry ${REGISTRY_ADDRESS} ${CREATE_MODULE_EXTRA_ARGS}

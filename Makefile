@@ -105,6 +105,20 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
+##@ Module
+
+.PHONY: module-build
+module-build: kyma helm ## create moduletemplate and push manifest artifacts
+	@KYMA=$(KYMA) HELM=$(HELM) ./hack/create-module.sh
+
+##@ CI
+
+.PHONY: module-build-ci
+module-build-ci: module-build
+	@echo "=======MODULE TEMPLATE======="
+	@cat moduletemplate.yaml
+	@echo "============================="
+
 ##@ Deployment
 
 ifndef ignore-not-found
