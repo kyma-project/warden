@@ -15,7 +15,7 @@ DEFAULT_RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //
 
 if [[ -n "$MODULE_SHA" ]]; then
     DEFAULT_RELEASE="$DEFAULT_RELEASE-$MODULE_SHA"
-else
+fi
 
 RELEASE="${RELEASE:-$DEFAULT_RELEASE}"
 
