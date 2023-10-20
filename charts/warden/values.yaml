@@ -65,6 +65,7 @@ global:
     capabilities:
       drop:
         - ALL
+    readOnlyRootFilesystem: true
 
 
 #TODO: group k8s related settings under kubernetes?
