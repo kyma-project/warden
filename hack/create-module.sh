@@ -2,22 +2,23 @@
 
 set -eo pipefail
 
-# requirements
+# require envs
 KYMA=${KYMA?"Define KYMA env"}
 HELM=${HELM?"Define HELM env"}
 MODULE_REGISTRY=${MODULE_REGISTRY?"Define MODULE_REGISTRY env"}
 
-# module config
+# optional envs
 CHANNEL="${CHANNEL:-fast}"
+
 DEFAULT_NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-name: //g')
 NAME="${NAME:-$DEFAULT_NAME}"
+
 DEFAULT_RELEASE=$(cat sec-scanners-config.yaml | grep rc-tag | sed 's/rc-tag: //g')
-
-if [[ -n "${MODULE_SHA}" ]]; then
-    DEFAULT_RELEASE="$DEFAULT_RELEASE-${MODULE_SHA}"
-fi
-
+RELEASE_SUFFIX="${RELEASE_SUFFIX:-}"
 RELEASE="${RELEASE:-$DEFAULT_RELEASE}"
+if [[ -n "${RELEASE_SUFFIX}" ]]; then
+    RELEASE="$RELEASE-${RELEASE_SUFFIX}"
+fi
 
 CREATE_MODULE_EXTRA_ARGS="${CREATE_MODULE_EXTRA_ARGS:-}"
 

@@ -109,7 +109,7 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 .PHONY: module-build
 module-build: kyma helm ## create moduletemplate and push manifest artifacts
-	@KYMA=${KYMA} HELM=${HELM} MODULE_SHA=${MODULE_SHA} ./hack/create-module.sh
+	@KYMA=${KYMA} HELM=${HELM} RELEASE_SUFFIX=${MODULE_SHA} ./hack/create-module.sh
 
 ##@ CI
 
