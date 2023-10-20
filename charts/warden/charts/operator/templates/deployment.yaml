@@ -47,8 +47,12 @@ spec:
           volumeMounts:
             - name: config
               mountPath: {{ .Values.global.config.dir }}
+            - name: notary-tmp
+              mountPath: /tmp/.notary
       volumes:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
+        - name: notary-tmp
+          emptyDir: { }
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
