@@ -51,7 +51,7 @@ spec:
             - name: tmp-cert
               mountPath: /tmp/k8s-webhook-server/
             - name: notary-tmp
-              mountPath: /tmp
+              mountPath: /tmp/.notary
       volumes:
         - name: config
           configMap:
