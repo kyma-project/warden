@@ -50,11 +50,15 @@ spec:
               mountPath: {{ .Values.global.config.dir }}
             - name: tmp-cert
               mountPath: /tmp/k8s-webhook-server/
+            - name: notary-tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: {{ .Values.global.config.configmapName }}
         - name: tmp-cert
+          emptyDir: {}
+        - name: notary-tmp
           emptyDir: {}
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
     
