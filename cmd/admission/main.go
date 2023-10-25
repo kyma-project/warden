@@ -151,6 +151,7 @@ func main() {
 	})
 
 	logger.Info("starting the controller-manager")
+
 	// start the server manager
 	err = mgr.Start(ctrl.SetupSignalHandler())
 	if err != nil {
