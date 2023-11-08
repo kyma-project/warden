@@ -129,6 +129,7 @@ configure-git-origin:
 
 .PHONY: get-kyma
 get-kyma:
+	mkdir bin
 	test -f $@ || curl -s -Lo bin/kyma-unstable https://storage.googleapis.com/kyma-cli-unstable/kyma-linux
 	chmod 0100 bin/kyma-unstable
 
