@@ -127,19 +127,13 @@ configure-git-origin:
 		git remote add origin https://github.com/kyma-project/serverless-manager
 
 
-.PHONY: get-kyma
-get-kyma:
-	mkdir bin
-	test -f $@ || curl -s -Lo bin/kyma-unstable https://storage.googleapis.com/kyma-cli-unstable/kyma-linux
-	chmod 0100 bin/kyma-unstable
-
 .PHONY: k3d-lm-integration-test
 k3d-lm-integration-test: ## Run integration tests on self-prepared k3d cluster with lifecycle-manager.
-k3d-lm-integration-test: get-kyma run-with-lifecycle-manager verify-status run-integration-tests
+k3d-lm-integration-test: run-with-lifecycle-manager verify-status run-integration-tests
 
 .PHONY: run-with-lifecycle-manager
-run-with-lifecycle-manager:
-	@./hack/run-module-locally.sh
+run-with-lifecycle-manager: kyma helm
+	@KYMA=${KYMA} HELM=${HELM} ./hack/run-module-locally.sh
 
 .PHONY: verify-status
 verify-status:
