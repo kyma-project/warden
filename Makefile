@@ -126,6 +126,19 @@ configure-git-origin:
 	@git remote | grep '^origin$$' -q || \
 		git remote add origin https://github.com/kyma-project/serverless-manager
 
+
+.PHONY: k3d-lm-integration-test
+k3d-lm-integration-test: ## Run integration tests on self-prepared k3d cluster with lifecycle-manager.
+k3d-lm-integration-test: run-with-lifecycle-manager verify-status run-integration-tests
+
+.PHONY: run-with-lifecycle-manager
+run-with-lifecycle-manager: kyma helm
+	@KYMA=${KYMA} HELM=${HELM} ./hack/run-module-locally.sh
+
+.PHONY: verify-status
+verify-status:
+	@./hack/verify_warden_status.sh
+
 ##@ Deployment
 
 ifndef ignore-not-found

@@ -37,4 +37,4 @@ cat module-config-template.yaml |
 printf "Create module\n"
 ${KYMA} alpha create module --path . --output=moduletemplate.yaml \
     --module-config-file=module-config.yaml \
-    --registry ${MODULE_REGISTRY} ${CREATE_MODULE_EXTRA_ARGS}
+    --registry ${MODULE_REGISTRY} ${CREATE_MODULE_EXTRA_ARGS} --module-archive-version-overwrite

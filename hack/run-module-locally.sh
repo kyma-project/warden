@@ -5,6 +5,7 @@
 
 set -eo pipefail
 
+
 # colors :)
 EXTRA_COLOR=$(tput setaf 2)
 NORMAL_COLOR=$(tput sgr0)
@@ -16,7 +17,7 @@ K3D_REGISTRY_NAME="${K3D_CLUSTER_NAME}-registry"
 K3D_REGISTRY_ADDRESS="localhost:${K3D_REGISTRY_PORT}"
 
 # programs
-export KYMA="${KYMA:-$(which kyma-dev)}"
+export KYMA="${KYMA:-$(which kyma)}"
 export HELM="${HELM:-$(which helm)}"
 
 ## create k3d cluster and registry
