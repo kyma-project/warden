@@ -132,7 +132,7 @@ k3d-lm-integration-test: ## Run integration tests on self-prepared k3d cluster w
 k3d-lm-integration-test: run-with-lifecycle-manager verify-status run-integration-tests
 
 .PHONY: run-with-lifecycle-manager
-run-with-lifecycle-manager: kyma helm
+run-with-lifecycle-manager: kyma helm configure-git-origin
 	@KYMA=${KYMA} HELM=${HELM} ./hack/run-module-locally.sh
 
 .PHONY: verify-status
