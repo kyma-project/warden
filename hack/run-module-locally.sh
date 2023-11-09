@@ -42,7 +42,7 @@ cat moduletemplate.yaml \
 ## deploy LM
 printf "\n${EXTRA_COLOR}[ 4 ]${NORMAL_COLOR} Deploy LM\n"
 ${KYMA} alpha deploy --ci --force-conflicts
-
+#test
 ## apply moduletemplate
 printf "\n${EXTRA_COLOR}[ 5 ]${NORMAL_COLOR} Apply moduletemplate\n"
 kubectl apply -f moduletemplate-k3d.yaml
