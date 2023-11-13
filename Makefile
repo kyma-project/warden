@@ -124,7 +124,7 @@ configure-git-origin:
 #	test-infra does not include origin remote in the .git directory.
 #	the CLI is looking for the origin url in the .git dir so first we need to be sure it's not empty
 	@git remote | grep '^origin$$' -q || \
-		git remote add origin https://github.com/kyma-project/serverless-manager
+		git remote add origin https://github.com/kyma-project/warden
 
 
 .PHONY: k3d-lm-integration-test
