@@ -8,6 +8,8 @@ HELM=${HELM?"Define HELM env"}
 MODULE_REGISTRY=${MODULE_REGISTRY?"Define MODULE_REGISTRY env"}
 
 # optional envs
+SEC_SCANNERS_CONFIG=${SEC_SCANNERS_CONFIG:-}
+
 CHANNEL="${CHANNEL:-fast}"
 
 DEFAULT_NAME=$(cat sec-scanners-config.yaml | grep module-name | sed 's/module-name: //g')
@@ -36,5 +38,6 @@ cat module-config-template.yaml |
 ## create module
 printf "Create module\n"
 ${KYMA} alpha create module --path . --output=moduletemplate.yaml \
+    --sec-scanners-config="$SEC_SCANNERS_CONFIG" \
     --module-config-file=module-config.yaml \
     --registry ${MODULE_REGISTRY} ${CREATE_MODULE_EXTRA_ARGS} --module-archive-version-overwrite
