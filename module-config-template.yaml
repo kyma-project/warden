@@ -2,7 +2,6 @@ name: {{.Name}}
 channel: {{.Channel}}
 version: {{.Version}}
 manifest: warden-manifest.yaml
-security: sec-scanners-config.yaml
 annotations:
   "operator.kyma-project.io/doc-url": "https://github.com/kyma-project/warden/blob/{{.Version}}/README.md"
 moduleRepo: https://github.com/kyma-project/warden.git
