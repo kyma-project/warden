@@ -181,7 +181,7 @@ func buildSecret(ctx context.Context, client ctrlclient.Client, name, namespace,
 }
 
 func buildOwnerRefs(ctx context.Context, client ctrlclient.Client, namespace, deployName string, addOwnerRef bool) ([]metav1.OwnerReference, error) {
-	if addOwnerRef != true {
+	if !addOwnerRef {
 		return []metav1.OwnerReference{}, nil
 	}
 
