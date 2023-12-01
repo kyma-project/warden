@@ -1,0 +1,11 @@
+apiVersion: v1
+entries: 
+  warden:
+  - apiVersion: v2
+    appVersion: "0.6.1"
+    description: A warden helm chart for Kubernetes
+    name: warden
+    urls:
+    - https://github.com/kyma-project/warden/releases/download/v0.6.1/warden-0.6.1.tgz
+    version: 0.6.1
+generated: "2023-12-01T14:34:58.682585+01:00"
