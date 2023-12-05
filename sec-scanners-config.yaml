@@ -1,6 +1,6 @@
 module-name: warden
 rc-tag: v0.5.1
-protecode:
+protecode: []
 whitesource:
   language: golang-mod
   subprojects: false
