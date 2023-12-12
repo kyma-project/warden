@@ -131,7 +131,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	return shouldRetry, nil
 }
 
-func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate.ValidationResult, error) {
+func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate.ValidationStatus, error) {
 	var ns corev1.Namespace
 	if err := r.client.Get(ctx, client.ObjectKey{Name: pod.Namespace}, &ns); err != nil {
 		return validate.NoAction, err
@@ -142,10 +142,10 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		return validate.NoAction, err
 	}
 
-	return result, nil
+	return result.Status, nil
 }
 
-func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result validate.ValidationResult) error {
+func (r *PodReconciler) labelPod(ctx context.Context, pod corev1.Pod, result validate.ValidationStatus) error {
 
 	resultLabel := labelForValidationResult(result)
 	if resultLabel == "" {
@@ -199,7 +199,7 @@ func (r *PodReconciler) isValidationEnabledForNS(namespace string) bool {
 	return validate.IsValidationEnabledForNS(&ns)
 }
 
-func labelForValidationResult(result validate.ValidationResult) string {
+func labelForValidationResult(result validate.ValidationStatus) string {
 	switch result {
 	case validate.NoAction:
 		return ""

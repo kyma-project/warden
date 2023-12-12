@@ -21,6 +21,8 @@ func TestValidatePod(t *testing.T) {
 	validContainer := v1.Container{Name: "valid-image", Image: validImage}
 	invalidImage := "invalidImage"
 	invalidContainer := v1.Container{Name: "invalid-image", Image: invalidImage}
+	invalidImage2 := "invalidImage2"
+	invalidContainer2 := v1.Container{Name: "invalid-image2", Image: invalidImage2}
 	longResp := "long"
 	longRespContainer := v1.Container{Name: "invalid-image", Image: longResp}
 
@@ -41,9 +43,10 @@ func TestValidatePod(t *testing.T) {
 	})
 
 	testCases := []struct {
-		name           string
-		pod            *v1.Pod
-		expectedResult validate.ValidationResult
+		name                 string
+		pod                  *v1.Pod
+		expectedStatus       validate.ValidationStatus
+		expectedFailedImages []string
 	}{
 		{
 			name: "pod has valid image",
@@ -51,7 +54,8 @@ func TestValidatePod(t *testing.T) {
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					validContainer,
 				}}},
-			expectedResult: validate.Valid,
+			expectedStatus:       validate.Valid,
+			expectedFailedImages: []string{},
 		},
 		{
 			name: "pod has valid images",
@@ -59,21 +63,42 @@ func TestValidatePod(t *testing.T) {
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					validContainer, validContainer,
 				}}},
-			expectedResult: validate.Valid,
+			expectedStatus:       validate.Valid,
+			expectedFailedImages: []string{},
 		},
 		{
 			name: "pod has invalid image",
 			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					invalidContainer}}},
-			expectedResult: validate.Invalid,
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage},
+		},
+		{
+			name: "pod has two invalid images",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
+				Spec: v1.PodSpec{Containers: []v1.Container{
+					invalidContainer,
+					invalidContainer2}}},
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage, invalidImage2},
+		},
+		{
+			name: "pod has one invalid image",
+			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
+				Spec: v1.PodSpec{Containers: []v1.Container{
+					validContainer,
+					invalidContainer}}},
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage},
 		},
 		{
 			name: "image validator timeout",
 			pod: &v1.Pod{ObjectMeta: metav1.ObjectMeta{Namespace: testNs},
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					longRespContainer}}},
-			expectedResult: validate.ServiceUnavailable,
+			expectedStatus:       validate.ServiceUnavailable,
+			expectedFailedImages: []string{longResp},
 		},
 		{
 			name: "pod has invalid image among otters",
@@ -81,7 +106,8 @@ func TestValidatePod(t *testing.T) {
 				Spec: v1.PodSpec{Containers: []v1.Container{
 					validContainer, validContainer, validContainer, invalidContainer,
 				}}},
-			expectedResult: validate.Invalid,
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage},
 		},
 		{
 			name: "pod has valid image in initContainers and containers",
@@ -90,7 +116,8 @@ func TestValidatePod(t *testing.T) {
 					InitContainers: []v1.Container{validContainer},
 					Containers:     []v1.Container{validContainer},
 				}},
-			expectedResult: validate.Valid,
+			expectedStatus:       validate.Valid,
+			expectedFailedImages: []string{},
 		},
 		{
 			name: "pod has invalid image in initContainers",
@@ -99,7 +126,8 @@ func TestValidatePod(t *testing.T) {
 					InitContainers: []v1.Container{invalidContainer},
 					Containers:     []v1.Container{validContainer},
 				}},
-			expectedResult: validate.Invalid,
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage},
 		},
 		{
 			name: "pod has invalid image among others images in initContainers",
@@ -108,7 +136,8 @@ func TestValidatePod(t *testing.T) {
 					InitContainers: []v1.Container{validContainer, validContainer, invalidContainer},
 					Containers:     []v1.Container{validContainer},
 				}},
-			expectedResult: validate.Invalid,
+			expectedStatus:       validate.Invalid,
+			expectedFailedImages: []string{invalidImage},
 		},
 	}
 
@@ -120,18 +149,20 @@ func TestValidatePod(t *testing.T) {
 					pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 				}}}
 
-			mockValidator := mocks.ImageValidatorService{}
-			mockValidator.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
-			mockValidator.Mock.On("Validate", mock.Anything, validImage).Return(nil)
-			mockValidator.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewUnknownResultErr(nil))
+			validatorSvcMock := mocks.ImageValidatorService{}
+			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
+			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage2).Return(errors.New("Invalid image"))
+			validatorSvcMock.Mock.On("Validate", mock.Anything, validImage).Return(nil)
+			validatorSvcMock.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewUnknownResultErr(nil))
 
-			podValidator := validate.NewPodValidator(&mockValidator)
+			podValidator := validate.NewPodValidator(&validatorSvcMock)
 			//WHEN
 			result, err := podValidator.ValidatePod(context.TODO(), testCase.pod, ns)
 
 			//THEN
 			require.NoError(t, err)
-			require.Equal(t, testCase.expectedResult, result)
+			require.Equal(t, testCase.expectedStatus, result.Status)
+			require.EqualValues(t, testCase.expectedFailedImages, result.InvalidImages)
 		})
 	}
 }

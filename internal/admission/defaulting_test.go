@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
@@ -63,7 +64,7 @@ func TestTimeout(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
 		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			After(timeout/2).
-			Return(validate.Valid, nil).Once()
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -81,7 +82,7 @@ func TestTimeout(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
 		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			After(timeout*2).
-			Return(validate.Valid, nil).Once()
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -100,7 +101,7 @@ func TestTimeout(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
 		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			After(timeout*2).
-			Return(validate.Valid, nil).Once()
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOn, logger.Sugar())
 		require.NoError(t, webhook.InjectDecoder(decoder))
@@ -187,7 +188,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
-		pod.ObjectMeta.Annotations = map[string]string{PodValidationRejectAnnotation: ValidationReject}
+		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
@@ -207,7 +208,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 	t.Run("when pod labeled by ns controller with pending label and annotation reject should remove the annotation", func(t *testing.T) {
 		//GIVEN
 		pod := newPodFix(nsName, map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending})
-		pod.ObjectMeta.Annotations = map[string]string{PodValidationRejectAnnotation: ValidationReject}
+		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Update)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
@@ -223,7 +224,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.ElementsMatch(t, withRemovedAnnotation([]jsonpatch.JsonPatchOperation{}), res.Patches)
 	})
 
-	t.Run("when invalid image should return failed and annotation reject", func(t *testing.T) {
+	t.Run("when invalid image should return failed and annotation reject with images list", func(t *testing.T) {
 		//GIVEN
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
@@ -244,14 +245,14 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
 		require.NotNil(t, res)
 		require.True(t, res.AdmissionResponse.Allowed)
-		require.ElementsMatch(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
+		require.ElementsMatch(t, withAddRejectAndImagesAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
 	})
 
 	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			Return(validate.ServiceUnavailable, nil)
+			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
 		defer mockPodValidator.AssertExpectations(t)
 
 		pod := newPodFix(nsName, nil)
@@ -275,7 +276,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		//GIVEN
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			Return(validate.ServiceUnavailable, nil)
+			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
 		defer mockPodValidator.AssertExpectations(t)
 
 		pod := newPodFix(nsName, nil)
@@ -512,6 +513,17 @@ func withAddRejectAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.J
 		Operation: "add",
 		Path:      "/metadata/annotations",
 		Value: map[string]interface{}{
+			"pods.warden.kyma-project.io/validate-reject": "reject",
+		},
+	})
+}
+
+func withAddRejectAndImagesAnnotation(patch []jsonpatch.JsonPatchOperation) []jsonpatch.JsonPatchOperation {
+	return append(patch, jsonpatch.JsonPatchOperation{
+		Operation: "add",
+		Path:      "/metadata/annotations",
+		Value: map[string]interface{}{
+			"pods.warden.kyma-project.io/invalid-images":  "test:test",
 			"pods.warden.kyma-project.io/validate-reject": "reject",
 		},
 	})

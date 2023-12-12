@@ -2,6 +2,8 @@ package admission
 
 import (
 	"context"
+	"fmt"
+	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -51,11 +53,15 @@ func (w *ValidationWebhook) handle(ctx context.Context, req admission.Request) a
 		return admission.Allowed("nothing to do")
 	}
 
-	if pod.Annotations[PodValidationRejectAnnotation] != ValidationReject {
+	if pod.Annotations[annotations.PodValidationRejectAnnotation] != annotations.ValidationReject {
 		return admission.Allowed("nothing to do")
 	}
 
 	logger.Info("Pod images validation failed")
+	if _, ok := pod.Annotations[annotations.InvalidImagesAnnotation]; ok {
+		return admission.Denied(fmt.Sprintf("Pod images %s validation failed", pod.Annotations[annotations.InvalidImagesAnnotation]))
+	}
+
 	return admission.Denied("Pod images validation failed")
 }
 

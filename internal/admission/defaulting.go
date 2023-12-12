@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
@@ -15,6 +16,7 @@ import (
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"strings"
 	"time"
 )
 
@@ -77,7 +79,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
-	if result == validate.NoAction {
+	if result.Status == validate.NoAction {
 		return admission.Allowed("validation is not enabled for pod")
 	}
 	res := w.createResponse(ctx, req, result, pod, logger)
@@ -107,8 +109,7 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, 
 	msg := fmt.Sprintf("request exceeded desired timeout: %s, reason: %s", w.timeout.String(), timeoutErr.Error())
 	logger := helpers.LoggerFromCtx(ctx)
 	logger.Info(msg)
-
-	res := w.createResponse(ctx, req, validate.ServiceUnavailable, pod, logger)
+	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, logger)
 	res.Result = &metav1.Status{Message: msg}
 	return res
 }
@@ -173,7 +174,7 @@ func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
 }
 
 func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
-	label, annotation := podMarkersForValidationResult(result, strictMode)
+	label, annotation := podMarkersForValidationResult(result.Status, strictMode)
 	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s` and annotated: `%s`", label, annotation)
 	if label == "" && annotation == "" {
 		return pod
@@ -193,23 +194,26 @@ func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.
 		if markedPod.Annotations == nil {
 			markedPod.Annotations = map[string]string{}
 		}
-		markedPod.Annotations[PodValidationRejectAnnotation] = annotation
+		markedPod.Annotations[annotations.PodValidationRejectAnnotation] = annotation
+		if result.InvalidImages != nil {
+			markedPod.Annotations[annotations.InvalidImagesAnnotation] = strings.Join(result.InvalidImages, ", ")
+		}
 	}
 	return markedPod
 }
 
-func podMarkersForValidationResult(result validate.ValidationResult, strictMode bool) (label string, annotation string) {
+func podMarkersForValidationResult(result validate.ValidationStatus, strictMode bool) (label string, annotation string) {
 	switch result {
 	case validate.NoAction:
 		return "", ""
 	case validate.Invalid:
-		return pkg.ValidationStatusFailed, ValidationReject
+		return pkg.ValidationStatusFailed, annotations.ValidationReject
 	case validate.Valid:
 		return pkg.ValidationStatusSuccess, ""
 	case validate.ServiceUnavailable:
 		annotation = ""
 		if strictMode {
-			annotation = ValidationReject
+			annotation = annotations.ValidationReject
 		}
 		return pkg.ValidationStatusPending, annotation
 	default:
@@ -217,10 +221,10 @@ func podMarkersForValidationResult(result validate.ValidationResult, strictMode 
 	}
 }
 
-func removeInternalAnnotation(ctx context.Context, annotations map[string]string) bool {
+func removeInternalAnnotation(ctx context.Context, source map[string]string) bool {
 	logger := helpers.LoggerFromCtx(ctx)
-	if _, ok := annotations[PodValidationRejectAnnotation]; ok {
-		delete(annotations, PodValidationRejectAnnotation)
+	if _, ok := source[annotations.PodValidationRejectAnnotation]; ok {
+		delete(source, annotations.PodValidationRejectAnnotation)
 		logger.Debug("Internal Annotation deleted")
 		return true
 	}
