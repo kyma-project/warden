@@ -24,6 +24,7 @@ global:
         memory: 160Mi
 
   admission:
+    enabled: true
     image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20231011-fe44448b
     resources:
       requests:
@@ -39,14 +40,15 @@ global:
     configmapName: warden-config
     data:
       notary:
-        URL: "https://signing-dev.repositories.cloud.sap"
+        URL: "https://signing.repositories.cloud.sap"
         timeout: 30s
-        # list of comma-separated registries addresses
+        # deprecated (still used by legacy installation mode via reconciler)
         allowedRegistries: ""
+        # list of registries addresses commonly allowed across all environments
+        defaultAllowedRegistries: []
+        # list of registries exceptionally allowed ( overidable ) per environment
+        additionalAllowedRegistries: []
       admission:
-        systemNamespace: "{{ .Release.Namespace }}"
-        serviceName: "{{ .Chart.Name }}-admission"
-        secretName: "{{ .Chart.Name }}-admission-cert"
         timeout: 10s
         port: 8443
         strictMode: false
