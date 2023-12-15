@@ -23,3 +23,8 @@ version: 0.0.6
 # It is recommended to use it with quotes.
 appVersion: "0.0.6"
 
+dependencies:
+  - name: warden-admission
+    condition: admission.enabled
+  - name: warden-operator
+    condition: operator.enabled

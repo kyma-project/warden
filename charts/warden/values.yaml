@@ -8,6 +8,12 @@ imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
+admission:
+  enabled: true
+
+operator:
+  enabled: true
+
 #Service configuration
 global:
   name: warden
@@ -24,7 +30,6 @@ global:
         memory: 160Mi
 
   admission:
-    enabled: true
     image: europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20231011-fe44448b
     resources:
       requests:

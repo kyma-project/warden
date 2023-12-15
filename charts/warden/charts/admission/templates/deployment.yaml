@@ -1,4 +1,3 @@
-{{- if .Values.global.admission.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -62,4 +61,3 @@ spec:
         - name: notary-tmp
           emptyDir: {}
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
-{{ end }}

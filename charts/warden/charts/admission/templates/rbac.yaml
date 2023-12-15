@@ -1,4 +1,3 @@
-{{- if .Values.global.admission.enabled }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -78,4 +77,3 @@ kind: ServiceAccount
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
-{{ end }}
