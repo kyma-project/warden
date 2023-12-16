@@ -61,4 +61,3 @@ spec:
         - name: notary-tmp
           emptyDir: {}
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
-    

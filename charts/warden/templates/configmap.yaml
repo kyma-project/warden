@@ -1,7 +1,33 @@
+{{- $allowedRegistries := .Values.global.config.data.notary.allowedRegistries }}
+{{- if and .Values.global.config.data.notary.additionalAllowedRegistries .Values.global.config.data.notary.defaultAllowedRegistries -}}
+{{- $allowedRegistries = join ", " (concat .Values.global.config.data.notary.defaultAllowedRegistries  .Values.global.config.data.notary.additionalAllowedRegistries | uniq ) }}
+{{- else if .Values.global.config.data.notary.defaultAllowedRegistries -}}
+{{- $allowedRegistries = join ", " .Values.global.config.data.notary.defaultAllowedRegistries }}
+{{- end -}}
+
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: {{ .Values.global.config.configmapName }}
   namespace: {{ .Release.Namespace }}
 data:
-  {{ .Values.global.config.filename }}: {{ tpl ( toYaml .Values.global.config.data ) . | quote  }}
+  config.yaml: |-
+    admission:
+      port: {{ .Values.global.config.data.admission.port }}
+      secretName: {{ .Chart.Name }}-admission-cert
+      serviceName: {{ .Chart.Name }}-admission
+      strictMode: {{ .Values.global.config.data.admission.strictMode }}
+      systemNamespace: '{{ .Release.Namespace }}'
+      timeout: {{ .Values.global.config.data.admission.timeout }}
+    logging:
+      format: {{ .Values.global.config.data.logging.format }}
+      level: {{ .Values.global.config.data.logging.level }}
+    notary:
+      URL: {{ .Values.global.config.data.notary.URL }}
+      timeout: {{ .Values.global.config.data.notary.timeout }}
+      allowedRegistries: {{ $allowedRegistries }}
+    operator:
+      healthProbeBindAddress: {{ .Values.global.config.data.operator.healthProbeBindAddress }}
+      metricsBindAddress: {{ .Values.global.config.data.operator.metricsBindAddress }}
+      leaderElect: {{ .Values.global.config.data.operator.leaderElect }}
+      podReconcilerRequeueAfter: {{ .Values.global.config.data.operator.podReconcilerRequeueAfter }}
