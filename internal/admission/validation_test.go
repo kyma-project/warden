@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/assert"
@@ -36,7 +37,8 @@ func TestValidationWebhook(t *testing.T) {
 			pod: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-pod",
 					Annotations: map[string]string{
-						PodValidationRejectAnnotation: ValidationReject,
+						annotations.PodValidationRejectAnnotation: annotations.ValidationReject,
+						annotations.InvalidImagesAnnotation:       annotations.InvalidImagesAnnotation,
 					}},
 			},
 			expectedStatus:  int32(http.StatusForbidden),

@@ -8,13 +8,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-type ValidationResult string
+type ValidationStatus string
+
+type ValidationResult struct {
+	Status        ValidationStatus
+	InvalidImages []string
+}
 
 const (
-	Invalid            ValidationResult = "Invalid"
-	ServiceUnavailable ValidationResult = "ServiceUnavailable"
-	Valid              ValidationResult = "Valid"
-	NoAction           ValidationResult = "NoAction"
+	Invalid            ValidationStatus = "Invalid"
+	ServiceUnavailable ValidationStatus = "ServiceUnavailable"
+	Valid              ValidationStatus = "Valid"
+	NoAction           ValidationStatus = "NoAction"
 )
 
 //go:generate mockery --name PodValidator
@@ -42,33 +47,33 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	logger := helpers.LoggerFromCtx(ctx)
 
 	if ns.Name != pod.Namespace {
-		return Invalid, errors.New("pod namespace mismatch with given namespace")
+		return ValidationResult{Invalid, nil}, errors.New("pod namespace mismatch with given namespace")
 	}
-
-	matched := make(map[string]ValidationResult)
 
 	images := getAllImages(pod)
 
 	admitResult := Valid
 
+	invalidImages := []string{}
+
 	for s := range images {
 		result, err := a.validateImage(ctx, s)
-		matched[s] = result
 
 		if result != Valid {
 			admitResult = result
+			invalidImages = append(invalidImages, s)
 			logger.With("image", s).Info(err.Error())
 		}
 	}
 
-	return admitResult, nil
+	return ValidationResult{admitResult, invalidImages}, nil
 }
 
 func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
 	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
-func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationResult, error) {
+func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationStatus, error) {
 	err := a.Validator.Validate(ctx, image)
 	if err != nil {
 		if pkg.ErrorCode(err) == pkg.UnknownResult {
@@ -87,4 +92,3 @@ func getAllImages(pod *corev1.Pod) map[string]struct{} {
 	}
 	return images
 }
-

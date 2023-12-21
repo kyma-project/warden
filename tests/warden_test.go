@@ -3,6 +3,7 @@
 package tests
 
 import (
+	"fmt"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -48,7 +49,21 @@ func Test_PodInsideVerifiedNamespaceWithUntrustedImage_ShouldBeRejected(t *testi
 	pod := tc.Pod().WithContainer(container).Build()
 	err := tc.Create(pod)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "Pod images validation failed")
+	require.ErrorContains(t, err, fmt.Sprintf("Pod images %s validation failed", UntrustedImageName))
+}
+
+func Test_PodInsideVerifiedNamespaceWithUntrustedImages_ShouldBeRejected(t *testing.T) {
+	tc := th.NewTestContext(t, "warden-verified-namespace-untrusted-images").
+		ValidationEnabled(true).
+		Initialize()
+	defer tc.Destroy()
+
+	container1 := corev1.Container{Name: "test-container1", Image: UntrustedImageName}
+	container2 := corev1.Container{Name: "test-container2", Image: "nginx:1.24.0-perl"}
+	pod := tc.Pod().WithContainer(container1).WithContainer(container2).Build()
+	err := tc.Create(pod)
+	require.Error(t, err)
+	require.ErrorContains(t, err, fmt.Sprintf("Pod images %s, %s validation failed", UntrustedImageName, "nginx:1.24.0-perl"))
 }
 
 func Test_PodInsideVerifiedNamespaceWithTrustedImage_ShouldBeCreatedWithValidationLabel(t *testing.T) {
@@ -105,5 +120,5 @@ func Test_UpdateVerifiedPodWithUntrustedImage_ShouldBeRejected(t *testing.T) {
 	pod.Spec.Containers[0].Image = UntrustedImageName
 	err = tc.Update(pod)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "Pod images validation failed")
+	require.ErrorContains(t, err, fmt.Sprintf("Pod images %s validation failed", UntrustedImageName))
 }
