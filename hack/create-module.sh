@@ -5,6 +5,7 @@ set -eo pipefail
 # require envs
 KYMA=${KYMA?"Define KYMA env"}
 HELM=${HELM?"Define HELM env"}
+MODULE_REGISTRY=${MODULE_REGISTRY?"Define MODULE_REGISTRY env"}
 
 # optional envs
 SEC_SCANNERS_CONFIG=${SEC_SCANNERS_CONFIG:-}
@@ -33,3 +34,10 @@ cat module-config-template.yaml |
     sed "s/{{.Name}}/kyma-project.io\/module\/${NAME}/g" |
         sed "s/{{.Channel}}/${CHANNEL}/g" |
             sed "s/{{.Version}}/${RELEASE}/g" > module-config.yaml
+
+## create module
+printf "Create module\n"
+${KYMA} alpha create module --path . --output=moduletemplate.yaml \
+    --sec-scanners-config="$SEC_SCANNERS_CONFIG" \
+    --module-config-file=module-config.yaml \
+    --registry ${MODULE_REGISTRY} ${CREATE_MODULE_EXTRA_ARGS} --module-archive-version-overwrite
