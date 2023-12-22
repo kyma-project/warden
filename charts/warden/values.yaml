@@ -9,7 +9,7 @@ nameOverride: ""
 fullnameOverride: ""
 
 admission:
-  enabled: true
+  enabled: false
 
 operator:
   enabled: true
