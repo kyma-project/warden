@@ -26,5 +26,7 @@ appVersion: "0.0.6"
 dependencies:
   - name: warden-admission
     condition: admission.enabled
+    version: 0.0.1
   - name: warden-operator
     condition: operator.enabled
+    version: 0.0.1
