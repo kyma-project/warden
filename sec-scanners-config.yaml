@@ -1,8 +1,7 @@
 module-name: warden
-rc-tag: v0.5.1
 protecode:
-  - europe-docker.pkg.dev/kyma-project/prod/warden/operator:main
-  - europe-docker.pkg.dev/kyma-project/prod/warden/admission:main
+  - europe-docker.pkg.dev/kyma-project/prod/warden/operator:v20231222-48a12c63
+  - europe-docker.pkg.dev/kyma-project/prod/warden/admission:v20231222-48a12c63
 whitesource:
   language: golang-mod
   subprojects: false
