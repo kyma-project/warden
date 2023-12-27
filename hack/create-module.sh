@@ -26,7 +26,7 @@ CREATE_MODULE_EXTRA_ARGS="${CREATE_MODULE_EXTRA_ARGS:-}"
 
 ## generate manifest
 printf "Generate manifest to the warden-manifest.yaml file\n"
-${HELM} template --namespace kyma-system warden charts/warden > warden-manifest.yaml
+${HELM} template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
 
 ## generate module-config.yaml template
 printf "Generate the module-config.yaml from template\n"

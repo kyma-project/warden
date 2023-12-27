@@ -252,7 +252,7 @@ install-admission-k3d: build-admission
 ## Install
 
 install:
-	 helm upgrade --install --wait --set global.config.data.logging.level=debug warden ./charts/warden/
+	 helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
 uninstall:
 	helm uninstall warden --wait
 
