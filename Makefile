@@ -109,7 +109,7 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 .PHONY: module-build
 module-build: helm ## renders warden-manifest.yaml
-	helm template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
+	${HELM} template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
 
 ##@ CI
 
