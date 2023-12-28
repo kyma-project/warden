@@ -108,15 +108,15 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 ##@ Module
 
 .PHONY: module-build
-module-build: kyma helm ## create moduletemplate and push manifest artifacts
-	@KYMA=${KYMA} HELM=${HELM} RELEASE_SUFFIX=${MODULE_SHA} ./hack/create-module.sh
+module-build: helm ## renders warden-manifest.yaml
+	helm template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
 
 ##@ CI
 
 .PHONY: ci-module-build
 ci-module-build: configure-git-origin module-build
-	@echo "=======MODULE TEMPLATE======="
-	@cat moduletemplate.yaml
+	@echo "=======WARDEN MANIFEST======="
+	@cat warden-manifest.yaml
 	@echo "============================="
 
 .PHONY: configure-git-origin
@@ -127,13 +127,18 @@ configure-git-origin:
 		git remote add origin https://github.com/kyma-project/warden
 
 
-.PHONY: k3d-lm-integration-test
-k3d-lm-integration-test: ## Run integration tests on self-prepared k3d cluster with lifecycle-manager.
-k3d-lm-integration-test: run-with-lifecycle-manager verify-status run-integration-tests
+.PHONY: k3d-integration-test
+k3d-integration-test: ## Run integration tests on self-prepared k3d cluster.
+k3d-integration-test: run-on-k3d verify-status run-integration-tests
 
-.PHONY: run-with-lifecycle-manager
-run-with-lifecycle-manager: kyma helm configure-git-origin
-	@KYMA=${KYMA} HELM=${HELM} ./hack/run-module-locally.sh
+.PHONY: create-k3d
+create-k3d: ## Create k3d
+	${KYMA} provision k3d --ci -p 6080:8080@loadbalancer -p 6433:8433@loadbalancer
+	kubectl create namespace kyma-system
+
+.PHONY: run-on-k3d
+run-on-k3d: kyma create-k3d configure-git-origin module-build 
+	kubectl apply -f warden-manifest.yaml
 
 .PHONY: verify-status
 verify-status:
