@@ -128,8 +128,10 @@ configure-git-origin:
 
 
 .PHONY: k3d-integration-test
-k3d-integration-test: ## Run integration tests on self-prepared k3d cluster.
 k3d-integration-test: run-on-k3d verify-status run-integration-tests
+
+.PHONY: verify-on-cluster
+verify-on-cluster: run-on-cluster verify-status run-integration-tests
 
 .PHONY: create-k3d
 create-k3d: ## Create k3d
@@ -138,6 +140,11 @@ create-k3d: ## Create k3d
 
 .PHONY: run-on-k3d
 run-on-k3d: kyma create-k3d configure-git-origin module-build 
+	kubectl apply -f warden-manifest.yaml
+
+.PHONY: run-on-cluster
+run-on-cluster: configure-git-origin module-build 
+	kubectl create namespace kyma-system
 	kubectl apply -f warden-manifest.yaml
 
 .PHONY: verify-status
