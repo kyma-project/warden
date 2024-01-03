@@ -3,6 +3,8 @@ package validate_test
 import (
 	"context"
 	"fmt"
+	"testing"
+
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
 	"github.com/kyma-project/warden/pkg"
@@ -11,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"testing"
 )
 
 func TestValidatePod(t *testing.T) {
@@ -162,7 +163,7 @@ func TestValidatePod(t *testing.T) {
 			//THEN
 			require.NoError(t, err)
 			require.Equal(t, testCase.expectedStatus, result.Status)
-			require.EqualValues(t, testCase.expectedFailedImages, result.InvalidImages)
+			require.ElementsMatchf(t, testCase.expectedFailedImages, result.InvalidImages, "list of images do not match")
 		})
 	}
 }
