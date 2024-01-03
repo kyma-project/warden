@@ -7,7 +7,7 @@ on:
   pull_request:
 
 jobs:
-  verify:
+  lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -15,13 +15,21 @@ jobs:
       with:
         go-version: '1.21'
         cache: true
-    - name: lint
-      run: make lint
+    - uses: golangci/golangci-lint-action@v3
+      with:
+        version: v1.54
+  unit-test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        cache: true
     - name: unit test
       run: make test
-
   integration-test:
-    needs: verify
+    needs: unit-test
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
