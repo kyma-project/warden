@@ -1,6 +1,0 @@
-domain: kyma-project.io
-layout:
-- go.kubebuilder.io/v4-alpha
-projectName: warden
-repo: github.com/kyma-project/warden
-version: "3"
