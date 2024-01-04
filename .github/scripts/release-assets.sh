@@ -57,9 +57,9 @@ UPLOAD_URL="https://uploads.github.com/repos/kyma-project/warden/releases/${RELE
 
 
 
-( cd charts ; tar czf "warden-${RELEASE_ID}.tgz" warden)
+( cd charts ; tar czf "warden-${PULL_BASE_REF}.tgz" warden)
 
-uploadFile "warden-${RELEASE_ID}.tgz" "${UPLOAD_URL}?name=warden-chart.tgz"
+uploadFile "charts/warden-${PULL_BASE_REF}.tgz" "${UPLOAD_URL}?name=warden-chart.tgz"
 
 
 
