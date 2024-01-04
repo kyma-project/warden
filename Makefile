@@ -107,17 +107,11 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 
 ##@ Module
 
-.PHONY: module-build
-module-build: helm ## renders warden-manifest.yaml
+.PHONY: render-manifest
+render-manifest: helm ## renders warden-manifest.yaml
 	${HELM} template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
 
 ##@ CI
-
-.PHONY: ci-module-build
-ci-module-build: configure-git-origin module-build
-	@echo "=======WARDEN MANIFEST======="
-	@cat warden-manifest.yaml
-	@echo "============================="
 
 .PHONY: configure-git-origin
 configure-git-origin:
@@ -139,11 +133,11 @@ create-k3d: ## Create k3d
 	kubectl create namespace kyma-system
 
 .PHONY: run-on-k3d
-run-on-k3d: kyma create-k3d configure-git-origin module-build 
+run-on-k3d: kyma create-k3d configure-git-origin render-manifest 
 	kubectl apply -f warden-manifest.yaml
 
 .PHONY: run-on-cluster
-run-on-cluster: configure-git-origin module-build 
+run-on-cluster: configure-git-origin render-manifest
 	kubectl create namespace kyma-system
 	kubectl apply -f warden-manifest.yaml
 
