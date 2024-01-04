@@ -21,6 +21,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -108,6 +109,10 @@ func main() {
 		Port:               appConfig.Admission.Port,
 		MetricsBindAddress: ":9090",
 		Logger:             logrZap,
+		ClientDisableCacheFor: []ctrlclient.Object{
+			&corev1.Secret{},
+			&corev1.ConfigMap{},
+		},
 	})
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())
