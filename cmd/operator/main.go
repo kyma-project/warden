@@ -54,7 +54,7 @@ func init() {
 
 func main() {
 	var configPath string
-	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
+	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file..")
 	opts := zapk8s.Options{
 		Development: true,
 	}
