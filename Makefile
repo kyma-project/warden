@@ -113,12 +113,6 @@ module-build: helm ## renders warden-manifest.yaml
 
 ##@ CI
 
-.PHONY: ci-module-build
-ci-module-build: configure-git-origin module-build
-	@echo "=======WARDEN MANIFEST======="
-	@cat warden-manifest.yaml
-	@echo "============================="
-
 .PHONY: configure-git-origin
 configure-git-origin:
 #	test-infra does not include origin remote in the .git directory.
