@@ -120,12 +120,15 @@ configure-git-origin:
 	@git remote | grep '^origin$$' -q || \
 		git remote add origin https://github.com/kyma-project/warden
 
-
+# deprecated - no longer called on prow ?
 .PHONY: k3d-integration-test
-k3d-integration-test: run-on-k3d verify-status run-integration-tests
+k3d-integration-test: 
+	@IMG_VERSION="main" IMG_DIRECTORY="prod" make replace-chart-images run-on-k3d verify-status run-integration-tests
 
 .PHONY: verify-on-cluster
-verify-on-cluster: run-on-cluster verify-status run-integration-tests
+verify-on-cluster:
+	@echo "this target requires IMG_VERSION and IMG_DIRECTORY envs"
+	@IMG_VERSION=${IMG_VERSION} IMG_DIRECTORY=${IMG_DIRECTORY} make replace-chart-images run-on-cluster verify-status run-integration-tests
 
 .PHONY: create-k3d
 create-k3d: ## Create k3d
@@ -144,6 +147,15 @@ run-on-cluster: configure-git-origin render-manifest
 .PHONY: verify-status
 verify-status:
 	@./hack/verify_warden_status.sh
+
+.PHONY: replace-chart-images
+replace-chart-images:
+	yq -i ".global.operator.image = \"europe-docker.pkg.dev/kyma-project/${IMG_DIRECTORY}/warden/operator:${IMG_VERSION}\"" charts/warden/values.yaml
+	yq -i ".global.admission.image = \"europe-docker.pkg.dev/kyma-project/${IMG_DIRECTORY}/warden/admission:${IMG_VERSION}\"" charts/warden/values.yaml
+	@echo "==== Local Changes ===="
+	yq '.global.operator.image' charts/warden/values.yaml
+	yq '.global.admission.image' charts/warden/values.yaml
+	@echo "==== End of Local Changes ===="
 
 ##@ Deployment
 

@@ -46,5 +46,18 @@ jobs:
       with:
         go-version: '1.21'
         cache: true
+    - name: setup pre-submit envs
+      if: github.event_name == 'pull_request'
+      run: |
+        echo "IMG_DIRECTORY=dev" >> $GITHUB_ENV
+        echo "IMG_VERSION=PR-${{ github.event.number }}" >> $GITHUB_ENV
+    - name: setup post-submit envs
+      if: github.event_name == 'push'
+      run: |
+        echo "IMG_DIRECTORY=prod" >> $GITHUB_ENV
+        echo "IMG_VERSION=${{github.sha}}" >> $GITHUB_ENV
     - name: run test
       run: make verify-on-cluster
+    - name: Show Warden Logs
+      if: failure()
+      run: kubectl logs -l app=warden -n kyma-system --prefix=true;
