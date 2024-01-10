@@ -22,9 +22,41 @@ jobs:
       - name: Verify github actions
         run: ./.github/scripts/verify-actions-status.sh ${{ github.ref_name }}
 
+  upgrade-images:
+    name: Upgrade main images
+    needs: verify-head-status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Bump sec-scanners-config.yaml
+        run: ./.github/scripts/upgrade-sec-scanners-config.sh
+        env:
+          IMG_VERSION: ${{ github.event.inputs.name }}
+      
+      - name: Bump values.yaml
+        run: |
+          make replace-chart-images
+        env:
+          IMG_DIRECTORY: "prod"
+          IMG_VERSION: ${{ github.event.inputs.name }}
+      
+      - name: Commit&Push
+        run: |
+          git config --local user.email "otter-releaser@otter-releaser.noreply.github.com"
+          git config --local user.name "otter-releaser"
+
+          git add .
+          git commit --allow-empty -m "upgrade dependencies"
+          git push origin ${{ github.ref_name }}
+
   create-draft:
     name: Create draft release
-    needs: verify-head-status
+    needs: upgrade-images
     runs-on: ubuntu-latest
 
     steps:
