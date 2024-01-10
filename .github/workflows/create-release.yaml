@@ -45,6 +45,11 @@ jobs:
           IMG_DIRECTORY: "prod"
           IMG_VERSION: ${{ github.event.inputs.name }}
       
+      - name: Bump chart version
+        run: ./.github/scripts/upgrade-chart-version.sh
+        env:
+          CHART_VERSION: ${{ github.event.inputs.name }}
+      
       - name: Commit&Push
         run: |
           git config --local user.email "otter-releaser@otter-releaser.noreply.github.com"
