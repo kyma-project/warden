@@ -5,6 +5,9 @@ package tests
 import (
 	"context"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -14,8 +17,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"testing"
-	"time"
 	"warden.kyma-project.io/tests/helpers"
 )
 
@@ -38,7 +39,7 @@ func TestNamespaceWithLabel_AfterPodCreation(t *testing.T) {
 	require.NoError(t, k8sClient.Create(ctx, untrustedPod))
 
 	//WHEN
-	ns = tc.Namespace().WithValidation(true).Build()
+	ns = tc.Namespace().WithName(ns.ObjectMeta.Name).WithValidation(true).Build()
 	require.NoError(t, k8sClient.Update(ctx, ns))
 
 	//THEN
