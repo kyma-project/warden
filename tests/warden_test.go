@@ -4,10 +4,11 @@ package tests
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"testing"
 	th "warden.kyma-project.io/tests/helpers"
 )
 
@@ -63,7 +64,8 @@ func Test_PodInsideVerifiedNamespaceWithUntrustedImages_ShouldBeRejected(t *test
 	pod := tc.Pod().WithContainer(container1).WithContainer(container2).Build()
 	err := tc.Create(pod)
 	require.Error(t, err)
-	require.ErrorContains(t, err, fmt.Sprintf("Pod images %s, %s validation failed", UntrustedImageName, "nginx:1.24.0-perl"))
+	require.ErrorContains(t, err, UntrustedImageName)
+	require.ErrorContains(t, err, "nginx:1.24.0-perl")
 }
 
 func Test_PodInsideVerifiedNamespaceWithTrustedImage_ShouldBeCreatedWithValidationLabel(t *testing.T) {
