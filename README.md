@@ -86,23 +86,7 @@ If you want to patch a version, cherry pick all fix commits into the release bra
 
 If you want to create a new release, create a new branch from main for the release.
 
-For both cases, once all changes are in the release branch you need to do the following:
-
- - create a new tag for the release using semantic versioning, i.e `v0.2.0-rc2`
-   ```bash
-   git tag -a v0.2.0-rc2 -m "v0.2.0-rc2"
-   git push upstream v0.2.0-rc2
-   ```
-   
- - checkout locally from the tag, go to `chart` directory and create an archive
-   ```bash
-   tar czf warden-0.2.0-rc2.tgz warden
-   ```
-
- - go to warden project on github and create release from the new tag
-
- - attach the archive to the github release (or later add it to the assets)
-
+Run a [`create release`](https://github.com/kyma-project/warden/actions/workflows/create-release.yaml) action providing the release name (semantic version `x.x.x`; no `v` prefix) and selecting release branch.
 ## License
 
 Copyright 2022.
