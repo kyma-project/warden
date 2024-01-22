@@ -20,6 +20,10 @@ env:
   MODULE_VERSION: ${{ github.event.inputs.warden_tag }}-${{ github.event.inputs.warden_skr_config_tag }}
   WARDEN_VERSION: ${{ github.event.inputs.warden_tag }}
   CHANNEL: ${{ github.event.inputs.channel }}
+  # needed by gh cli for GitHub enterprise
+  GH_ENTERPRISE_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
+  BOT_USERNAME: kyma-otter-serviceuser
+  BOT_EMAIL: dl_545734d8fd84a02c39000002@global.corp.sap
 
 jobs:
   promote-warden:
@@ -34,7 +38,7 @@ jobs:
 
       - name: Download warden-SKR-config
         run: |
-          curl https://github.tools.sap/kyma/warden-skr-config/releases/download/${{ github.event.inputs.warden_skr_config_tag }}/warden-skr-config.yaml --output values.yaml
+          gh release download ${{ github.event.inputs.warden_skr_config_tag }} -R https://github.tools.sap/kyma/warden-skr-config/ --pattern '*.yaml' --output values.yaml
       
       - name: Render warden manifest for values
         run: |
