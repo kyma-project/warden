@@ -1,14 +1,14 @@
-name: "Promote to channel with config"
+name: "Promote to release channel with config"
 
 on:
   workflow_dispatch:
     inputs:
-      warden_tag:
-        description: 'Warden tag (`x.x.x`)'
+      new_warden_tag:
+        description: 'New warden tag (`x.x.x`)'
         default: ""
         required: true
-      warden_skr_config_tag:
-        description: 'Warden SKR config tag (`y.y`)'
+      warden_skr_config_version:
+        description: 'Warden SKR config version (`y.y`)'
         default: ""
         required: true
       channel:
@@ -17,17 +17,76 @@ on:
         required: true
 
 env:
-  MODULE_VERSION: ${{ github.event.inputs.warden_tag }}-${{ github.event.inputs.warden_skr_config_tag }}
-  WARDEN_VERSION: ${{ github.event.inputs.warden_tag }}
+  MODULE_VERSION: ${{ github.event.inputs.new_warden_tag }}
   CHANNEL: ${{ github.event.inputs.channel }}
   # needed by gh cli for GitHub enterprise
   GH_ENTERPRISE_TOKEN: ${{ secrets.GH_BOT_TOKEN }}
+  WARDEN_SKR_OVERRIDES_REPO_URL: ${{ secrets.WARDEN_SKR_OVERRIDES_REPO_URL }}
   BOT_USERNAME: kyma-otter-serviceuser
   BOT_EMAIL: dl_545734d8fd84a02c39000002@global.corp.sap
 
 jobs:
+
+  upgrade-images:
+    name: Bump warden images references
+    needs: verify-head-status
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Bump sec-scanners-config.yaml
+        run: ./.github/scripts/upgrade-sec-scanners-config.sh
+        env:
+          IMG_VERSION: ${{ github.event.inputs.new_warden_tag }}
+      
+      - name: Bump values.yaml
+        run: |
+          make replace-chart-images
+        env:
+          IMG_DIRECTORY: "prod"
+          IMG_VERSION: ${{ github.event.inputs.new_warden_tag }}
+      
+      - name: Bump chart version
+        run: ./.github/scripts/upgrade-chart-version.sh
+        env:
+          CHART_VERSION: ${{ github.event.inputs.new_warden_tag }}
+      
+      - name: Commit&Push
+        run: |
+          git config --local user.email "otter-releaser@otter-releaser.noreply.github.com"
+          git config --local user.name "otter-releaser"
+
+          git add .
+          git commit --allow-empty -m "upgrade dependencies"
+          git push origin ${{ github.ref_name }}
+
+  create-tag:
+    name: Create tag
+    needs: upgrade-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.new_warden_tag }}
+          git push origin ${{ github.event.inputs.new_warden_tag }}
+
+      - name: Verify prow release jobs
+        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
+
   promote-warden:
     name: Render warden with skr config
+    needs: create-tag
     runs-on: ubuntu-latest
   
     steps:
@@ -38,7 +97,7 @@ jobs:
 
       - name: Download warden-SKR-config
         run: |
-          gh release download ${{ github.event.inputs.warden_skr_config_tag }} -R https://github.tools.sap/kyma/warden-skr-config/ --pattern '*.yaml' --output values.yaml
+          gh release download ${{ github.event.inputs.warden_skr_config_version }} -R "${WARDEN_SKR_OVERRIDES_REPO_URL}" --pattern '*.yaml' --output values.yaml
       
       - name: Render warden manifest for values
         run: |

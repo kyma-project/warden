@@ -117,7 +117,7 @@ render-manifest-for-values: helm ## renders warden-manifest.yaml for values.yaml
 
 .PHONY: module-config
 module-config:
-	yq ".channel = \"${CHANNEL}\" | .version = \"${MODULE_VERSION}\"" | .moduleRepoTag = \"${WARDEN_VERSION}\""\
+	yq ".channel = \"${CHANNEL}\" | .version = \"${MODULE_VERSION}\"" 
     	module-config-template.yaml > module-config.yaml
 
 ##@ CI
