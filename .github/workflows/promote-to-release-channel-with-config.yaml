@@ -74,7 +74,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
 
       - name: Create lightweight tag
         run: |
@@ -94,7 +94,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.inputs.new_warden_tag }}
+          ref: ${{ github.event.inputs.new_warden_tag }} # fetching tag that was created in previous job 
 
       - name: Download warden-SKR-config
         run: |
@@ -136,7 +136,7 @@ jobs:
       - name: Create PullRequest to module-manifests
         working-directory: module-manifests
         run: |
-          prs=$(gh pr list -R "https://github.tools.sap/kyma/module-manifests" -A "${BOT_USERNAME}" --state open --json headRefName)
+          prs=$(gh pr list -R "https://${GH_TOOLS_REPO_URL}/kyma/module-manifests" -A "${BOT_USERNAME}" --state open --json headRefName)
 
           if  echo $prs | jq -e ".[] | select(.headRefName==\"${MODULE_VERSION}-${CHANNEL}\")"; then
               echo "opened PR already exists, no need to create new one, PR will be updated by push from previous step"
@@ -145,6 +145,6 @@ jobs:
 
           gh pr create -B main --fill \
             -H "${BOT_USERNAME}:${MODULE_VERSION}-${CHANNEL}" \
-            -R https://github.tools.sap/kyma/module-manifests/ \
+            -R "https://${GH_TOOLS_REPO_URL}/kyma/module-manifests/" \
             --title "Promote Warden ${MODULE_VERSION} to ${CHANNEL} channel" \
-            --body "https://github.tools.sap/kyma/warden-skr-config/actions/runs/${{github.run_id}}"
+            --body "${WARDEN_SKR_OVERRIDES_REPO_URL}/actions/runs/${{github.run_id}}"
