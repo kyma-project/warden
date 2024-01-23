@@ -111,6 +111,15 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 render-manifest: helm ## renders warden-manifest.yaml
 	${HELM} template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
 
+.PHONY: render-manifest-for-values
+render-manifest-for-values: helm ## renders warden-manifest.yaml for values.yaml file
+	${HELM} template --namespace kyma-system warden charts/warden --values values.yaml > warden.yaml
+
+.PHONY: module-config
+module-config:
+	yq ".channel = \"${CHANNEL}\" | .version = \"${MODULE_VERSION}\""\
+    	module-config-template.yaml > module-config.yaml
+
 ##@ CI
 
 .PHONY: configure-git-origin
