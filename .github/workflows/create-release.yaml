@@ -71,6 +71,11 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.ref_name }}
 
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.name }}
+          git push origin ${{ github.event.inputs.name }}
+
       - name: Create draft release
         id: create-draft
         env:
@@ -78,11 +83,6 @@ jobs:
         run: |
           RELEASE_ID=$(./.github/scripts/release-draft.sh ${{ github.event.inputs.name }})
           echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
-
-      - name: Create lightweight tag
-        run: |
-          git tag ${{ github.event.inputs.name }}
-          git push origin ${{ github.event.inputs.name }}
 
       - name: Create release assets
         id: create-assets

@@ -3,5 +3,4 @@ channel: <this-will-be-autofilled>
 version: <this-will-be-autofilled>
 manifest: warden.yaml
 moduleRepo: https://github.com/kyma-project/warden.git
-moduleRepoTag: <this-will-be-autofilled>
 mandatory: true
