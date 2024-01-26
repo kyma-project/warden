@@ -1,4 +1,5 @@
 module-name: warden
+rc-tag: 0.11.1
 protecode:
   - europe-docker.pkg.dev/kyma-project/prod/warden/operator:main
   - europe-docker.pkg.dev/kyma-project/prod/warden/admission:main
