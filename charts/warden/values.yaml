@@ -24,8 +24,7 @@ global:
         cpu: 300m
         memory: 160Mi
   admission:
-#    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/admission:main'
-    image: 'warden-admission:latest3'
+    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/admission:main'
     resources:
       requests:
         cpu: 10m
