@@ -3,13 +3,14 @@ package admission
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
