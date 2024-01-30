@@ -29,6 +29,10 @@ spec:
             {{- toYaml .Values.global.securityContext | nindent 12 }}
           imagePullPolicy: IfNotPresent
           image: "{{ .Values.global.admission.image }}"
+          readinessProbe:
+            httpGet:
+              port: 8090
+              path: /readyz/
           resources:
             {{- toYaml .Values.global.admission.resources | nindent 12 }}
           args:
@@ -45,6 +49,9 @@ spec:
               containerPort: 9090
             - name: http-profiling
               containerPort: 8008
+            - name: health
+              containerPort: 8090
+              protocol: TCP
           volumeMounts:
             - name: config
               mountPath: {{ .Values.global.config.dir }}
@@ -57,7 +64,7 @@ spec:
           configMap:
             name: {{ .Values.global.config.configmapName }}
         - name: tmp-cert
-          emptyDir: {}
+          emptyDir: { }
         - name: notary-tmp
-          emptyDir: {}
+          emptyDir: { }
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}

@@ -4,12 +4,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
+	"os"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/admission"
@@ -105,10 +105,11 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
-		Scheme:             scheme,
-		Port:               appConfig.Admission.Port,
-		MetricsBindAddress: ":9090",
-		Logger:             logrZap,
+		Scheme:                 scheme,
+		Port:                   appConfig.Admission.Port,
+		MetricsBindAddress:     ":9090",
+		Logger:                 logrZap,
+		HealthProbeBindAddress: ":8090",
 		ClientDisableCacheFor: []ctrlclient.Object{
 			&corev1.Secret{},
 			&corev1.ConfigMap{},
@@ -117,6 +118,11 @@ func main() {
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())
 		os.Exit(2)
+	}
+
+	if err := mgr.AddReadyzCheck("readiness check", healthz.Ping); err != nil {
+		logger.Error(err, "unable to register readyz")
+		os.Exit(1)
 	}
 
 	if err := webhook.SetupResourcesController(context.TODO(), mgr,
@@ -146,7 +152,6 @@ func main() {
 	whs := mgr.GetWebhookServer()
 	whs.CertName = certs.CertFile
 	whs.KeyName = certs.KeyFile
-
 	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
 		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation")),
 	})

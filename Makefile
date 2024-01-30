@@ -269,16 +269,20 @@ ADMISSION_NAME = warden-admission
 build-admission:
 	docker build -t $(ADMISSION_NAME) -f ./docker/admission/Dockerfile .
 
-install-admission-k3d: build-admission
+tag-admission-k3d:
 	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
-	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
+	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):latest3
 
+install-admission-k3d: build-admission tag-admission-k3d
 	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
 	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
+	sleep 10
+	kubectl wait --for condition=Available -n default deployment warden-admission --timeout=60s
 
 ## Install
 
 install:
+	k3d image import $(ADMISSION_NAME):latest3 -c kyma
 	 helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
 uninstall:
 	helm uninstall warden --wait
