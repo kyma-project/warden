@@ -85,7 +85,7 @@ func TestValidationWebhook(t *testing.T) {
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Result)
 			assert.Equal(t, tc.expectedStatus, resp.Result.Code)
-			assert.Contains(t, resp.Result.Reason, tc.expectedMessage)
+			assert.Contains(t, resp.Result.Message, tc.expectedMessage)
 		})
 	}
 }
