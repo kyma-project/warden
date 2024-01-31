@@ -105,6 +105,10 @@ func main() {
 		os.Exit(1)
 	}
 
+	whs := ctrlwebhook.NewServer(ctrlwebhook.Options{
+		CertName: certs.CertFile,
+		KeyName:  certs.KeyFile})
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:                 scheme,
 		Port:                   appConfig.Admission.Port,
@@ -115,6 +119,7 @@ func main() {
 			&corev1.Secret{},
 			&corev1.ConfigMap{},
 		},
+		WebhookServer: whs,
 	})
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())
@@ -150,9 +155,6 @@ func main() {
 
 	logger.Info("setting up webhook server")
 	// webhook server setup
-	whs := mgr.GetWebhookServer()
-	whs.CertName = certs.CertFile
-	whs.KeyName = certs.KeyFile
 	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
 		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation")),
 	})
