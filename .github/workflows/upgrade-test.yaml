@@ -24,9 +24,7 @@ jobs:
           go-version: '*' #use latest version
       - name: install latest warden operator from the release
         run: |
-          git fetch --tags
-          git checkout $(git describe --tags $(git rev-list --tags --max-count=1))
-          make install
+          helm install --set admission.enabled=true warden https://github.com/kyma-project/warden/releases/latest/download/warden-chart.tgz
       - name: checkout to latest commit and install warden
         run: |
           git checkout $(git rev-parse origin/main)
