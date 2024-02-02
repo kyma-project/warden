@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"time"
@@ -11,7 +12,6 @@ import (
 	"github.com/kyma-project/warden/internal/webhook/certs"
 	"github.com/pkg/errors"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
