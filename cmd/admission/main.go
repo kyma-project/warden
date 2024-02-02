@@ -8,7 +8,9 @@ import (
 	"github.com/kyma-project/warden/internal/logging"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
+	"k8s.io/apimachinery/pkg/fields"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/zapr"
@@ -21,7 +23,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -110,10 +111,14 @@ func main() {
 		MetricsBindAddress:     ":9090",
 		Logger:                 logrZap,
 		HealthProbeBindAddress: ":8090",
-		ClientDisableCacheFor: []ctrlclient.Object{
-			&corev1.Secret{},
-			&corev1.ConfigMap{},
-		},
+		NewCache: cache.BuilderWithOptions(cache.Options{
+			SelectorsByObject: cache.SelectorsByObject{
+				&corev1.Secret{}: {
+					Field: fields.SelectorFromSet(fields.Set{"metadata.name": appConfig.Admission.SecretName,
+						"metadata.namespace": appConfig.Admission.SystemNamespace}),
+				},
+			},
+		}),
 	})
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())
