@@ -3,13 +3,14 @@ package admission
 import (
 	"context"
 	"fmt"
+	"net/http"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
@@ -22,9 +23,10 @@ type ValidationWebhook struct {
 	baseLogger *zap.SugaredLogger
 }
 
-func NewValidationWebhook(logger *zap.SugaredLogger) *ValidationWebhook {
+func NewValidationWebhook(logger *zap.SugaredLogger, decoder *admission.Decoder) *ValidationWebhook {
 	return &ValidationWebhook{
 		baseLogger: logger,
+		decoder:    decoder,
 	}
 }
 
@@ -63,9 +65,4 @@ func (w *ValidationWebhook) handle(ctx context.Context, req admission.Request) a
 	}
 
 	return admission.Denied("Pod images validation failed")
-}
-
-func (w *ValidationWebhook) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
 }

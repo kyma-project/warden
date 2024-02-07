@@ -35,13 +35,14 @@ type DefaultingWebHook struct {
 	strictMode    bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
 		baseLogger:    logger,
 		timeout:       timeout,
 		strictMode:    strictMode,
+		decoder:       decoder,
 	}
 }
 
@@ -166,11 +167,6 @@ func getPodValidationLabelValue(pod *corev1.Pod) string {
 		return ""
 	}
 	return validationLabelValue
-}
-
-func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
 }
 
 func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {

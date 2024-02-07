@@ -3,28 +3,28 @@ package admission
 import (
 	"context"
 	"encoding/json"
+	"net/http"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/pkg"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	admissionv1 "k8s.io/api/admission/v1"
-	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+
+	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"testing"
 )
 
 func TestValidationWebhook(t *testing.T) {
 	scheme := runtime.NewScheme()
-	decoder, err := admission.NewDecoder(scheme)
-	require.NoError(t, err)
+	decoder := admission.NewDecoder(scheme)
 	log := test_helpers.NewTestZapLogger(t).Sugar()
-	webhook := NewValidationWebhook(log)
-	require.NoError(t, webhook.InjectDecoder(decoder))
+	webhook := NewValidationWebhook(log, decoder)
 
 	testCases := []struct {
 		name            string
@@ -84,18 +84,16 @@ func TestValidationWebhook(t *testing.T) {
 			require.NotNil(t, resp)
 			require.NotNil(t, resp.Result)
 			assert.Equal(t, tc.expectedStatus, resp.Result.Code)
-			assert.Contains(t, resp.Result.Reason, tc.expectedMessage)
+			assert.Contains(t, resp.Result.Message, tc.expectedMessage)
 		})
 	}
 }
 
 func TestValidationWebhook_Errors(t *testing.T) {
 	scheme := runtime.NewScheme()
-	decoder, err := admission.NewDecoder(scheme)
-	require.NoError(t, err)
+	decoder := admission.NewDecoder(scheme)
 	log := test_helpers.NewTestZapLogger(t).Sugar()
-	webhook := NewValidationWebhook(log)
-	require.NoError(t, webhook.InjectDecoder(decoder))
+	webhook := NewValidationWebhook(log, decoder)
 	testCases := []struct {
 		name            string
 		req             admission.Request

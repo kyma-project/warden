@@ -4,6 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/test_helpers"
 	"github.com/kyma-project/warden/internal/validate"
@@ -18,12 +23,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"net/http"
-	"net/http/httptest"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"testing"
-	"time"
 )
 
 const (
@@ -36,8 +37,7 @@ func TestTimeout(t *testing.T) {
 	logger := zap.NewNop()
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
-	decoder, err := admission.NewDecoder(scheme)
-	require.NoError(t, err)
+	decoder := admission.NewDecoder(scheme)
 	timeout := time.Millisecond * 100
 
 	testNs := "test-namespace"
@@ -66,8 +66,7 @@ func TestTimeout(t *testing.T) {
 			After(timeout/2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -84,8 +83,7 @@ func TestTimeout(t *testing.T) {
 			After(timeout*2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
 
@@ -103,8 +101,7 @@ func TestTimeout(t *testing.T) {
 			After(timeout*2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOn, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOn, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
 
@@ -127,8 +124,7 @@ func TestTimeout(t *testing.T) {
 
 		validateImage := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: srv.URL}}, validate.NotaryRepoFactory{})
 		validationSvc := validate.NewPodValidator(validateImage)
-		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
 
@@ -147,8 +143,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
-	decoder, err := admission.NewDecoder(scheme)
-	require.NoError(t, err)
+	decoder := admission.NewDecoder(scheme)
 	timeout := time.Second
 
 	nsName := "test-namespace"
@@ -166,9 +161,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -191,9 +184,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -211,9 +202,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Update)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, nil, timeout, false, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, nil, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -234,9 +223,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -258,9 +245,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOn, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOn, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -282,9 +267,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
-		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOff, logger.Sugar())
-		require.NoError(t, webhook.InjectDecoder(decoder))
+		webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -302,8 +285,7 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 	logger := test_helpers.NewTestZapLogger(t)
 	scheme := runtime.NewScheme()
 	require.NoError(t, corev1.AddToScheme(scheme))
-	decoder, err := admission.NewDecoder(scheme)
-	require.NoError(t, err)
+	decoder := admission.NewDecoder(scheme)
 
 	nsName := "test-namespace"
 	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
@@ -421,10 +403,8 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 			pod := newPodFix(nsName, tt.inputLabels)
 			req := newRequestFix(t, pod, tt.operation)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-
 			timeout := time.Second
-			webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, logger.Sugar())
-			require.NoError(t, webhook.InjectDecoder(decoder))
+			webhook := NewDefaultingWebhook(client, mockPodValidator, timeout, false, decoder, logger.Sugar())
 
 			//WHEN
 			res := webhook.Handle(context.TODO(), req)
