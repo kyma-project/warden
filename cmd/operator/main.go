@@ -21,7 +21,10 @@ import (
 	"fmt"
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/logging"
+	corev1 "k8s.io/api/core/v1"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kyma-project/warden/internal/config"
 	"github.com/kyma-project/warden/internal/controllers"
@@ -97,6 +100,12 @@ func main() {
 		LeaderElection:         appConfig.Operator.LeaderElect,
 		LeaderElectionID:       "c3790980.warden.kyma-project.io",
 		Logger:                 logrZap,
+		Cache: cache.Options{
+			ByObject: map[ctrlclient.Object]cache.ByObject{
+				&corev1.Secret{}:    {},
+				&corev1.ConfigMap{}: {},
+			},
+		},
 	})
 	if err != nil {
 		logger.Error(err, "unable to start manager")
