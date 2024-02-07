@@ -61,9 +61,21 @@ vet: ## Run go vet against code.
 	go vet ./...
 
 .PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+test: manifests generate fmt vet envtest ## Run unit tests.
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile $(TEST_COVER_OUT)
 
+compile:
+	go build -a -o bin/admission ./cmd/admission/main.go
+	go build -a -o bin/operator ./cmd/operator/main.go
+
+clean:
+	rm bin/admission
+	rm bin/operator
+
+run-integration-tests:##Compile and run integration tests
+	( cd ./tests && go test -tags integration -count=1 ./  )
+
+##@ Deployment
 ## Operator
 OPERATOR_NAME = warden-operator
 
@@ -74,6 +86,7 @@ tag-operator:
 	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
 	docker tag $(OPERATOR_NAME) $(OPERATOR_NAME):$(HASH_TAG)
 
+install-operator-k3d: ##Build local operator and then update the deployment with local image
 install-operator-k3d: build-operator tag-operator
 	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
 	k3d image import $(OPERATOR_NAME):$(HASH_TAG) -c kyma
@@ -90,16 +103,16 @@ tag-admission: build-admission
 	$(eval HASH_TAG = $(shell docker images $(ADMISSION_NAME):latest --quiet))
 	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
 
+install-admission-k3d: ##Build local admission and then update the deployment with local image
 install-admission-k3d: build-admission tag-admission
 	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
 	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
 	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
 
-## Install
-install:
+install: ##Install helm chart with admission and log level set to debug
 	helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
 
-install-local: ##Install warden from chart with locally build images
+install-local: ##Install helm chart with locally build images
 install-local: build-admission tag-admission build-operator tag-operator
 	$(eval ADMISSION_HASH=$(shell docker images $(ADMISSION_NAME):latest --quiet))
 	k3d image import $(ADMISSION_NAME):$(ADMISSION_HASH) -c kyma
@@ -112,19 +125,8 @@ install-local: build-admission tag-admission build-operator tag-operator
   --set global.operator.image=$(OPERATOR_NAME):$(OPERATOR_HASH) \
 		warden ./charts/warden/
 
-uninstall:
+uninstall:##Uninstall helm chart
 	helm uninstall warden --wait
-
-compile:
-	go build -a -o bin/admission ./cmd/admission/main.go
-	go build -a -o bin/operator ./cmd/operator/main.go
-
-clean:
-	rm bin/admission
-	rm bin/operator
-
-run-integration-tests:
-	( cd ./tests && go test -tags integration -count=1 ./  )
 
 ##@ Module
 
@@ -202,11 +204,6 @@ replace-chart-images:
 	yq '.global.operator.image' charts/warden/values.yaml
 	yq '.global.admission.image' charts/warden/values.yaml
 	@echo "==== End of Local Changes ===="
-
-##@ Deployment
-ifndef ignore-not-found
-  ignore-not-found = false
-endif
 
 ##@ Build Dependencies
 
