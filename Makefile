@@ -69,10 +69,12 @@ OPERATOR_NAME = warden-operator
 
 build-operator:
 	docker build -t $(OPERATOR_NAME) -f ./docker/operator/Dockerfile .
+
+tag-operator:
 	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
 	docker tag $(OPERATOR_NAME) $(OPERATOR_NAME):$(HASH_TAG)
 
-install-operator-k3d: build-operator
+install-operator-k3d: build-operator tag-operator
 	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
 	k3d image import $(OPERATOR_NAME):$(HASH_TAG) -c kyma
 	kubectl set image deployment warden-operator -n default operator=$(OPERATOR_NAME):$(HASH_TAG)
@@ -82,11 +84,13 @@ ADMISSION_NAME = warden-admission
 
 build-admission:
 	docker build -t $(ADMISSION_NAME) -f ./docker/admission/Dockerfile .
-	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
+
+tag-admission: build-admission
+	docker images $(ADMISSION_NAME):latest --quiet
+	$(eval HASH_TAG = $(shell docker images $(ADMISSION_NAME):latest --quiet))
 	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
 
-
-install-admission-k3d: build-admission
+install-admission-k3d: build-admission tag-admission
 	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
 	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
 	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
@@ -96,7 +100,7 @@ install:
 	helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
 
 install-local: ##Install warden from chart with locally build images
-install-local: build-admission build-operator
+install-local: build-admission tag-admission build-operator tag-operator
 	$(eval ADMISSION_HASH=$(shell docker images $(ADMISSION_NAME):latest --quiet))
 	k3d image import $(ADMISSION_NAME):$(ADMISSION_HASH) -c kyma
 
@@ -105,7 +109,7 @@ install-local: build-admission build-operator
 
 	helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true \
   --set global.admission.image=$(ADMISSION_NAME):$(ADMISSION_HASH) \
-  --set global.admission.image=$(OPERATOR_NAME):$(OPERATOR_HASH) \
+  --set global.operator.image=$(OPERATOR_NAME):$(OPERATOR_HASH) \
 		warden ./charts/warden/
 
 uninstall:
