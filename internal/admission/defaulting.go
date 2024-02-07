@@ -169,11 +169,6 @@ func getPodValidationLabelValue(pod *corev1.Pod) string {
 	return validationLabelValue
 }
 
-func (w *DefaultingWebHook) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
-}
-
 func markPod(ctx context.Context, result validate.ValidationResult, pod *corev1.Pod, strictMode bool) *corev1.Pod {
 	label, annotation := podMarkersForValidationResult(result.Status, strictMode)
 	helpers.LoggerFromCtx(ctx).Infof("pod was labeled: `%s` and annotated: `%s`", label, annotation)

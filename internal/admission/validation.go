@@ -66,8 +66,3 @@ func (w *ValidationWebhook) handle(ctx context.Context, req admission.Request) a
 
 	return admission.Denied("Pod images validation failed")
 }
-
-func (w *ValidationWebhook) InjectDecoder(decoder *admission.Decoder) error {
-	w.decoder = decoder
-	return nil
-}
