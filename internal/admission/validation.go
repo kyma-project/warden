@@ -23,9 +23,10 @@ type ValidationWebhook struct {
 	baseLogger *zap.SugaredLogger
 }
 
-func NewValidationWebhook(logger *zap.SugaredLogger) *ValidationWebhook {
+func NewValidationWebhook(logger *zap.SugaredLogger, decoder *admission.Decoder) *ValidationWebhook {
 	return &ValidationWebhook{
 		baseLogger: logger,
+		decoder:    decoder,
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/fields"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -27,6 +26,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
+	ctrladmission "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 var (
@@ -107,16 +107,16 @@ func main() {
 		os.Exit(1)
 	}
 
-	whs := ctrlwebhook.NewServer(ctrlwebhook.Options{
-		CertName: certs.CertFile,
-		KeyName:  certs.KeyFile,
-		Port:     appConfig.Admission.Port,
-	})
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     ":9090",
 		Logger:                 logrZap,
 		HealthProbeBindAddress: ":8090",
+		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
+			CertName: certs.CertFile,
+			KeyName:  certs.KeyFile,
+			Port:     appConfig.Admission.Port,
+		}),
 		Cache: cache.Options{
 			ByObject: map[client.Object]cache.ByObject{
 				&corev1.Secret{}: {
@@ -159,13 +159,14 @@ func main() {
 
 	logger.Info("setting up webhook server")
 	// webhook server setup
+	whs := mgr.GetWebhookServer()
+	decoder := ctrladmission.NewDecoder(mgr.GetScheme())
 	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
-		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation")),
+		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation"), decoder),
 	})
 
-	builder.WebhookManagedBy(mgr).For(&corev1.Pod{}).WithDefaulter()
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, appConfig.Admission.Timeout, appConfig.Admission.StrictMode, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, appConfig.Admission.Timeout, appConfig.Admission.StrictMode, decoder, logger.With("webhook", "defaulting")),
 	})
 
 	logger.Info("starting the controller-manager")

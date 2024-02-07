@@ -13,10 +13,8 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	"strings"
 	"time"
@@ -37,20 +35,15 @@ type DefaultingWebHook struct {
 	strictMode    bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:        client,
 		validationSvc: ValidationSvc,
 		baseLogger:    logger,
 		timeout:       timeout,
 		strictMode:    strictMode,
+		decoder:       decoder,
 	}
-}
-
-var _ webhook.CustomDefaulter = &DefaultingWebHook{}
-
-func (w *DefaultingWebHook) Default(ctx context.Context, obj runtime.Object) error {
-	return nil
 }
 
 func (w *DefaultingWebHook) Handle(ctx context.Context, req admission.Request) admission.Response {
