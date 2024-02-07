@@ -25,9 +25,6 @@ OS_ARCH ?= $(shell uname -m)
 # Operating system type
 OS_TYPE ?= $(shell uname)
 
-.PHONY: all
-all: build
-
 ##@ General
 
 # The help target prints out all targets with their descriptions organized
@@ -63,30 +60,75 @@ fmt: ## Run go fmt against code.
 vet: ## Run go vet against code.
 	go vet ./...
 
-.PHONY: test
-test: manifests generate fmt vet envtest ## Run tests.
+.PHONY: verify
+verify: manifests generate fmt vet envtest ## Verifies formatting and run unit tests
 	KUBEBUILDER_ASSETS="$(shell $(ENVTEST) use $(ENVTEST_K8S_VERSION) --bin-dir $(LOCALBIN) -p path)" go test ./... -coverprofile $(TEST_COVER_OUT)
 
-##@ Build
+compile:
+	go build -a -o bin/admission ./cmd/admission/main.go
+	go build -a -o bin/operator ./cmd/operator/main.go
 
-.PHONY: build
-build: generate fmt vet ## Build manager binary.
-	go build -o bin/manager main.go
+clean:
+	rm bin/admission
+	rm bin/operator
 
-.PHONY: run
-run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/operator/main.go
+run-integration-tests:##Compile and run integration tests
+	( cd ./tests && go test -tags integration -count=1 ./  )
 
-# If you wish built the manager image targeting other platforms you can use the --platform flag.
-# (i.e. docker build --platform linux/arm64 ). However, you must enable docker buildKit for it.
-# More info: https://docs.docker.com/develop/develop-images/build_enhancements/
-.PHONY: docker-build
-docker-build: test ## Build docker image with the manager.
-	docker build -t ${IMG} .
+##@ Deployment
+## Operator
+OPERATOR_NAME = warden-operator
 
-.PHONY: docker-push
-docker-push: ## Push docker image with the manager.
-	docker push ${IMG}
+build-operator:
+	docker build -t $(OPERATOR_NAME) -f ./docker/operator/Dockerfile .
+
+tag-operator:
+	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
+	docker tag $(OPERATOR_NAME) $(OPERATOR_NAME):$(HASH_TAG)
+
+install-operator-k3d: ##Build local operator and then update the deployment with local image
+install-operator-k3d: build-operator tag-operator
+	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
+	k3d image import $(OPERATOR_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment warden-operator -n default operator=$(OPERATOR_NAME):$(HASH_TAG)
+
+## Admission
+ADMISSION_NAME = warden-admission
+
+build-admission:
+	docker build -t $(ADMISSION_NAME) -f ./docker/admission/Dockerfile .
+
+tag-admission: build-admission
+	docker images $(ADMISSION_NAME):latest --quiet
+	$(eval HASH_TAG = $(shell docker images $(ADMISSION_NAME):latest --quiet))
+	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
+
+install-admission-k3d: ##Build local admission and then update the deployment with local image
+install-admission-k3d: build-admission tag-admission
+	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
+	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
+	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
+
+install: ##Install helm chart with admission and log level set to debug
+	helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
+
+install-local: ##Install helm chart with locally build images
+install-local: build-admission tag-admission build-operator tag-operator
+	$(eval ADMISSION_HASH=$(shell docker images $(ADMISSION_NAME):latest --quiet))
+	k3d image import $(ADMISSION_NAME):$(ADMISSION_HASH) -c kyma
+
+	$(eval OPERATOR_HASH=$(shell docker images $(OPERATOR_NAME):latest --quiet))
+	k3d image import $(OPERATOR_NAME):$(OPERATOR_HASH) -c kyma
+
+	helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true \
+  --set global.admission.image=$(ADMISSION_NAME):$(ADMISSION_HASH) \
+  --set global.operator.image=$(OPERATOR_NAME):$(OPERATOR_HASH) \
+		warden ./charts/warden/
+
+uninstall:##Uninstall helm chart
+	helm uninstall warden --wait
+
+##@ Module
 
 # PLATFORMS defines the target platforms for  the manager image be build to provide support to multiple
 # architectures. (i.e. make docker-buildx IMG=myregistry/mypoperator:0.0.1). To use this option you need to:
@@ -105,8 +147,6 @@ docker-buildx: test ## Build and push docker image for the manager for cross-pla
 	- docker buildx rm project-v3-builder
 	rm Dockerfile.cross
 
-##@ Module
-
 .PHONY: render-manifest
 render-manifest: helm ## renders warden-manifest.yaml
 	${HELM} template --namespace kyma-system warden charts/warden --set admission.enabled=true > warden-manifest.yaml
@@ -121,7 +161,6 @@ module-config:
     	module-config-template.yaml > module-config.yaml
 
 ##@ CI
-
 .PHONY: configure-git-origin
 configure-git-origin:
 #	test-infra does not include origin remote in the .git directory.
@@ -165,30 +204,6 @@ replace-chart-images:
 	yq '.global.operator.image' charts/warden/values.yaml
 	yq '.global.admission.image' charts/warden/values.yaml
 	@echo "==== End of Local Changes ===="
-
-##@ Deployment
-
-ifndef ignore-not-found
-  ignore-not-found = false
-endif
-
-#TODO: clean this, we don't have custom CRD
-#.PHONY: install
-#install: manifests kustomize ## Install CRDs into the K8s cluster specified in ~/.kube/config.
-#	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-#
-#.PHONY: uninstall
-#uninstall: manifests kustomize ## Uninstall CRDs from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-#	$(KUSTOMIZE) build config/crd | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
-
-#.PHONY: deploy
-#deploy: manifests kustomize ## Deploy controller to the K8s cluster specified in ~/.kube/config.
-#	cd config/manager && $(KUSTOMIZE) edit set image controller=${IMG}
-#	$(KUSTOMIZE) build config/default | kubectl apply -f -
-#
-#.PHONY: undeploy
-#undeploy: ## Undeploy controller from the K8s cluster specified in ~/.kube/config. Call with ignore-not-found=true to ignore resource not found errors during deletion.
-#	$(KUSTOMIZE) build config/default | kubectl delete --ignore-not-found=$(ignore-not-found) -f -
 
 ##@ Build Dependencies
 
@@ -247,52 +262,3 @@ $(HELM):
 	curl -Ss https://get.helm.sh/${HELM_FILE_NAME} > $(LOCALBIN)/helm.tar.gz
 	tar zxf $(LOCALBIN)/helm.tar.gz -C $(LOCALBIN) --strip-components=1 $(shell tar tzf ala2.tar.gz | grep helm)
 	rm $(LOCALBIN)/helm.tar.gz
-
-## Operator
-
-OPERATOR_NAME = warden-operator
-
-build-operator:
-	docker build -t $(OPERATOR_NAME) -f ./docker/operator/Dockerfile .
-
-install-operator-k3d: build-operator
-	$(eval HASH_TAG=$(shell docker images $(OPERATOR_NAME):latest --quiet))
-	docker tag $(OPERATOR_NAME) $(OPERATOR_NAME):$(HASH_TAG)
-
-	k3d image import $(OPERATOR_NAME):$(HASH_TAG) -c kyma
-	kubectl set image deployment warden-operator -n default operator=$(OPERATOR_NAME):$(HASH_TAG)
-
-## Admission
-
-ADMISSION_NAME = warden-admission
-
-build-admission:
-	docker build -t $(ADMISSION_NAME) -f ./docker/admission/Dockerfile .
-
-install-admission-k3d: build-admission
-	$(eval HASH_TAG=$(shell docker images $(ADMISSION_NAME):latest --quiet))
-	docker tag $(ADMISSION_NAME) $(ADMISSION_NAME):$(HASH_TAG)
-
-	k3d image import $(ADMISSION_NAME):$(HASH_TAG) -c kyma
-	kubectl set image deployment warden-admission -n default admission=$(ADMISSION_NAME):$(HASH_TAG)
-
-## Install
-
-install:
-	 helm upgrade --install --wait --set global.config.data.logging.level=debug --set admission.enabled=true  warden ./charts/warden/
-uninstall:
-	helm uninstall warden --wait
-
-compile:
-	go build -a -o bin/admission ./cmd/admission/main.go
-	go build -a -o bin/operator ./cmd/operator/main.go
-
-clean:
-	rm bin/admission
-	rm bin/operator
-
-run-integration-tests:
-	( cd ./tests && go test -tags integration -count=1 ./  )
-
-unit-test:
-	go test ./...

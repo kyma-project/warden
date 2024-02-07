@@ -29,8 +29,8 @@ jobs:
       with:
         go-version: '1.21'
         cache: true
-    - name: unit test
-      run: make test
+    - name: fmt and unit tests
+      run: make verify
   integration-test:
     needs: unit-test
     runs-on: ubuntu-latest
