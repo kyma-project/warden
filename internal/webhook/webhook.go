@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"k8s.io/utils/ptr"
 	"reflect"
 
 	"github.com/kyma-project/warden/internal/admission"
@@ -12,7 +13,6 @@ import (
 	apiErrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/utils/pointer"
 	ctlrclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -99,8 +99,8 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 			Service: &admissionregistrationv1.ServiceReference{
 				Namespace: config.ServiceNamespace,
 				Name:      config.ServiceName,
-				Path:      pointer.String(admission.DefaultingPath),
-				Port:      pointer.Int32(443),
+				Path:      ptr.To[string](admission.DefaultingPath),
+				Port:      ptr.To[int32](443),
 			},
 		},
 		FailurePolicy:      &failurePolicy,
@@ -123,7 +123,7 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 			},
 		},
 		SideEffects:    &sideEffects,
-		TimeoutSeconds: pointer.Int32(WebhookTimeout),
+		TimeoutSeconds: ptr.To[int32](WebhookTimeout),
 	}
 }
 
@@ -149,8 +149,8 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 					Service: &admissionregistrationv1.ServiceReference{
 						Namespace: config.ServiceNamespace,
 						Name:      config.ServiceName,
-						Path:      pointer.String(PodValidationPath),
-						Port:      pointer.Int32(443),
+						Path:      ptr.To[string](PodValidationPath),
+						Port:      ptr.To[int32](443),
 					},
 				},
 				FailurePolicy: &failurePolicy,
@@ -172,7 +172,7 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 				},
 
 				SideEffects:    &sideEffects,
-				TimeoutSeconds: pointer.Int32(WebhookTimeout),
+				TimeoutSeconds: ptr.To[int32](WebhookTimeout),
 			},
 		},
 	}
