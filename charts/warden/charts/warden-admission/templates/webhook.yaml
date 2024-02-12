@@ -13,9 +13,12 @@ webhooks:
     failurePolicy: Ignore
     sideEffects: None
     matchPolicy: Exact
-    timeoutSeconds: 15
+    timeoutSeconds: 1
     admissionReviewVersions: [ "v1beta1", "v1" ]
     name: validation.webhook.warden.kyma-project.io
+    namespaceSelector:
+      matchLabels:
+        namespaces.warden.kyma-project.io/validate: enabled
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
@@ -31,6 +34,10 @@ webhooks:
     failurePolicy: Ignore
     sideEffects: None
     matchPolicy: Exact
-    timeoutSeconds: 15
+    timeoutSeconds: 10
     admissionReviewVersions: [ "v1beta1", "v1" ]
     name: defaulting.webhook.warden.kyma-project.io
+    namespaceSelector:
+      matchLabels:
+        namespaces.warden.kyma-project.io/validate: enabled
+
