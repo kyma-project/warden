@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -42,7 +42,10 @@ func (tc *testContext) Initialize() *testContext {
 	tc.client, err = ctrlclient.New(ctrl.GetConfigOrDie(), ctrlclient.Options{})
 	require.NoError(tc.test, err)
 	tc.CreateNamespace()
-	time.Sleep(1 * time.Second)
+	if tc.validationEnabled {
+		//give some time for k8s to reconcile webhook selectors
+		time.Sleep(1 * time.Second)
+	}
 	return tc
 }
 
