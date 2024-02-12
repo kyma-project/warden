@@ -2,11 +2,13 @@ package webhook
 
 import (
 	"context"
-	"k8s.io/utils/ptr"
 	"reflect"
+
+	"k8s.io/utils/ptr"
 
 	"github.com/kyma-project/warden/internal/admission"
 
+	"github.com/kyma-project/warden/pkg"
 	"github.com/pkg/errors"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -25,7 +27,8 @@ const (
 	DefaultingWebhookName = "defaulting.webhook.warden.kyma-project.io"
 	ValidationWebhookName = "validation.webhook.warden.kyma-project.io"
 
-	WebhookTimeout = 15
+	ValidationWebhookTimeout = 1
+	MutationWebhookTimeout   = 10
 
 	PodValidationPath = "/validation/pods"
 )
@@ -123,7 +126,12 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 			},
 		},
 		SideEffects:    &sideEffects,
-		TimeoutSeconds: ptr.To[int32](WebhookTimeout),
+		TimeoutSeconds: ptr.To[int32](MutationWebhookTimeout),
+		NamespaceSelector: &metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+			},
+		},
 	}
 }
 
@@ -172,7 +180,12 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 				},
 
 				SideEffects:    &sideEffects,
-				TimeoutSeconds: ptr.To[int32](WebhookTimeout),
+				TimeoutSeconds: ptr.To[int32](ValidationWebhookTimeout),
+				NamespaceSelector: &metav1.LabelSelector{
+					MatchLabels: map[string]string{
+						pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+					},
+				},
 			},
 		},
 	}
