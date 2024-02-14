@@ -3,14 +3,14 @@ package helpers
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
-	"k8s.io/api/core/v1"
-	corev1 "k8s.io/api/core/v1"
-	ctrl "sigs.k8s.io/controller-runtime"
-	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
+	ctrl "sigs.k8s.io/controller-runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type testContext struct {
@@ -19,7 +19,7 @@ type testContext struct {
 	validationEnabled bool
 	namePrefix        string
 	namespaceName     string
-	namespace         *corev1.Namespace
+	namespace         *v1.Namespace
 }
 
 func NewTestContext(t *testing.T, namePrefix string) *testContext {
@@ -42,6 +42,10 @@ func (tc *testContext) Initialize() *testContext {
 	tc.client, err = ctrlclient.New(ctrl.GetConfigOrDie(), ctrlclient.Options{})
 	require.NoError(tc.test, err)
 	tc.CreateNamespace()
+	if tc.validationEnabled {
+		//give some time for k8s to reconcile webhook selectors
+		time.Sleep(1 * time.Second)
+	}
 	return tc
 }
 
