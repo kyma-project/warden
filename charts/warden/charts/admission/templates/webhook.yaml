@@ -15,7 +15,7 @@ webhooks:
     matchPolicy: Exact
     timeoutSeconds: 1
     admissionReviewVersions: [ "v1beta1", "v1" ]
-    name: validation.webhook.serverless.kyma-project.io
+    name: validation.webhook.warden.kyma-project.io
     namespaceSelector:
       matchLabels:
         namespaces.warden.kyma-project.io/validate: enabled
