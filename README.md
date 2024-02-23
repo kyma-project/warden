@@ -7,42 +7,42 @@ K8s image authenticity validator
 ## Description
 
 Image signing and image signature verification is an important countermeasure against security threats.
-While image signing happens in the automated CD workflow, warden realizes image signature verification happening in the k8s cluster.
+While image signing happens in the automated CD workflow, Warden realizes image signature verification happening in the k8s cluster.
 
-Warden allows configuring a target notary service (via helm values) and utilises kubernetes label selector mechanism to lookup for protected namespaces ( `namespaces.warden.kyma-project.io/validate: enabled`).
+Warden allows for configuring a target notary service (via Helm values) and utilizes the Kubernetes label selector mechanism to look for protected namespaces (`namespaces.warden.kyma-project.io/validate: enabled`).
 
-If an image was not signed by configured notary service, and it is used to schedule a pod in protected namespace, the pod admission will be rejected.
+If an image was not signed by the configured notary service, and it is used to schedule a pod in the protected namespace, the pod admission will be rejected.
 
 
 
 ## Getting Started
-You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
+You must have a Kubernetes cluster to run against. You can use [kind](https://sigs.k8s.io/kind) to get a local cluster for testing or run against a remote cluster.
 
 
 
-### How it works
+### How it Works
 
-Warden realises image verification by it's two components:
+Warden realizes image verification by its two components:
 
- -  warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary services indicates that image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
+ -  Warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary services indicate that the image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
 
- - warden operator - a controller that will watch already scheduled pods and will verify the signature for those where signature status was so far not determined (i.e because of a temporary downtime of notary service).
+ - Warden operator - a controller that watches already scheduled pods and verifies their signature if the signature status has not been determined (for example, because of a temporary downtime of notary service).
 
 
 ### Run locally
-Install helm charts via:
+Install Helm charts:
 
 ```sh
 make install
 ```
 
-Install helm charts on k3d instance with locally built images:
+Install Helm charts on the k3d instance with locally built images:
 
 ```sh
 make install-local
 ```
 
-Uninstall helm charts via:
+Uninstall Helm charts:
 
 ```sh
 make uninstall
@@ -55,22 +55,22 @@ If you are editing the API definitions, generate the manifests such as CRs or CR
 make manifests
 ```
 
-**NOTE:** Run `make help` for more information on all potential `make` targets
+**NOTE:** Run `make help` for more information on all potential `make` targets.
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
 ### Test strategy
 
-Run unit tests
+1. Run unit tests
 ```sh
 make verify
 ```
-Start k3d instance locally and run integration tests
+2. Start the k3d instance locally and run integration tests
 ```sh
 make k3d-integration-test
 ```
 
-If you have k8s instance with warden installed already run integration tests with:
+If you have the k8s instance with Warden installed already, run integration tests with the following command:
 ```sh
 make run-integration-tests
 ```
