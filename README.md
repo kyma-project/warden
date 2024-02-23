@@ -36,7 +36,7 @@ Install helm charts via:
 make install
 ```
 
-Install helm charts with locally build images:
+Install helm charts on local k3d instance with locally built images:
 
 ```sh
 make install-local
@@ -55,7 +55,7 @@ If you are editing the API definitions, generate the manifests such as CRs or CR
 make manifests
 ```
 
-**NOTE:** Run `make --help` for more information on all potential `make` targets
+**NOTE:** Run `make help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
@@ -65,9 +65,15 @@ Run unit tests
 ```sh
 make verify
 ```
-Start k3d instance locally and run integration  tests
+Start k3d instance locally and run integration tests
 ```sh
 make k3d-integration-test
+```
+
+If you have k8s instance with warden installed already run integration tests with:
+```sh
+make run-integration-tests
+```
 
 ### How to release new version
 
