@@ -36,7 +36,7 @@ Install helm charts via:
 make install
 ```
 
-Install helm charts on local k3d instance with locally built images:
+Install helm charts on k3d instance with locally built images:
 
 ```sh
 make install-local
