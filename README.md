@@ -61,11 +61,11 @@ More information can be found via the [Kubebuilder Documentation](https://book.k
 
 ### Test strategy
 
-1. Run unit tests
+Run unit tests
 ```sh
 make verify
 ```
-2. Start the k3d instance locally and run integration tests
+Start the k3d instance locally and run integration tests
 ```sh
 make k3d-integration-test
 ```
