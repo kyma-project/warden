@@ -44,7 +44,7 @@ func (tc *testContext) Initialize() *testContext {
 	tc.CreateNamespace()
 	if tc.validationEnabled {
 		//give some time for k8s to reconcile webhook selectors
-		time.Sleep(1 * time.Second)
+		time.Sleep(2 * time.Second)
 	}
 	return tc
 }
