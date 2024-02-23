@@ -24,7 +24,7 @@ You must have a Kubernetes cluster to run against. You can use [kind](https://si
 
 Warden realizes image verification by its two components:
 
- -  Warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary services indicate that the image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
+ -  Warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary service indicates that the image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
 
  - Warden operator - a controller that watches already scheduled pods and verifies their signature if the signature status has not been determined (for example, because of a temporary downtime of notary service).
 
