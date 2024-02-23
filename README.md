@@ -68,12 +68,6 @@ make verify
 Start k3d instance locally and run integration  tests
 ```sh
 make k3d-integration-test
-```
-
-Run integration tests on your current kubeconfig context
-```sh
-make verify-on-cluster
-```
 
 ### How to release new version
 
