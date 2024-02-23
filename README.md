@@ -5,68 +5,48 @@ K8s image authenticity validator
 [![REUSE status](https://api.reuse.software/badge/github.com/kyma-project/warden)](https://api.reuse.software/info/github.com/kyma-project/warden)
 
 ## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
+
+Image signing and image signature verification is an important countermeasure against security threats.
+While image signing happens in the automated CD workflow, warden realizes image signature verification happening in the k8s cluster.
+
+Warden allows configuring a target notary service (via helm values) and utilises kubernetes label selector mechanism to lookup for protected namespaces ( `namespaces.warden.kyma-project.io/validate: enabled`).
+
+If an image was not signed by configured notary service, and it is used to schedule a pod in protected namespace, the pod admission will be rejected.
+
+
 
 ## Getting Started
 You’ll need a Kubernetes cluster to run against. You can use [KIND](https://sigs.k8s.io/kind) to get a local cluster for testing, or run against a remote cluster.
-**Note:** Your controller will automatically use the current context in your kubeconfig file (i.e. whatever cluster `kubectl cluster-info` shows).
 
-### Running on the cluster
-1. Install Instances of Custom Resources:
 
-```sh
-kubectl apply -f config/samples/
-```
-
-2. Build and push your image to the location specified by `IMG`:
-	
-```sh
-make docker-build docker-push IMG=<some-registry>/warden:tag
-```
-	
-3. Deploy the controller to the cluster with the image specified by `IMG`:
-
-```sh
-make deploy IMG=<some-registry>/warden:tag
-```
-
-### Uninstall CRDs
-To delete the CRDs from the cluster:
-
-```sh
-make uninstall
-```
-
-### Undeploy controller
-UnDeploy the controller to the cluster:
-
-```sh
-make undeploy
-```
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
 
 ### How it works
-This project aims to follow the Kubernetes [Operator pattern](https://kubernetes.io/docs/concepts/extend-kubernetes/operator/)
 
-It uses [Controllers](https://kubernetes.io/docs/concepts/architecture/controller/) 
-which provides a reconcile function responsible for synchronizing resources untile the desired state is reached on the cluster 
+Warden realises image verification by it's two components:
 
-### Test It Out
-1. Install the CRDs into the cluster:
+ -  warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary services indicates that image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
+
+ - warden operator - a controller that will watch already scheduled pods and will verify the signature for those where signature status was so far not determined (i.e because of a temporary downtime of notary service).
+
+
+### Run locally
+Install helm charts via:
 
 ```sh
 make install
 ```
 
-2. Run your controller (this will run in the foreground, so switch to a new terminal if you want to leave it running):
+Install helm charts with locally build images:
 
 ```sh
-make run
+make install-local
 ```
 
-**NOTE:** You can also run this in one step by running: `make install run`
+Uninstall helm charts via:
+
+```sh
+make uninstall
+```
 
 ### Modifying the API definitions
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
@@ -78,6 +58,22 @@ make manifests
 **NOTE:** Run `make --help` for more information on all potential `make` targets
 
 More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
+
+### Test strategy
+
+Run unit tests
+```sh
+make verify
+```
+Start k3d instance locally and run integration  tests
+```sh
+make k3d-integration-test
+```
+
+Run integration tests on your current kubeconfig context
+```sh
+make verify-on-cluster
+```
 
 ### How to release new version
 
