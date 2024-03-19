@@ -13,7 +13,7 @@ on:
         required: true
       channel:
         description: 'Module channel'
-        default: "fast"
+        default: "regular"
         required: true
 
 env:
@@ -147,4 +147,4 @@ jobs:
             -H "${BOT_USERNAME}:${MODULE_VERSION}-${CHANNEL}" \
             -R "https://${GH_TOOLS_REPO_URL}/kyma/module-manifests/" \
             --title "Promote Warden ${MODULE_VERSION} to ${CHANNEL} channel" \
-            --body "${WARDEN_SKR_OVERRIDES_REPO_URL}/actions/runs/${{github.run_id}}"
+            --body "https://github.com/kyma-project/warden/actions/${{github.run_id}}"
