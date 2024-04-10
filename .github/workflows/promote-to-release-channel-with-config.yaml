@@ -117,7 +117,7 @@ jobs:
           git config --global user.email "${BOT_EMAIL}"
           git config --global user.name "${BOT_USERNAME}"
           git clone "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@${GH_TOOLS_REPO_URL}/${BOT_USERNAME}/module-manifests.git"
-          git -C module-manifests remote add upstream "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@github.tools.sap/kyma/module-manifests.git"
+          git -C module-manifests remote add upstream "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@${GH_TOOLS_REPO_URL}/kyma/module-manifests.git"
 
       - name: Commit manifest
         working-directory: module-manifests
