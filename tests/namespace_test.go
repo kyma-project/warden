@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kyma-project/warden/pkg"
+	"github.com/kyma-project/warden/tests/helpers"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,7 +18,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	ctrl "sigs.k8s.io/controller-runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"warden.kyma-project.io/tests/helpers"
 )
 
 func TestNamespaceWithLabel_AfterPodCreation(t *testing.T) {
