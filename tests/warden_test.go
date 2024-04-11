@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/kyma-project/warden/pkg"
+	th "github.com/kyma-project/warden/tests/helpers"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	th "warden.kyma-project.io/tests/helpers"
 )
 
 const (
