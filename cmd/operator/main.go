@@ -19,10 +19,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/logging"
 	corev1 "k8s.io/api/core/v1"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,6 +31,7 @@ import (
 	"github.com/kyma-project/warden/internal/controllers"
 	"github.com/kyma-project/warden/internal/controllers/namespace"
 	"github.com/kyma-project/warden/internal/validate"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -42,6 +44,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	zapk8s "sigs.k8s.io/controller-runtime/pkg/log/zap"
+	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -93,9 +96,11 @@ func main() {
 	ctrl.SetLogger(logrZap)
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     appConfig.Operator.MetricsBindAddress,
-		Port:                   9443,
+		Scheme:             scheme,
+		MetricsBindAddress: appConfig.Operator.MetricsBindAddress,
+		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
+			Port: 9443,
+		}),
 		HealthProbeBindAddress: appConfig.Operator.HealthProbeBindAddress,
 		LeaderElection:         appConfig.Operator.LeaderElect,
 		LeaderElectionID:       "c3790980.warden.kyma-project.io",
