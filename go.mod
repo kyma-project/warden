@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
 	github.com/docker/distribution v2.8.1+incompatible
-	github.com/fsnotify/fsnotify v1.6.0
+	github.com/fsnotify/fsnotify v1.7.0
 	github.com/go-logr/zapr v1.2.4
 	github.com/google/go-containerregistry v0.12.1
 	github.com/google/uuid v1.6.0
