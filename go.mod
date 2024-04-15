@@ -13,7 +13,7 @@ require (
 	github.com/stretchr/testify v1.8.1
 	github.com/theupdateframework/notary v0.7.0
 	go.uber.org/zap v1.24.0
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.24.0
 	gomodules.xyz/jsonpatch/v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.27.12
