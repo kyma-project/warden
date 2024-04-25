@@ -4,12 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/fields"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -25,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 	ctrladmission "sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -108,8 +110,10 @@ func main() {
 	}
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), manager.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     ":9090",
+		Scheme: scheme,
+		Metrics: ctrlmetrics.Options{
+			BindAddress: ":9090",
+		},
 		Logger:                 logrZap,
 		HealthProbeBindAddress: ":8090",
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
