@@ -1,0 +1,25 @@
+name: integration tests (pull)
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**.md'
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft]
+
+jobs:
+  integration-test:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/rebase
+      - uses: ./.github/actions/create-k3d-cluster
+      - uses: ./.github/actions/setup-go
+      - name: run test
+        run: make verify-on-cluster
+        env:
+          IMG_DIRECTORY: dev
+          IMG_VERSION: PR-${{ github.event.number }}
+      - name: show warden logs
+        if: failure()
+        run: kubectl logs -l app=warden -n kyma-system --prefix=true;
