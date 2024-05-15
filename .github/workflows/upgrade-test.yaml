@@ -1,4 +1,4 @@
-name: Upgrade test
+name: upgrade test
 
 on:
   push:
@@ -9,20 +9,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: create single cluster
-        uses: AbsaOSS/k3d-action@4e8b3239042be1dc0aed6c5eb80c13b18200fc79 #v2.4.0
-        with:
-          cluster-name: "k3dCluster"
-          args: >-
-            --agents 1
-            --port 80:80@loadbalancer
-            --port 443:443@loadbalancer
-            --image rancher/k3s:v1.29.3-k3s1
-            --wait
-      - name: set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '*' #use latest version
+      - uses: ./.github/actions/create-k3d-cluster
+      - uses: ./.github/actions/setup-go
       - name: install latest warden operator from the release
         run: |
           helm install --set global.config.data.logging.level=debug --set admission.enabled=true warden https://github.com/kyma-project/warden/releases/latest/download/warden-chart.tgz
