@@ -24,7 +24,7 @@ spec:
         app: {{ .Values.global.name }}
         kyma-project.io/module: {{ .Values.global.name }}
         app.kubernetes.io/name: {{ .Values.global.name }}
-        app.kubernetes.io/instance: {{ .Values.name }}-{{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Values.global.name }}-{{ .Chart.Name }}
         app.kubernetes.io/version: {{ .Chart.Version }}
         app.kubernetes.io/component: {{ .Chart.Name }}
         app.kubernetes.io/part-of: {{ .Values.global.name }}
