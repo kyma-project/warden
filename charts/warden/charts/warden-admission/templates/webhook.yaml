@@ -5,6 +5,13 @@ metadata:
   name: validation.webhook.warden.kyma-project.io
   labels:
     app: {{ .Values.global.name }}
+    kyma-project.io/module: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-validating-webhook
+    app.kubernetes.io/version: {{ .Chart.Version }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/managed-by: Helm
 webhooks:
   - clientConfig:
       service:
@@ -26,6 +33,13 @@ metadata:
   name: defaulting.webhook.warden.kyma-project.io
   labels:
     app: {{ .Values.global.name }}
+    kyma-project.io/module: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-mutating-webhook
+    app.kubernetes.io/version: {{ .Chart.Version }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/managed-by: Helm
 webhooks:
   - clientConfig:
       service:
