@@ -8,7 +8,7 @@ metadata:
     kyma-project.io/module: {{ .Values.global.name }}
     app.kubernetes.io/name: {{ .Values.global.name }}
     app.kubernetes.io/instance: {{ .Chart.Name }}-deployment
-    app.kubernetes.io/version: {{ .Chart.Version }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/component: {{ .Chart.Name }}
     app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/managed-by: Helm
@@ -25,7 +25,7 @@ spec:
         kyma-project.io/module: {{ .Values.global.name }}
         app.kubernetes.io/name: {{ .Values.global.name }}
         app.kubernetes.io/instance: {{ .Values.global.name }}-{{ .Chart.Name }}
-        app.kubernetes.io/version: {{ .Chart.Version }}
+        app.kubernetes.io/version: {{ .Chart.AppVersion }}
         app.kubernetes.io/component: {{ .Chart.Name }}
         app.kubernetes.io/part-of: {{ .Values.global.name }}
         app.kubernetes.io/managed-by: Helm
