@@ -3,6 +3,14 @@ kind: Role
 metadata:
   name: {{ .Chart.Name }}-leader-election-role
   namespace: {{ .Release.Namespace }}
+  labels:
+    kyma-project.io/module: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-leader-election-role
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/managed-by: Helm
 rules:
   - apiGroups:
       - ""
@@ -41,6 +49,14 @@ kind: RoleBinding
 metadata:
   name: {{ .Chart.Name }}-leader-election-rolebinding
   namespace: {{ .Release.Namespace }}
+  labels:
+    kyma-project.io/module: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-leader-election-rolebinding
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/managed-by: Helm
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role

@@ -5,8 +5,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: {{ .Values.global.name }}
-    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    kyma-project.io/module: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-deployment
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
     app.kubernetes.io/component: {{ .Chart.Name }}
+    app.kubernetes.io/part-of: {{ .Values.global.name }}
+    app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
   selector:
@@ -18,8 +23,13 @@ spec:
     metadata:
       labels:
         app: {{ .Values.global.name }}
-        app.kubernetes.io/part-of: {{ .Values.global.name }}
+        kyma-project.io/module: {{ .Values.global.name }}
+        app.kubernetes.io/name: {{ .Values.global.name }}
+        app.kubernetes.io/instance: {{ .Chart.Name }}
+        app.kubernetes.io/version: {{ .Chart.AppVersion }}
         app.kubernetes.io/component: {{ .Chart.Name }}
+        app.kubernetes.io/part-of: {{ .Values.global.name }}
+        app.kubernetes.io/managed-by: Helm
     spec:
       serviceAccountName: {{ .Chart.Name }}
       containers:

@@ -10,6 +10,14 @@ kind: ConfigMap
 metadata:
   name: {{ .Values.global.config.configmapName }}
   namespace: {{ .Release.Namespace }}
+  labels:
+    kyma-project.io/module: {{ .Chart.Name }}
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-{{ .Values.global.config.configmapName }}
+    app.kubernetes.io/version: {{ .Chart.AppVersion }}
+    app.kubernetes.io/component: warden
+    app.kubernetes.io/part-of: {{ .Chart.Name }}
+    app.kubernetes.io/managed-by: Helm
 data:
   config.yaml: |-
     admission:
