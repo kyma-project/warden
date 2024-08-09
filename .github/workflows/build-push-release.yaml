@@ -1,5 +1,6 @@
 name: warden bbuild (push)
 on:
+  workflow_call:
   push:
     branches: ["main", "release-*"]
     tags:
