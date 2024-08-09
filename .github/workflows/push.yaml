@@ -11,6 +11,9 @@ jobs:
   integrations:
     needs: builds
     uses: ./.github/workflows/_integration-tests.yaml
+    with:
+      directory-version: prod
+      image-version: ${{ github.sha }}
 
   upgrades:
     needs: builds
