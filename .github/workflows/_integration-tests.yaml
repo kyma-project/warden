@@ -1,0 +1,31 @@
+name: integration tests
+
+on:
+  workflow_call:
+    inputs:
+      directory-version:
+        description: 'The image directory to test'
+        required: true
+        type: string
+      image-version:
+        description: 'The image version to test'
+        required: true
+        type: string
+
+jobs:
+  integration-test:
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false}}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/rebase
+      - uses: ./.github/actions/create-k3d-cluster
+      - uses: ./.github/actions/setup-go
+      - name: run test
+        run: make verify-on-cluster
+        env:
+          IMG_DIRECTORY: ${{inputs.directory-version}}
+          IMG_VERSION: ${{inputs.image-version}}
+      - name: show warden logs
+        if: failure()
+        run: kubectl logs -l app=warden -n kyma-system --prefix=true;
