@@ -10,7 +10,7 @@ jobs:
 
   integrations:
     needs: builds
-    uses: ./.github/workflows/_integration-tests-push.yaml
+    uses: ./.github/workflows/_integration-tests.yaml
 
   upgrades:
     needs: builds
