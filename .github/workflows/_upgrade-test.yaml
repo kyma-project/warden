@@ -1,8 +1,7 @@
 name: upgrade test
 
 on:
-  push:
-    branches: [ "main" ]
+  workflow_call:
 
 jobs:
   upgrade-test:

@@ -1,0 +1,20 @@
+name: push
+
+on:
+  push:
+    branches: [ "main", "release-*" ]
+
+jobs:
+  builds:
+    uses: ./.github/workflows/_build.yaml
+
+  integrations:
+    needs: builds
+    uses: ./.github/workflows/_integration-tests.yaml
+    with:
+      directory-version: prod
+      image-version: ${{ github.sha }}
+
+  upgrades:
+    needs: builds
+    uses: ./.github/workflows/upgrade-tests.yaml
