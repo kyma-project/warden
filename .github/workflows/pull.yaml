@@ -24,4 +24,4 @@ jobs:
     uses: ./.github/workflows/_integration-tests.yaml
     with:
       directory-version: dev
-      image-version: PR-${{ github.event.number }}
+      image-version: "PR-${{ github.event.number }}"
