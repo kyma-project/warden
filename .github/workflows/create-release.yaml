@@ -8,10 +8,6 @@ on:
         default: ""
         required: true
         
-permissions: # used by build images steps
-  id-token: write # This is required for requesting the JWT token
-  contents: read # This is required for actions/checkout
-
 jobs:
   verify-head-status:
     name: Verify HEAD
