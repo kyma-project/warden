@@ -99,25 +99,13 @@ jobs:
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
-  build-warden-admission:
-    needs: compute-tags
-    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
-    with:
-      name: dockerregistry-operator
-      dockerfile: components/operator/Dockerfile
-      tags: ${{ needs.compute-tags.outputs.tags }}
-
-  build-warden-operator:
-    needs: compute-tags
-    uses: kyma-project/test-infra/.github/workflows/image-builder.yml@main # Usage: kyma-project/test-infra/.github/workflows/image-builder.yml@main
-    with:
-      name: registry-init
-      dockerfile: components/registry-init/Dockerfile
-      tags: ${{ needs.compute-tags.outputs.tags }}
+  builds:
+    needs: create-tag
+    uses: ./.github/workflows/_build.yaml
 
   create-draft:
     name: Create draft release
-    needs: [build-warden-admission, build-warden-operator]
+    needs: builds
     runs-on: ubuntu-latest
 
     steps:
