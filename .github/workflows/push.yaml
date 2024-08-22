@@ -17,4 +17,4 @@ jobs:
 
   upgrades:
     needs: builds
-    uses: ./.github/workflows/upgrade-tests.yaml
+    uses: ./.github/workflows/_upgrade-tests.yaml
