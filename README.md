@@ -1,7 +1,9 @@
 # Warden
+
 K8s image authenticity validator
 
 ## Status
+
 [![REUSE status](https://api.reuse.software/badge/github.com/kyma-project/warden)](https://api.reuse.software/info/github.com/kyma-project/warden)
 
 ## Description
@@ -13,12 +15,9 @@ Warden allows for configuring a target notary service (via Helm values) and util
 
 If an image was not signed by the configured notary service, and it is used to schedule a pod in the protected namespace, the pod admission will be rejected.
 
-
-
 ## Getting Started
+
 You must have a Kubernetes cluster to run against. You can use [kind](https://sigs.k8s.io/kind) to get a local cluster for testing or run against a remote cluster.
-
-
 
 ### How it Works
 
@@ -27,7 +26,6 @@ Warden realizes image verification by its two components:
  -  Warden admission  -  intercepts scheduling of any pods into the protected namespaces and rejects it if notary service indicates that the image was not signed at all or signing is invalid. If the signature cannot be verified at that stage, the verification status is set to `PENDING`. 
 
  - Warden operator - a controller that watches already scheduled pods and verifies their signature if the signature status has not been determined (for example, because of a temporary downtime of notary service).
-
 
 ### Run locally
 Install Helm charts:
@@ -49,6 +47,7 @@ make uninstall
 ```
 
 ### Modifying the API definitions
+
 If you are editing the API definitions, generate the manifests such as CRs or CRDs using:
 
 ```sh
@@ -84,19 +83,15 @@ If you want to patch a version, cherry pick all fix commits into the release bra
 If you want to create a new release, create a new branch from main for the release.
 
 Run a [`create release`](https://github.com/kyma-project/warden/actions/workflows/create-release.yaml) action providing the release name (semantic version `x.x.x`; no `v` prefix) and selecting release branch.
-## License
 
-Copyright 2022.
+## Contributing
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+See the [Contributing Rules](CONTRIBUTING.md).
 
-    http://www.apache.org/licenses/LICENSE-2.0
+## Code of Conduct
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+See the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
+## Licensing
+
+See the [license](./LICENSE) file.
