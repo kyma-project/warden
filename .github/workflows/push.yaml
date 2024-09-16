@@ -2,7 +2,7 @@ name: push
 
 on:
   push:
-    branches: [ "main", "release-*" ]
+    branches: ["main", "release-*"]
 
 jobs:
   builds:
@@ -17,4 +17,4 @@ jobs:
 
   upgrades:
     needs: builds
-    uses: ./.github/workflows/_upgrade-tests.yaml
+    uses: ./.github/workflows/_upgrade-test.yaml
