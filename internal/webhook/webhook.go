@@ -129,6 +129,7 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 		TimeoutSeconds: ptr.To[int32](MutationWebhookTimeout),
 		NamespaceSelector: &metav1.LabelSelector{
 			MatchLabels: map[string]string{
+				//TODO-CV: configure also for user validation label
 				pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 			},
 		},
@@ -183,6 +184,7 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 				TimeoutSeconds: ptr.To[int32](ValidationWebhookTimeout),
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
+						//TODO-CV: configure also for user validation label
 						pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
 					},
 				},
