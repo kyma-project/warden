@@ -76,6 +76,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return result
 	}
 
+	//TODO-CV: use default or user validator based on namespace labels
 	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -128,6 +129,7 @@ func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Re
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
 	logger := helpers.LoggerFromCtx(ctx)
+	//TODO-CV: add namespace marked by user validation check
 	if enabled := isValidationEnabledForNS(ns); !enabled {
 		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false

@@ -71,6 +71,7 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 				// don't trigger if namespace validation is not enabled
+				//TODO-CV: add namespace marked by user validation check
 				if !r.isValidationEnabledForNS(e.ObjectNew.GetNamespace()) {
 					return false
 				}
@@ -137,6 +138,7 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		return validate.NoAction, err
 	}
 
+	//TODO-CV: use default or user validator based on namespace labels
 	result, err := r.validator.ValidatePod(ctx, pod, &ns)
 	if err != nil {
 		return validate.NoAction, err
