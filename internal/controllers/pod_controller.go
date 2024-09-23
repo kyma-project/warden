@@ -18,10 +18,11 @@ package controllers
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/kyma-project/warden/internal/helpers"
 	"sort"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-project/warden/internal/helpers"
 
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
@@ -71,7 +72,6 @@ func (r *PodReconciler) SetupWithManager(mgr ctrl.Manager) error {
 					return false
 				}
 				// don't trigger if namespace validation is not enabled
-				//TODO-CV: add namespace marked by user validation check
 				if !r.isValidationEnabledForNS(e.ObjectNew.GetNamespace()) {
 					return false
 				}
