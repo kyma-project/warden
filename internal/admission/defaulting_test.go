@@ -423,6 +423,129 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 	}
 }
 
+func TestFlow_NamespaceLabelsValidation(t *testing.T) {
+	//GIVEN
+	logger := zap.NewNop()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	decoder := admission.NewDecoder(scheme)
+	timeout := time.Millisecond * 100
+
+	testNs := "test-namespace"
+
+	testsSkipValidation := []struct {
+		name            string
+		namespaceLabels map[string]string
+	}{
+		{
+			name:            "Namespace without labels - validation is not needed",
+			namespaceLabels: map[string]string{},
+		},
+		{
+			name: "Namespace with unknown value of validation label - validation is not needed",
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: "unknown",
+			},
+		},
+	}
+	for _, tt := range testsSkipValidation {
+		t.Run(tt.name, func(t *testing.T) {
+			//GIVEN
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: tt.namespaceLabels}}
+			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "test:test"}}},
+			}
+
+			raw, err := json.Marshal(pod)
+			require.NoError(t, err)
+
+			req := admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: raw},
+				}}
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+			validationSvc := mocks.NewPodValidator(t)
+			validationSvc.AssertNotCalled(t, "ValidatePod")
+			//validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			//	After(timeout/2).
+			//	Return(validate.ValidationResult{Status: validate.Valid}, nil).Times(0)
+			defer validationSvc.AssertExpectations(t)
+			webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, decoder, logger.Sugar())
+
+			//WHEN
+			res := webhook.Handle(context.TODO(), req)
+
+			//THEN
+			require.NotNil(t, res)
+			require.NotNil(t, res.Result)
+			assert.Contains(t, res.Result.Message, "validation is not needed for pod")
+			assert.True(t, res.Allowed)
+		})
+	}
+
+	testsWithValidation := []struct {
+		name            string
+		namespaceLabels map[string]string
+	}{
+		{
+			name: "Namespace with enabled validation - validation is needed",
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+			},
+		},
+		{
+			name: "Namespace with enabled (system) validation - validation is needed",
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
+			},
+		},
+		{
+			name: "Namespace with enabled (user) validation - validation is needed",
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
+			},
+		},
+	}
+	for _, tt := range testsWithValidation {
+		t.Run(tt.name, func(t *testing.T) {
+			//GIVEN
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: tt.namespaceLabels}}
+			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "test:test"}}},
+			}
+
+			raw, err := json.Marshal(pod)
+			require.NoError(t, err)
+
+			req := admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: raw},
+				}}
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+			validationSvc := mocks.NewPodValidator(t)
+			validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout/2).
+				Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
+			defer validationSvc.AssertExpectations(t)
+			webhook := NewDefaultingWebhook(client, validationSvc, timeout, StrictModeOff, decoder, logger.Sugar())
+
+			//WHEN
+			res := webhook.Handle(context.TODO(), req)
+
+			//THEN
+			require.NotNil(t, res)
+			require.Nil(t, res.Result)
+			assert.True(t, res.Allowed)
+		})
+	}
+}
+
 func setupValidatorMock() *mocks.ImageValidatorService {
 	mockValidator := mocks.ImageValidatorService{}
 	mockValidator.Mock.On("Validate", mock.Anything, "test:test").
