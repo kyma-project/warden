@@ -16,3 +16,6 @@ linters:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
+  exclude:
+    - "^SA1019: pkg.NamespaceValidationEnabled is deprecated:"
+    - "^SA1019: warden.NamespaceValidationEnabled is deprecated:"
