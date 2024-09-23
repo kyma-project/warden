@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"errors"
+
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -25,10 +26,6 @@ const (
 //go:generate mockery --name PodValidator
 type PodValidator interface {
 	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error)
-}
-
-type NamespaceChecker interface {
-	IsValidationEnabledForNS(namespace string) bool
 }
 
 var _ PodValidator = &podValidator{}
@@ -67,10 +64,6 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	}
 
 	return ValidationResult{admitResult, invalidImages}, nil
-}
-
-func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
-	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
 func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationStatus, error) {
