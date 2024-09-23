@@ -89,7 +89,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 }
 
 func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, req admission.Request) admission.Response {
-	if enabled := isValidationEnabledForNS(ns); !enabled {
+	if enabled := validate.IsValidationEnabledForNS(ns); !enabled {
 		return admission.Allowed("validation is not needed for pod")
 	}
 	if removed := removeInternalAnnotation(ctx, pod.ObjectMeta.Annotations); removed {
@@ -129,7 +129,7 @@ func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Re
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
 	logger := helpers.LoggerFromCtx(ctx)
-	if enabled := isValidationEnabledForNS(ns); !enabled {
+	if enabled := validate.IsValidationEnabledForNS(ns); !enabled {
 		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false
 	}
@@ -145,13 +145,6 @@ func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespa
 
 func IsValidationNeededForOperation(operation admissionv1.Operation) bool {
 	return operation == admissionv1.Create
-}
-
-func isValidationEnabledForNS(ns *corev1.Namespace) bool {
-	validationLabel := ns.GetLabels()[pkg.NamespaceValidationLabel]
-	return validationLabel == pkg.NamespaceValidationEnabled ||
-		validationLabel == pkg.NamespaceValidationSystem ||
-		validationLabel == pkg.NamespaceValidationUser
 }
 
 func isValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {
