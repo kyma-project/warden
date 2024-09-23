@@ -128,9 +128,17 @@ func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1
 		SideEffects:    &sideEffects,
 		TimeoutSeconds: ptr.To[int32](MutationWebhookTimeout),
 		NamespaceSelector: &metav1.LabelSelector{
-			MatchLabels: map[string]string{
-				//TODO-CV: configure also for user validation label
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+			MatchExpressions: []metav1.LabelSelectorRequirement{
+				// match system and user values in pkg.NamespaceValidationLabel
+				{
+					Key:      pkg.NamespaceValidationLabel,
+					Operator: metav1.LabelSelectorOpIn,
+					Values: []string{
+						pkg.NamespaceValidationEnabled,
+						pkg.NamespaceValidationSystem,
+						pkg.NamespaceValidationUser,
+					},
+				},
 			},
 		},
 	}
@@ -183,9 +191,17 @@ func createValidatingWebhookConfiguration(config WebhookConfig) *admissionregist
 				SideEffects:    &sideEffects,
 				TimeoutSeconds: ptr.To[int32](ValidationWebhookTimeout),
 				NamespaceSelector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{
-						//TODO-CV: configure also for user validation label
-						pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+					MatchExpressions: []metav1.LabelSelectorRequirement{
+						// match system and user values in pkg.NamespaceValidationLabel
+						{
+							Key:      pkg.NamespaceValidationLabel,
+							Operator: metav1.LabelSelectorOpIn,
+							Values: []string{
+								pkg.NamespaceValidationEnabled,
+								pkg.NamespaceValidationSystem,
+								pkg.NamespaceValidationUser,
+							},
+						},
 					},
 				},
 			},
