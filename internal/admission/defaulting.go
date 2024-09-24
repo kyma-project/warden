@@ -82,24 +82,16 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	}
 
 	validationSvc := w.validationSvc
-	if validate.IsUserValidationForNS(ns) {
-		//TODO-CV: use notaryTimeout from config or default value
-		//TODO-CV: extract default value to a constant
-		userNotaryTimeout := time.Second * 30
-		repoFactory := validate.NotaryRepoFactory{Timeout: userNotaryTimeout}
-		//TODO-CV: use userAllowedRegistries from config
-		userAllowedRegistries := ""
-		allowedRegistries := validate.ParseAllowedRegistries(userAllowedRegistries)
-
-		//TODO-CV: use userNotaryURL from config
-		userNotaryURL := "makapaka"
-		validatorSvcConfig := validate.ServiceConfig{
-			NotaryConfig:      validate.NotaryConfig{Url: userNotaryURL},
-			AllowedRegistries: allowedRegistries,
-		}
-		podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
-		validationSvc = validate.NewPodValidator(podValidatorSvc)
-	}
+	//if validate.IsUserValidationForNS(ns) {
+	//	//TODO-CV: use userNotaryURL from config
+	//	userNotaryURL := "makapaka"
+	//	//TODO-CV: use userAllowedRegistries from config
+	//	userAllowedRegistries := ""
+	//	//TODO-CV: use notaryTimeout from config or default value
+	//	//TODO-CV: extract default value to a constant
+	//	userNotaryTimeout := time.Second * 30
+	//	validationSvc = w.validationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
+	//}
 	result, err := validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)

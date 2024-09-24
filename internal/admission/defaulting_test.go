@@ -628,11 +628,26 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 			}}
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
-		validationSvc := mocks.NewPodValidator(t)
-		validationSvc.AssertNotCalled(t, "ValidatePod")
-		defer validationSvc.AssertExpectations(t)
+		// system validator should not be called
+		systemValidationSvc := mocks.NewPodValidator(t)
+		systemValidationSvc.AssertNotCalled(t, "ValidatePod")
+		defer systemValidationSvc.AssertExpectations(t)
+
+		// user validator and its factory should be called exactly once
+		userValidationSvc := mocks.NewPodValidator(t)
+		userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			After(timeout/10).
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
+		defer userValidationSvc.AssertExpectations(t)
+
+		validationSvcFactory := mocks.NewValidatorSvcFactory(t)
+		validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+			After(timeout / 10).
+			Return(userValidationSvc).Once()
+		defer validationSvcFactory.AssertExpectations(t)
+
 		webhook := NewDefaultingWebhook(client,
-			validationSvc, validate.NewValidatorSvcFactory(), timeout, StrictModeOff, decoder, logger.Sugar())
+			systemValidationSvc, validationSvcFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
