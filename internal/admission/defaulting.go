@@ -27,27 +27,27 @@ const (
 const PodType = "Pod"
 
 type DefaultingWebHook struct {
-	validationSvc        validate.PodValidator
-	validationSvcFactory validate.ValidatorSvcFactory
-	timeout              time.Duration
-	client               k8sclient.Client
-	decoder              *admission.Decoder
-	baseLogger           *zap.SugaredLogger
-	strictMode           bool
+	systemValidationSvc      validate.PodValidator
+	userValidationSvcFactory validate.ValidatorSvcFactory
+	timeout                  time.Duration
+	client                   k8sclient.Client
+	decoder                  *admission.Decoder
+	baseLogger               *zap.SugaredLogger
+	strictMode               bool
 }
 
 func NewDefaultingWebhook(client k8sclient.Client,
-	validationSvc validate.PodValidator, validationSvcFactory validate.ValidatorSvcFactory,
+	systemValidationSvc validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	timeout time.Duration, strictMode bool,
 	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
-		client:               client,
-		validationSvc:        validationSvc,
-		validationSvcFactory: validationSvcFactory,
-		baseLogger:           logger,
-		timeout:              timeout,
-		strictMode:           strictMode,
-		decoder:              decoder,
+		client:                   client,
+		systemValidationSvc:      systemValidationSvc,
+		userValidationSvcFactory: userValidationSvcFactory,
+		baseLogger:               logger,
+		timeout:                  timeout,
+		strictMode:               strictMode,
+		decoder:                  decoder,
 	}
 }
 
@@ -81,17 +81,17 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return result
 	}
 
-	validationSvc := w.validationSvc
-	//if validate.IsUserValidationForNS(ns) {
-	//	//TODO-CV: use userNotaryURL from config
-	//	userNotaryURL := "makapaka"
-	//	//TODO-CV: use userAllowedRegistries from config
-	//	userAllowedRegistries := ""
-	//	//TODO-CV: use notaryTimeout from config or default value
-	//	//TODO-CV: extract default value to a constant
-	//	userNotaryTimeout := time.Second * 30
-	//	validationSvc = w.validationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
-	//}
+	validationSvc := w.systemValidationSvc
+	if validate.IsUserValidationForNS(ns) {
+		//TODO-CV: use userNotaryURL from config
+		userNotaryURL := "makapaka"
+		//TODO-CV: use userAllowedRegistries from config
+		userAllowedRegistries := ""
+		//TODO-CV: use notaryTimeout from config or default value
+		//TODO-CV: extract default value to a constant
+		userNotaryTimeout := time.Second * 30
+		validationSvc = w.userValidationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
+	}
 	result, err := validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
