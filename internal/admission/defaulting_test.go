@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"k8s.io/utils/pointer"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -664,6 +665,104 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 		require.Nil(t, res.Result)
 		assert.True(t, res.Allowed)
 	})
+}
+
+func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
+	//GIVEN
+	logger := zap.NewNop()
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	decoder := admission.NewDecoder(scheme)
+	timeout := time.Millisecond * 100
+
+	testNs := "test-namespace"
+
+	//TODO-CV: move these values to better place
+	const (
+		defaultAllowedRegistries = ""
+		defaultNotaryTimeout     = time.Second * 30
+	)
+
+	testsWithValidation := []struct {
+		name              string
+		notaryUrl         *string
+		allowedRegistries *string
+		notaryTimeout     *time.Duration
+		success           bool
+	}{
+		{
+			name:      "User validation get notary url from namespace annotation",
+			notaryUrl: pointer.String("http://test.notary.url"),
+			success:   true,
+		},
+		//TODO-CV: add more tests
+	}
+	for _, tt := range testsWithValidation {
+		t.Run(tt.name, func(t *testing.T) {
+			//GIVEN
+			namespaceLabels := map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
+			}
+			namespaceAnnotations := map[string]string{}
+			expectedNotaryURL := ""
+			expectedAllowedRegistries := defaultAllowedRegistries
+			expectedNotaryTimeout := defaultNotaryTimeout
+			if tt.notaryUrl != nil {
+				expectedNotaryURL = *tt.notaryUrl
+				namespaceAnnotations[pkg.NamespaceNotaryURLAnnotation] = *tt.notaryUrl
+			}
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: namespaceLabels, Annotations: namespaceAnnotations}}
+			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "test:test"}}},
+			}
+
+			raw, err := json.Marshal(pod)
+			require.NoError(t, err)
+
+			req := admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: raw},
+				}}
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+			// system validator should not be called
+			systemValidationSvc := mocks.NewPodValidator(t)
+			systemValidationSvc.AssertNotCalled(t, "ValidatePod")
+			defer systemValidationSvc.AssertExpectations(t)
+
+			// user validator factory should be called with proper data
+			validationSvcFactory := mocks.NewValidatorSvcFactory(t)
+			validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout / 10).
+				Return(nil).
+				Once().
+				Run(func(args mock.Arguments) {
+					argNotaryURL := args.Get(0)
+					argAllowedRegistries := args.Get(1)
+					argNotaryTimeout := args.Get(2)
+					require.Equal(t, expectedNotaryURL, argNotaryURL)
+					//TODO-CV: use values from namespace annotations
+					require.Equal(t, expectedAllowedRegistries, argAllowedRegistries)
+					require.Equal(t, expectedNotaryTimeout, argNotaryTimeout)
+				})
+
+			defer validationSvcFactory.AssertExpectations(t)
+
+			webhook := NewDefaultingWebhook(client,
+				systemValidationSvc, validationSvcFactory, timeout, StrictModeOff, decoder, logger.Sugar())
+
+			//WHEN
+			res := webhook.Handle(context.TODO(), req)
+
+			//THEN
+			require.NotNil(t, res)
+			require.Nil(t, res.Result)
+			//TODO-CV: check if the validation was successful
+			assert.True(t, res.Allowed)
+		})
+	}
 }
 
 func setupValidatorMock() *mocks.ImageValidatorService {

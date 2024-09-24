@@ -3,9 +3,10 @@ package pkg
 const (
 	NamespaceValidationLabel = "namespaces.warden.kyma-project.io/validate"
 	// Deprecated: use "system" instead
-	NamespaceValidationEnabled = "enabled"
-	NamespaceValidationSystem  = "system"
-	NamespaceValidationUser    = "user"
+	NamespaceValidationEnabled   = "enabled"
+	NamespaceValidationSystem    = "system"
+	NamespaceValidationUser      = "user"
+	NamespaceNotaryURLAnnotation = "namespaces.warden.kyma-project.io/notary-url"
 )
 
 const (

@@ -86,10 +86,10 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		//TODO-CV: use userNotaryURL from config
 		userNotaryURL := "makapaka"
 		//TODO-CV: use userAllowedRegistries from config
-		userAllowedRegistries := ""
+		userAllowedRegistries := "rumburak"
 		//TODO-CV: use notaryTimeout from config or default value
 		//TODO-CV: extract default value to a constant
-		userNotaryTimeout := time.Second * 30
+		userNotaryTimeout := time.Second * 33
 		validationSvc = w.userValidationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
 	}
 	result, err := validationSvc.ValidatePod(ctx, pod, ns)
