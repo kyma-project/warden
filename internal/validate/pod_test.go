@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/validate/mocks"
@@ -166,4 +167,15 @@ func TestValidatePod(t *testing.T) {
 			require.ElementsMatchf(t, testCase.expectedFailedImages, result.InvalidImages, "list of images do not match")
 		})
 	}
+}
+
+func TestNewValidatorSvc(t *testing.T) {
+	t.Run("create new validator svc", func(t *testing.T) {
+		validatorSvc := validate.NewValidatorSvcFactory().
+			NewValidatorSvc("notaryURL", "allowed,registries", time.Second)
+		result, err := validatorSvc.ValidatePod(context.Background(), &v1.Pod{}, &v1.Namespace{})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		require.Equal(t, validate.Valid, result.Status)
+	})
 }

@@ -27,22 +27,27 @@ const (
 const PodType = "Pod"
 
 type DefaultingWebHook struct {
-	validationSvc validate.PodValidator
-	timeout       time.Duration
-	client        k8sclient.Client
-	decoder       *admission.Decoder
-	baseLogger    *zap.SugaredLogger
-	strictMode    bool
+	validationSvc        validate.PodValidator
+	validationSvcFactory validate.ValidatorSvcFactory
+	timeout              time.Duration
+	client               k8sclient.Client
+	decoder              *admission.Decoder
+	baseLogger           *zap.SugaredLogger
+	strictMode           bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client,
+	validationSvc validate.PodValidator, validationSvcFactory validate.ValidatorSvcFactory,
+	timeout time.Duration, strictMode bool,
+	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
-		client:        client,
-		validationSvc: ValidationSvc,
-		baseLogger:    logger,
-		timeout:       timeout,
-		strictMode:    strictMode,
-		decoder:       decoder,
+		client:               client,
+		validationSvc:        validationSvc,
+		validationSvcFactory: validationSvcFactory,
+		baseLogger:           logger,
+		timeout:              timeout,
+		strictMode:           strictMode,
+		decoder:              decoder,
 	}
 }
 
@@ -76,8 +81,26 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return result
 	}
 
-	//TODO-CV: use default or user validator based on namespace labels
-	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
+	validationSvc := w.validationSvc
+	if validate.IsUserValidationForNS(ns) {
+		//TODO-CV: use notaryTimeout from config or default value
+		//TODO-CV: extract default value to a constant
+		userNotaryTimeout := time.Second * 30
+		repoFactory := validate.NotaryRepoFactory{Timeout: userNotaryTimeout}
+		//TODO-CV: use userAllowedRegistries from config
+		userAllowedRegistries := ""
+		allowedRegistries := validate.ParseAllowedRegistries(userAllowedRegistries)
+
+		//TODO-CV: use userNotaryURL from config
+		userNotaryURL := "makapaka"
+		validatorSvcConfig := validate.ServiceConfig{
+			NotaryConfig:      validate.NotaryConfig{Url: userNotaryURL},
+			AllowedRegistries: allowedRegistries,
+		}
+		podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
+		validationSvc = validate.NewPodValidator(podValidatorSvc)
+	}
+	result, err := validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}

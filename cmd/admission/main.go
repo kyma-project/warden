@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
+	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
 	"k8s.io/apimachinery/pkg/fields"
+	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -18,7 +18,6 @@ import (
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/admission"
 	"github.com/kyma-project/warden/internal/config"
-	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook/certs"
 	"go.uber.org/zap"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
@@ -151,15 +150,8 @@ func main() {
 		os.Exit(5)
 	}
 
-	repoFactory := validate.NotaryRepoFactory{Timeout: appConfig.Notary.Timeout}
-	allowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.AllowedRegistries)
-
-	validatorSvcConfig := validate.ServiceConfig{
-		NotaryConfig:      validate.NotaryConfig{Url: appConfig.Notary.URL},
-		AllowedRegistries: allowedRegistries,
-	}
-	podValidatorSvc := validate.NewImageValidator(&validatorSvcConfig, repoFactory)
-	validatorSvc := validate.NewPodValidator(podValidatorSvc)
+	validatorSvc := validate.NewValidatorSvcFactory().NewValidatorSvc(
+		appConfig.Notary.URL, appConfig.Notary.AllowedRegistries, appConfig.Notary.Timeout)
 
 	logger.Info("setting up webhook server")
 	// webhook server setup
@@ -170,7 +162,10 @@ func main() {
 	})
 
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
-		Handler: admission.NewDefaultingWebhook(mgr.GetClient(), validatorSvc, appConfig.Admission.Timeout, appConfig.Admission.StrictMode, decoder, logger.With("webhook", "defaulting")),
+		Handler: admission.NewDefaultingWebhook(mgr.GetClient(),
+			validatorSvc, validate.NewValidatorSvcFactory(),
+			appConfig.Admission.Timeout, appConfig.Admission.StrictMode,
+			decoder, logger.With("webhook", "defaulting")),
 	})
 
 	logger.Info("starting the controller-manager")

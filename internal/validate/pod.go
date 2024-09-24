@@ -3,6 +3,7 @@ package validate
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
@@ -22,6 +23,33 @@ const (
 	Valid              ValidationStatus = "Valid"
 	NoAction           ValidationStatus = "NoAction"
 )
+
+//go:generate mockery --name ValidatorSvcFactory
+type ValidatorSvcFactory interface {
+	NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator
+}
+
+var _ ValidatorSvcFactory = &validatorSvcFactory{}
+
+type validatorSvcFactory struct {
+}
+
+func NewValidatorSvcFactory() ValidatorSvcFactory {
+	return &validatorSvcFactory{}
+}
+
+func (_ validatorSvcFactory) NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator {
+	repoFactory := NotaryRepoFactory{Timeout: notaryTimeout}
+	allowedRegistries := ParseAllowedRegistries(notaryAllowedRegistries)
+
+	validatorSvcConfig := ServiceConfig{
+		NotaryConfig:      NotaryConfig{Url: notaryURL},
+		AllowedRegistries: allowedRegistries,
+	}
+	podValidatorSvc := NewImageValidator(&validatorSvcConfig, repoFactory)
+	validatorSvc := NewPodValidator(podValidatorSvc)
+	return validatorSvc
+}
 
 //go:generate mockery --name PodValidator
 type PodValidator interface {
