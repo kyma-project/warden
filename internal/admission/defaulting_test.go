@@ -8,6 +8,7 @@ import (
 	"k8s.io/utils/pointer"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -245,6 +246,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.ElementsMatch(t, withAddRejectAndImagesAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
 	})
 
+	//TODO-CV: add similar test for the case when user validation is used
 	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
 		mockPodValidator := mocks.NewPodValidator(t)
@@ -864,7 +866,48 @@ func TestHandleTimeout(t *testing.T) {
 			namespaceLabels: map[string]string{
 				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
 			},
-			namespaceAnnotations: map[string]string{},
+			namespaceAnnotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOn),
+			},
+			expectedPatches: []jsonpatch.Operation{
+				{
+					Operation: "add",
+					Path:      "/metadata/labels",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
+				},
+			},
+		},
+		{
+			name:             "Handle timeout for system validation and strict mode on",
+			systemStrictMode: StrictModeOn,
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
+			},
+			namespaceAnnotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOff),
+			},
+			expectedPatches: []jsonpatch.Operation{
+				{
+					Operation: "add",
+					Path:      "/metadata/labels",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
+				},
+				{
+					Operation: "add",
+					Path:      "/metadata/annotations",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate-reject": "reject"},
+				},
+			},
+		},
+		{
+			name:             "Handle timeout for user validation and strict mode off",
+			systemStrictMode: StrictModeOn,
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
+			},
+			namespaceAnnotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOff),
+			},
 			expectedPatches: []jsonpatch.Operation{
 				{
 					Operation: "add",
