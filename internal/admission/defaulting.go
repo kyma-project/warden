@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	DefaultingPath = "/defaulting/pods"
+	DefaultingPath                 = "/defaulting/pods"
+	DefaultUserAllowedRegistries   = ""
+	DefaultUserNotaryTimeoutString = "30s"
 )
 
 const PodType = "Pod"
@@ -83,13 +85,23 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 
 	validationSvc := w.systemValidationSvc
 	if validate.IsUserValidationForNS(ns) {
-		//TODO-CV: use userNotaryURL from config
-		userNotaryURL := "makapaka"
-		//TODO-CV: use userAllowedRegistries from config
-		userAllowedRegistries := "rumburak"
-		//TODO-CV: use notaryTimeout from config or default value
-		//TODO-CV: extract default value to a constant
-		userNotaryTimeout := time.Second * 33
+		//TODO-CV: extract to a separate function
+		userNotaryURL, okNotaryURL := ns.GetAnnotations()[pkg.NamespaceNotaryURLAnnotation]
+		if !okNotaryURL {
+			return admission.Errored(http.StatusInternalServerError, errors.New("notary URL is not set"))
+		}
+		userAllowedRegistries, okAllowedRegistries := ns.GetAnnotations()[pkg.NamespaceAllowedRegistriesAnnotation]
+		if !okAllowedRegistries {
+			userAllowedRegistries = DefaultUserAllowedRegistries
+		}
+		userNotaryTimeoutString, okUserNotaryTimeoutString := ns.GetAnnotations()[pkg.NamespaceNotaryTimeoutAnnotation]
+		if !okUserNotaryTimeoutString {
+			userNotaryTimeoutString = DefaultUserNotaryTimeoutString
+		}
+		userNotaryTimeout, errNotaryTimeoutParse := time.ParseDuration(userNotaryTimeoutString)
+		if errNotaryTimeoutParse != nil {
+			return admission.Errored(http.StatusInternalServerError, errNotaryTimeoutParse)
+		}
 		validationSvc = w.userValidationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
 	}
 	result, err := validationSvc.ValidatePod(ctx, pod, ns)
@@ -132,6 +144,7 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, 
 }
 
 func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Request, result validate.ValidationResult, pod *corev1.Pod, logger *zap.SugaredLogger) admission.Response {
+	// TODO-CV: for user validation use strict mode from the namespace annotation
 	markedPod := markPod(ctx, result, pod, w.strictMode)
 	fBytes, err := json.Marshal(markedPod)
 	if err != nil {

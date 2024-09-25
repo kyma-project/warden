@@ -522,7 +522,13 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 	for _, tt := range testsWithValidation {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: tt.namespaceLabels}}
+			ns := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        testNs,
+					Labels:      tt.namespaceLabels,
+					Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
+				},
+			}
 			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{{Image: "test:test"}}},
@@ -538,16 +544,37 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 				}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
-			validationSvc := mocks.NewPodValidator(t)
-			validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout/2).
+			podValidatorCallCount := 0
+
+			systemValidationSvc := mocks.NewPodValidator(t)
+			systemValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout/10).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
+				Maybe().
+				Run(func(args mock.Arguments) {
+					podValidatorCallCount++
+				})
+			defer systemValidationSvc.AssertExpectations(t)
+
+			userValidationSvc := mocks.NewPodValidator(t)
+			userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout/10).
+				Return(validate.ValidationResult{Status: validate.Valid}, nil).
+				Maybe().
+				Run(func(args mock.Arguments) {
+					podValidatorCallCount++
+				})
+			defer userValidationSvc.AssertExpectations(t)
+
+			validationSvcFactory := mocks.NewValidatorSvcFactory(t)
+			validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout / 10).
+				Return(userValidationSvc).
 				Maybe()
-			//TODO-CV: fix this mock for user validation
-			//Once()
-			defer validationSvc.AssertExpectations(t)
+			defer validationSvcFactory.AssertExpectations(t)
+
 			webhook := NewDefaultingWebhook(client,
-				validationSvc, nil, timeout, StrictModeOff, decoder, logger.Sugar())
+				systemValidationSvc, validationSvcFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 			//WHEN
 			res := webhook.Handle(context.TODO(), req)
@@ -556,6 +583,8 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			require.NotNil(t, res)
 			require.Nil(t, res.Result)
 			assert.True(t, res.Allowed)
+			// we expect that only one of the validators will be called
+			assert.Equal(t, 1, podValidatorCallCount)
 		})
 	}
 }
@@ -620,7 +649,13 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 		namespaceLabels := map[string]string{
 			pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
 		}
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: namespaceLabels}}
+		ns := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        testNs,
+				Labels:      namespaceLabels,
+				Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
+			},
+		}
 		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
 			Spec: corev1.PodSpec{
 				Containers: []corev1.Container{{Image: "test:test"}}},
@@ -677,27 +712,47 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 
 	testNs := "test-namespace"
 
-	//TODO-CV: move these values to better place
-	const (
-		defaultAllowedRegistries = ""
-		defaultNotaryTimeout     = time.Second * 30
-	)
-
-	testsWithValidation := []struct {
+	tests := []struct {
 		name              string
 		notaryUrl         *string
 		allowedRegistries *string
-		notaryTimeout     *time.Duration
+		notaryTimeout     *string
 		success           bool
+		errorMessage      string
 	}{
 		{
 			name:      "User validation get notary url from namespace annotation",
 			notaryUrl: pointer.String("http://test.notary.url"),
 			success:   true,
 		},
-		//TODO-CV: add more tests
+		{
+			name:              "User validation get allowed registries from namespace annotation",
+			notaryUrl:         pointer.String("http://test.notary.url"),
+			allowedRegistries: pointer.String("ala,ma,    \nkota"),
+			success:           true,
+		},
+		{
+			name:          "User validation get notary timeout from namespace annotation",
+			notaryUrl:     pointer.String("http://test.notary.url"),
+			notaryTimeout: pointer.String("22s"),
+			success:       true,
+		},
+		{
+			name:              "User validation get all params from namespace annotation",
+			notaryUrl:         pointer.String("http://another.test.notary.url"),
+			allowedRegistries: pointer.String("maka,paka"),
+			notaryTimeout:     pointer.String("77h"),
+			success:           true,
+		},
+		{
+			name:              "User validation return error for namespace without notary url annotation",
+			allowedRegistries: pointer.String("maka,paka"),
+			notaryTimeout:     pointer.String("77h"),
+			success:           false,
+			errorMessage:      "notary URL is not set",
+		},
 	}
-	for _, tt := range testsWithValidation {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
 			namespaceLabels := map[string]string{
@@ -705,11 +760,19 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			}
 			namespaceAnnotations := map[string]string{}
 			expectedNotaryURL := ""
-			expectedAllowedRegistries := defaultAllowedRegistries
-			expectedNotaryTimeout := defaultNotaryTimeout
+			expectedAllowedRegistries := DefaultUserAllowedRegistries
+			expectedNotaryTimeout, _ := time.ParseDuration(DefaultUserNotaryTimeoutString)
 			if tt.notaryUrl != nil {
 				expectedNotaryURL = *tt.notaryUrl
 				namespaceAnnotations[pkg.NamespaceNotaryURLAnnotation] = *tt.notaryUrl
+			}
+			if tt.allowedRegistries != nil {
+				expectedAllowedRegistries = *tt.allowedRegistries
+				namespaceAnnotations[pkg.NamespaceAllowedRegistriesAnnotation] = *tt.allowedRegistries
+			}
+			if tt.notaryTimeout != nil {
+				expectedNotaryTimeout, _ = time.ParseDuration(*tt.notaryTimeout)
+				namespaceAnnotations[pkg.NamespaceNotaryTimeoutAnnotation] = *tt.notaryTimeout
 			}
 			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: namespaceLabels, Annotations: namespaceAnnotations}}
 			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
@@ -732,18 +795,24 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			systemValidationSvc.AssertNotCalled(t, "ValidatePod")
 			defer systemValidationSvc.AssertExpectations(t)
 
+			userValidationSvc := mocks.NewPodValidator(t)
+			userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+				After(timeout/10).
+				Return(validate.ValidationResult{Status: validate.Valid}, nil).
+				Maybe()
+			defer userValidationSvc.AssertExpectations(t)
+
 			// user validator factory should be called with proper data
 			validationSvcFactory := mocks.NewValidatorSvcFactory(t)
 			validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
 				After(timeout / 10).
-				Return(nil).
-				Once().
+				Return(userValidationSvc).
+				Maybe().
 				Run(func(args mock.Arguments) {
 					argNotaryURL := args.Get(0)
 					argAllowedRegistries := args.Get(1)
 					argNotaryTimeout := args.Get(2)
 					require.Equal(t, expectedNotaryURL, argNotaryURL)
-					//TODO-CV: use values from namespace annotations
 					require.Equal(t, expectedAllowedRegistries, argAllowedRegistries)
 					require.Equal(t, expectedNotaryTimeout, argNotaryTimeout)
 				})
@@ -758,9 +827,14 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 
 			//THEN
 			require.NotNil(t, res)
-			require.Nil(t, res.Result)
-			//TODO-CV: check if the validation was successful
-			assert.True(t, res.Allowed)
+			if tt.success {
+				assert.True(t, res.Allowed)
+				require.Nil(t, res.Result)
+			} else {
+				assert.False(t, res.Allowed)
+				require.NotNil(t, res.Result)
+				require.Contains(t, res.Result.Message, tt.errorMessage)
+			}
 		})
 	}
 }
