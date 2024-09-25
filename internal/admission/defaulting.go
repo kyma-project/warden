@@ -16,6 +16,7 @@ import (
 	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -99,12 +100,12 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	if result.Status == validate.NoAction {
 		return admission.Allowed("validation is not enabled for pod")
 	}
-	res := w.createResponse(ctx, req, result, pod, logger)
+	res := w.createResponse(ctx, req, result, pod, ns, logger)
 	return res
 }
 
 func (w *DefaultingWebHook) newUserValidationSvc(ns *corev1.Namespace, validationSvc validate.PodValidator) (validate.PodValidator, error) {
-	userValidationConfig, errGetUserValidation := getUserValidationConfig(ns)
+	userValidationConfig, errGetUserValidation := getUserValidationNotaryConfig(ns)
 	if errGetUserValidation != nil {
 		return nil, errGetUserValidation
 	}
@@ -115,17 +116,16 @@ func (w *DefaultingWebHook) newUserValidationSvc(ns *corev1.Namespace, validatio
 	return validationSvc, nil
 }
 
-type userValidationConfig struct {
+type userValidationNotaryConfig struct {
 	NotaryURL         string
 	AllowedRegistries string
 	NotaryTimeout     time.Duration
-	StrictMode        bool
 }
 
-func getUserValidationConfig(ns *corev1.Namespace) (userValidationConfig, error) {
+func getUserValidationNotaryConfig(ns *corev1.Namespace) (userValidationNotaryConfig, error) {
 	userNotaryURL, okNotaryURL := ns.GetAnnotations()[pkg.NamespaceNotaryURLAnnotation]
 	if !okNotaryURL {
-		return userValidationConfig{}, errors.New("notary URL is not set")
+		return userValidationNotaryConfig{}, errors.New("notary URL is not set")
 	}
 	userAllowedRegistries, okAllowedRegistries := ns.GetAnnotations()[pkg.NamespaceAllowedRegistriesAnnotation]
 	if !okAllowedRegistries {
@@ -137,15 +137,25 @@ func getUserValidationConfig(ns *corev1.Namespace) (userValidationConfig, error)
 	}
 	userNotaryTimeout, errNotaryTimeoutParse := time.ParseDuration(userNotaryTimeoutString)
 	if errNotaryTimeoutParse != nil {
-		return userValidationConfig{}, errNotaryTimeoutParse
+		return userValidationNotaryConfig{}, errNotaryTimeoutParse
 	}
-	return userValidationConfig{
+	return userValidationNotaryConfig{
 		NotaryURL:         userNotaryURL,
 		AllowedRegistries: userAllowedRegistries,
 		NotaryTimeout:     userNotaryTimeout,
-		// TODO-CV: add reading strict mode from the namespace annotation
-		StrictMode: false,
 	}, nil
+}
+
+func getUserValidationStrictMode(ns *corev1.Namespace) (bool, error) {
+	strictModeString, ok := ns.GetAnnotations()[pkg.NamespaceStrictModeAnnotation]
+	if !ok {
+		return true, nil
+	}
+	strictMode, err := strconv.ParseBool(strictModeString)
+	if err != nil {
+		return true, errors.Wrapf(err, "failed to parse %s annotation", pkg.NamespaceStrictModeAnnotation)
+	}
+	return strictMode, nil
 }
 
 func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, req admission.Request) admission.Response {
@@ -172,14 +182,30 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, 
 	logger := helpers.LoggerFromCtx(ctx)
 	logger.Info(msg)
 
-	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, logger)
+	ns := &corev1.Namespace{}
+	if err := w.client.Get(ctx, k8sclient.ObjectKey{Name: pod.Namespace}, ns); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, ns, logger)
 	res.Result = &metav1.Status{Message: msg}
 	return res
 }
 
-func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Request, result validate.ValidationResult, pod *corev1.Pod, logger *zap.SugaredLogger) admission.Response {
-	// TODO-CV: for user validation use strict mode from the namespace annotation
-	markedPod := markPod(ctx, result, pod, w.strictMode)
+func (w *DefaultingWebHook) createResponse(ctx context.Context,
+	req admission.Request, result validate.ValidationResult,
+	pod *corev1.Pod, ns *corev1.Namespace, logger *zap.SugaredLogger) admission.Response {
+
+	strictMode := w.strictMode
+	if validate.IsUserValidationForNS(ns) {
+		var err error
+		strictMode, err = getUserValidationStrictMode(ns)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+	}
+
+	markedPod := markPod(ctx, result, pod, strictMode)
 	fBytes, err := json.Marshal(markedPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
