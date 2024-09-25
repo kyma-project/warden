@@ -85,25 +85,13 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 
 	validationSvc := w.systemValidationSvc
 	if validate.IsUserValidationForNS(ns) {
-		//TODO-CV: extract to a separate function
-		userNotaryURL, okNotaryURL := ns.GetAnnotations()[pkg.NamespaceNotaryURLAnnotation]
-		if !okNotaryURL {
-			return admission.Errored(http.StatusInternalServerError, errors.New("notary URL is not set"))
+		var err error
+		validationSvc, err = w.newUserValidationSvc(ns, validationSvc)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
 		}
-		userAllowedRegistries, okAllowedRegistries := ns.GetAnnotations()[pkg.NamespaceAllowedRegistriesAnnotation]
-		if !okAllowedRegistries {
-			userAllowedRegistries = DefaultUserAllowedRegistries
-		}
-		userNotaryTimeoutString, okUserNotaryTimeoutString := ns.GetAnnotations()[pkg.NamespaceNotaryTimeoutAnnotation]
-		if !okUserNotaryTimeoutString {
-			userNotaryTimeoutString = DefaultUserNotaryTimeoutString
-		}
-		userNotaryTimeout, errNotaryTimeoutParse := time.ParseDuration(userNotaryTimeoutString)
-		if errNotaryTimeoutParse != nil {
-			return admission.Errored(http.StatusInternalServerError, errNotaryTimeoutParse)
-		}
-		validationSvc = w.userValidationSvcFactory.NewValidatorSvc(userNotaryURL, userAllowedRegistries, userNotaryTimeout)
 	}
+
 	result, err := validationSvc.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -113,6 +101,51 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	}
 	res := w.createResponse(ctx, req, result, pod, logger)
 	return res
+}
+
+func (w *DefaultingWebHook) newUserValidationSvc(ns *corev1.Namespace, validationSvc validate.PodValidator) (validate.PodValidator, error) {
+	userValidationConfig, errGetUserValidation := getUserValidationConfig(ns)
+	if errGetUserValidation != nil {
+		return nil, errGetUserValidation
+	}
+	validationSvc = w.userValidationSvcFactory.NewValidatorSvc(
+		userValidationConfig.NotaryURL,
+		userValidationConfig.AllowedRegistries,
+		userValidationConfig.NotaryTimeout)
+	return validationSvc, nil
+}
+
+type userValidationConfig struct {
+	NotaryURL         string
+	AllowedRegistries string
+	NotaryTimeout     time.Duration
+	StrictMode        bool
+}
+
+func getUserValidationConfig(ns *corev1.Namespace) (userValidationConfig, error) {
+	userNotaryURL, okNotaryURL := ns.GetAnnotations()[pkg.NamespaceNotaryURLAnnotation]
+	if !okNotaryURL {
+		return userValidationConfig{}, errors.New("notary URL is not set")
+	}
+	userAllowedRegistries, okAllowedRegistries := ns.GetAnnotations()[pkg.NamespaceAllowedRegistriesAnnotation]
+	if !okAllowedRegistries {
+		userAllowedRegistries = DefaultUserAllowedRegistries
+	}
+	userNotaryTimeoutString, okUserNotaryTimeoutString := ns.GetAnnotations()[pkg.NamespaceNotaryTimeoutAnnotation]
+	if !okUserNotaryTimeoutString {
+		userNotaryTimeoutString = DefaultUserNotaryTimeoutString
+	}
+	userNotaryTimeout, errNotaryTimeoutParse := time.ParseDuration(userNotaryTimeoutString)
+	if errNotaryTimeoutParse != nil {
+		return userValidationConfig{}, errNotaryTimeoutParse
+	}
+	return userValidationConfig{
+		NotaryURL:         userNotaryURL,
+		AllowedRegistries: userAllowedRegistries,
+		NotaryTimeout:     userNotaryTimeout,
+		// TODO-CV: add reading strict mode from the namespace annotation
+		StrictMode: false,
+	}, nil
 }
 
 func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, req admission.Request) admission.Response {
