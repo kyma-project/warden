@@ -171,6 +171,7 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, 
 	msg := fmt.Sprintf("request exceeded desired timeout: %s, reason: %s", w.timeout.String(), timeoutErr.Error())
 	logger := helpers.LoggerFromCtx(ctx)
 	logger.Info(msg)
+
 	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, logger)
 	res.Result = &metav1.Status{Message: msg}
 	return res

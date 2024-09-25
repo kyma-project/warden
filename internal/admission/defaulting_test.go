@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/kyma-project/warden/internal/helpers"
 	"k8s.io/utils/pointer"
 	"net/http"
 	"net/http/httptest"
@@ -835,6 +836,82 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 				require.NotNil(t, res.Result)
 				require.Contains(t, res.Result.Message, tt.errorMessage)
 			}
+		})
+	}
+}
+
+func TestHandleTimeout(t *testing.T) {
+	//GIVEN
+	logger := zap.NewNop()
+	ctxLogger := helpers.LoggerToContext(context.TODO(), logger.Sugar())
+	scheme := runtime.NewScheme()
+	require.NoError(t, corev1.AddToScheme(scheme))
+	decoder := admission.NewDecoder(scheme)
+	timeout := time.Millisecond * 100
+
+	testNs := "test-namespace"
+
+	tests := []struct {
+		name                 string
+		systemStrictMode     bool
+		namespaceLabels      map[string]string
+		namespaceAnnotations map[string]string
+		expectedPatches      []jsonpatch.Operation
+	}{
+		{
+			name:             "Handle timeout for system validation and strict mode off",
+			systemStrictMode: StrictModeOff,
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
+			},
+			namespaceAnnotations: map[string]string{},
+			expectedPatches: []jsonpatch.Operation{
+				{
+					Operation: "add",
+					Path:      "/metadata/labels",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			//GIVEN
+			ns := corev1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:        testNs,
+					Labels:      tt.namespaceLabels,
+					Annotations: tt.namespaceAnnotations,
+				},
+			}
+			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{{Image: "test:test"}}},
+			}
+
+			raw, err := json.Marshal(pod)
+			require.NoError(t, err)
+
+			req := admission.Request{
+				AdmissionRequest: admissionv1.AdmissionRequest{
+					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+					Object: runtime.RawExtension{Raw: raw},
+				}}
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+
+			webhook := NewDefaultingWebhook(client,
+				nil, nil, timeout, tt.systemStrictMode, decoder, logger.Sugar())
+
+			//WHEN
+			res := webhook.handleTimeout(ctxLogger, errors.New(""), req)
+
+			//THEN
+			require.NotNil(t, res)
+			assert.True(t, res.Allowed)
+			require.NotNil(t, res.Result)
+			require.Contains(t, res.Result.Message, "request exceeded desired timeout")
+			require.NotNil(t, res.Patches)
+			require.Equal(t, tt.expectedPatches, res.Patches)
 		})
 	}
 }
