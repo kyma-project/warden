@@ -154,12 +154,12 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 	timeout := time.Second
 
 	nsName := "test-namespace"
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-	}}}
 
 	t.Run("when valid image should return success", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
 			Return(nil)
@@ -183,6 +183,9 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when valid image with annotation reject should return success and remove the annotation", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
 			Return(nil)
@@ -207,6 +210,9 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when pod labeled by ns controller with pending label and annotation reject should remove the annotation", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		pod := newPodFix(nsName, map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending})
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Update)
@@ -225,6 +231,9 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when invalid image should return failed and annotation reject with images list", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
 			Return(pkg.NewValidationFailedErr(errors.New("validation failed")))
@@ -246,9 +255,11 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		require.ElementsMatch(t, withAddRejectAndImagesAnnotation(patchWithAddLabel(pkg.ValidationStatusFailed)), res.Patches)
 	})
 
-	//TODO-CV: add similar test for the case when user validation is used
 	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
@@ -272,6 +283,9 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when service unavailable and strict mode off should return pending", func(t *testing.T) {
 		//GIVEN
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
+			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
+		}}}
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
@@ -282,6 +296,92 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 		webhook := NewDefaultingWebhook(client,
 			mockPodValidator, nil, timeout, StrictModeOff, decoder, logger.Sugar())
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		require.NotNil(t, res)
+		require.Nil(t, res.Result)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.ElementsMatch(t, patchWithAddLabel(pkg.ValidationStatusPending), res.Patches)
+	})
+
+	t.Run("when service unavailable and strict mode on for user validation should return pending and annotation reject", func(t *testing.T) {
+		//GIVEN
+		ns := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nsName,
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+				Annotations: map[string]string{
+					pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(true),
+					pkg.NamespaceNotaryURLAnnotation:  "notary",
+				},
+			},
+		}
+
+		systemValidationSvc := mocks.NewPodValidator(t)
+		systemValidationSvc.AssertNotCalled(t, "ValidatePod")
+		defer systemValidationSvc.AssertExpectations(t)
+
+		userValidationSvc := mocks.NewPodValidator(t)
+		userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil).Once()
+		defer userValidationSvc.AssertExpectations(t)
+
+		validationSvcFactory := mocks.NewValidatorSvcFactory(t)
+		validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+			Return(userValidationSvc).Once()
+		defer validationSvcFactory.AssertExpectations(t)
+
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+		webhook := NewDefaultingWebhook(client,
+			systemValidationSvc, validationSvcFactory, timeout, StrictModeOff, decoder, logger.Sugar())
+
+		//WHEN
+		res := webhook.Handle(context.TODO(), req)
+
+		//THEN
+		require.NotNil(t, res)
+		require.Nil(t, res.Result)
+		require.True(t, res.AdmissionResponse.Allowed)
+		require.ElementsMatch(t, withAddRejectAnnotation(patchWithAddLabel(pkg.ValidationStatusPending)), res.Patches)
+	})
+
+	t.Run("when service unavailable and strict mode off for user validation should return pending", func(t *testing.T) {
+		//GIVEN
+		ns := corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:   nsName,
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+				Annotations: map[string]string{
+					pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(false),
+					pkg.NamespaceNotaryURLAnnotation:  "notary",
+				},
+			},
+		}
+
+		systemValidationSvc := mocks.NewPodValidator(t)
+		systemValidationSvc.AssertNotCalled(t, "ValidatePod")
+		defer systemValidationSvc.AssertExpectations(t)
+
+		userValidationSvc := mocks.NewPodValidator(t)
+		userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil).Once()
+		defer userValidationSvc.AssertExpectations(t)
+
+		validationSvcFactory := mocks.NewValidatorSvcFactory(t)
+		validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+			Return(userValidationSvc).Once()
+		defer validationSvcFactory.AssertExpectations(t)
+
+		pod := newPodFix(nsName, nil)
+		req := newRequestFix(t, pod, admissionv1.Create)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
+		webhook := NewDefaultingWebhook(client,
+			systemValidationSvc, validationSvcFactory, timeout, StrictModeOn, decoder, logger.Sugar())
 
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -916,6 +1016,28 @@ func TestHandleTimeout(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:             "Handle timeout for user validation and strict mode on",
+			systemStrictMode: StrictModeOff,
+			namespaceLabels: map[string]string{
+				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
+			},
+			namespaceAnnotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOn),
+			},
+			expectedPatches: []jsonpatch.Operation{
+				{
+					Operation: "add",
+					Path:      "/metadata/labels",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
+				},
+				{
+					Operation: "add",
+					Path:      "/metadata/annotations",
+					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate-reject": "reject"},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -954,7 +1076,7 @@ func TestHandleTimeout(t *testing.T) {
 			require.NotNil(t, res.Result)
 			require.Contains(t, res.Result.Message, "request exceeded desired timeout")
 			require.NotNil(t, res.Patches)
-			require.Equal(t, tt.expectedPatches, res.Patches)
+			require.ElementsMatch(t, tt.expectedPatches, res.Patches)
 		})
 	}
 }
