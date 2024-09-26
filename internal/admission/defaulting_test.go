@@ -863,8 +863,8 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			}
 			namespaceAnnotations := map[string]string{}
 			expectedNotaryURL := ""
-			expectedAllowedRegistries := DefaultUserAllowedRegistries
-			expectedNotaryTimeout, _ := time.ParseDuration(DefaultUserNotaryTimeoutString)
+			expectedAllowedRegistries := helpers.DefaultUserAllowedRegistries
+			expectedNotaryTimeout, _ := time.ParseDuration(helpers.DefaultUserNotaryTimeoutString)
 			if tt.notaryUrl != nil {
 				expectedNotaryURL = *tt.notaryUrl
 				namespaceAnnotations[pkg.NamespaceNotaryURLAnnotation] = *tt.notaryUrl

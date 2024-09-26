@@ -51,6 +51,18 @@ func (_ validatorSvcFactory) NewValidatorSvc(notaryURL string, notaryAllowedRegi
 	return validatorSvc
 }
 
+func NewUserValidationSvc(ns *corev1.Namespace, validationSvcFactory ValidatorSvcFactory) (PodValidator, error) {
+	userValidationConfig, errGetUserValidation := helpers.GetUserValidationNotaryConfig(ns)
+	if errGetUserValidation != nil {
+		return nil, errGetUserValidation
+	}
+	validationSvc := validationSvcFactory.NewValidatorSvc(
+		userValidationConfig.NotaryURL,
+		userValidationConfig.AllowedRegistries,
+		userValidationConfig.NotaryTimeout)
+	return validationSvc, nil
+}
+
 //go:generate mockery --name PodValidator
 type PodValidator interface {
 	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error)

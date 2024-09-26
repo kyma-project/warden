@@ -41,20 +41,24 @@ type PodReconcilerConfig struct {
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
-	client     client.Client
-	scheme     *runtime.Scheme
-	validator  validate.PodValidator
-	baseLogger *zap.SugaredLogger
+	client                   client.Client
+	scheme                   *runtime.Scheme
+	systemValidator          validate.PodValidator
+	userValidationSvcFactory validate.ValidatorSvcFactory
+	baseLogger               *zap.SugaredLogger
 	PodReconcilerConfig
 }
 
-func NewPodReconciler(client client.Client, scheme *runtime.Scheme, validator validate.PodValidator, reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
+func NewPodReconciler(client client.Client, scheme *runtime.Scheme,
+	validator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
+	reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
 	return &PodReconciler{
-		client:              client,
-		scheme:              scheme,
-		validator:           validator,
-		baseLogger:          logger,
-		PodReconcilerConfig: reconcileCfg,
+		client:                   client,
+		scheme:                   scheme,
+		systemValidator:          validator,
+		userValidationSvcFactory: userValidationSvcFactory,
+		baseLogger:               logger,
+		PodReconcilerConfig:      reconcileCfg,
 	}
 }
 
@@ -138,8 +142,16 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		return validate.NoAction, err
 	}
 
-	//TODO-CV: use default or user validator based on namespace labels
-	result, err := r.validator.ValidatePod(ctx, pod, &ns)
+	validator := r.systemValidator
+	if validate.IsUserValidationForNS(&ns) {
+		var err error
+		validator, err = validate.NewUserValidationSvc(&ns, r.userValidationSvcFactory)
+		if err != nil {
+			return validate.NoAction, err
+		}
+	}
+
+	result, err := validator.ValidatePod(ctx, pod, &ns)
 	if err != nil {
 		return validate.NoAction, err
 	}

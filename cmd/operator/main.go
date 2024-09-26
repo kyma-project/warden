@@ -132,6 +132,7 @@ func main() {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		podValidator,
+		validate.NewValidatorSvcFactory(),
 		controllers.PodReconcilerConfig{RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
 		logger.Named("pod-controller"),
 	)).SetupWithManager(mgr); err != nil {
