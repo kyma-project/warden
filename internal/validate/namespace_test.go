@@ -117,3 +117,85 @@ func TestUserNamespaceLabelsValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestIsChangedSupportedValidationLabelValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		oldValue string
+		newValue string
+		want     bool
+	}{
+		{
+			name:     "changed (System->User)",
+			oldValue: pkg.NamespaceValidationSystem,
+			newValue: pkg.NamespaceValidationUser,
+			want:     true,
+		},
+		{
+			name:     "changed (User->System)",
+			oldValue: pkg.NamespaceValidationUser,
+			newValue: pkg.NamespaceValidationSystem,
+			want:     true,
+		},
+		{
+			name:     "changed (Enabled->User)",
+			oldValue: pkg.NamespaceValidationEnabled,
+			newValue: pkg.NamespaceValidationUser,
+			want:     true,
+		},
+		{
+			name:     "changed (User->Enabled)",
+			oldValue: pkg.NamespaceValidationUser,
+			newValue: pkg.NamespaceValidationEnabled,
+			want:     true,
+		},
+		{
+			name:     "not changed (System->System)",
+			oldValue: pkg.NamespaceValidationSystem,
+			newValue: pkg.NamespaceValidationSystem,
+			want:     false,
+		},
+		{
+			name:     "not changed (System->Enabled - equivalent values)",
+			oldValue: pkg.NamespaceValidationSystem,
+			newValue: pkg.NamespaceValidationEnabled,
+			want:     false,
+		},
+		{
+			name:     "not changed (Enabled->System - equivalent values)",
+			oldValue: pkg.NamespaceValidationEnabled,
+			newValue: pkg.NamespaceValidationSystem,
+			want:     false,
+		},
+		{
+			name:     "changed (System->unsupported)",
+			oldValue: pkg.NamespaceValidationSystem,
+			newValue: "unsupported",
+			want:     true,
+		},
+		{
+			name:     "changed (unsupported->User)",
+			oldValue: "unsupported",
+			newValue: pkg.NamespaceValidationUser,
+			want:     true,
+		},
+		{
+			name:     "not changed (unsupported->unsupported)",
+			oldValue: "unsupported",
+			newValue: "unsupported",
+			want:     false,
+		},
+		{
+			name:     "not changed (unsupported->another-unsupported)",
+			oldValue: "blekota",
+			newValue: "mlekota",
+			want:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := validate.IsChangedSupportedValidationLabelValue(tt.oldValue, tt.newValue)
+			require.Equal(t, tt.want, result)
+		})
+	}
+}

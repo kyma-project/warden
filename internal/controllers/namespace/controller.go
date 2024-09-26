@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+	"github.com/kyma-project/warden/internal/validate"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
@@ -50,10 +51,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		}, client.IgnoreNotFound(err)
 	}
 
-	if !nsValidationLabelSet(instance.Labels) {
+	if !validate.IsSupportedValidationLabelValue(instance.Labels[warden.NamespaceValidationLabel]) {
 		var result ctrl.Result
 		logger.With("result", result).
-			Debugf("validation lable: %s not found, omitting update namespace event", warden.NamespaceValidationLabel)
+			Debugf("validation label: %s not found or not supported value, omitting update namespace event", warden.NamespaceValidationLabel)
 		return result, nil
 	}
 

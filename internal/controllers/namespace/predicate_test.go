@@ -11,68 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func Test_nsValidationLabelSet(t *testing.T) {
-	type args struct {
-		labels map[string]string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "namespace validation label not found - empty key",
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: "",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label not found - no key",
-			args: args{
-				labels: map[string]string{
-					"some": "label",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label not found - nil map",
-			args: args{
-				labels: nil,
-			},
-			want: false,
-		},
-		{
-			name: `namespace validation label not found - non "enabled" key value`,
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: "disabled",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label found",
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled,
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := nsValidationLabelSet(tt.args.labels); got != tt.want {
-				t.Errorf("nsValidationLabelSet() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_nsUpdated(t *testing.T) {
 	type args struct {
 		event event.UpdateEvent
@@ -83,7 +21,7 @@ func Test_nsUpdated(t *testing.T) {
 		want bool
 	}{
 		{
-			name: "ns updated",
+			name: "ns updated - added validation label",
 			args: args{
 				event: event.UpdateEvent{
 					ObjectOld: &corev1.Namespace{
@@ -101,7 +39,7 @@ func Test_nsUpdated(t *testing.T) {
 			want: true,
 		},
 		{
-			name: "ns not updated - new obj has no validation label",
+			name: "ns not updated - added validation label with unsupported value",
 			args: args{
 				event: event.UpdateEvent{
 					ObjectOld: &corev1.Namespace{
@@ -119,7 +57,7 @@ func Test_nsUpdated(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "ns not updated - old obj has validation label",
+			name: "ns not updated - removed validation label",
 			args: args{
 				event: event.UpdateEvent{
 					ObjectOld: &corev1.Namespace{
@@ -131,6 +69,72 @@ func Test_nsUpdated(t *testing.T) {
 					},
 					ObjectNew: &corev1.Namespace{
 						ObjectMeta: metav1.ObjectMeta{},
+					},
+				},
+			},
+			want: false,
+		},
+		{
+			name: "ns updated - changed validation label value (both supported)",
+			args: args{
+				event: event.UpdateEvent{
+					ObjectOld: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: warden.NamespaceValidationUser,
+							},
+						},
+					},
+					ObjectNew: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: warden.NamespaceValidationSystem,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ns updated - changed validation label value from unsupported to supported",
+			args: args{
+				event: event.UpdateEvent{
+					ObjectOld: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: "disable",
+							},
+						},
+					},
+					ObjectNew: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: warden.NamespaceValidationSystem,
+							},
+						},
+					},
+				},
+			},
+			want: true,
+		},
+		{
+			name: "ns not updated - changed validation label value from supported to unsupported",
+			args: args{
+				event: event.UpdateEvent{
+					ObjectOld: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: warden.NamespaceValidationSystem,
+							},
+						},
+					},
+					ObjectNew: &corev1.Namespace{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: map[string]string{
+								warden.NamespaceValidationLabel: "disable",
+							},
+						},
 					},
 				},
 			},

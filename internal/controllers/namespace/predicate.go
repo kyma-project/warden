@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"github.com/kyma-project/warden/internal/validate"
 	warden "github.com/kyma-project/warden/pkg"
 	"go.uber.org/zap"
 	"sigs.k8s.io/controller-runtime/pkg/event"
@@ -46,38 +47,34 @@ func newWardenLabelsAdded(ops predicateOps) predicate.Funcs {
 	}
 }
 
-func nsValidationLabelSet(labels map[string]string) bool {
-	value, found := labels[warden.NamespaceValidationLabel]
-	if found && value == warden.NamespaceValidationEnabled {
-		return true
-	}
-	return false
-}
-
 // buildNsUpdated creates function to check if validation label was added
 func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 	return func(evt event.UpdateEvent) bool {
+		oldLabels := evt.ObjectOld.GetLabels()
+		newLabels := evt.ObjectNew.GetLabels()
 		ops.logger.
-			With("oldLabels", evt.ObjectOld.GetLabels()).
-			With("newLabels", evt.ObjectNew.GetLabels()).
+			With("oldLabels", oldLabels).
+			With("newLabels", newLabels).
 			Debug("incoming update namespace event")
 
 		//TODO-CV: check if annotations (also allow list, notary url, strict mode) for user validations was added or changed
 
-		//TODO-CV: check if validation label value was changed
-		
-		if nsValidationLabelSet(evt.ObjectOld.GetLabels()) {
-			ops.logger.Debugf("validation label '%s' already exists, omitting update namespace event",
-				warden.NamespaceValidationLabel)
-			return false
-		}
-
-		if !nsValidationLabelSet(evt.ObjectNew.GetLabels()) {
-			ops.logger.Debugf("validation label: %s not found, omitting update namespace event",
-				warden.NamespaceValidationLabel)
-			return false
-		}
-
-		return true
+		return checkValidationLabel(oldLabels, newLabels, ops.logger)
 	}
+}
+
+func checkValidationLabel(oldLabels map[string]string, newLabels map[string]string, log *zap.SugaredLogger) bool {
+	oldValue := oldLabels[warden.NamespaceValidationLabel]
+	newValue := newLabels[warden.NamespaceValidationLabel]
+
+	if !validate.IsSupportedValidationLabelValue(newValue) {
+		log.Debugf("validation label: %s is removed or unsupported, omitting update namespace event", warden.NamespaceValidationLabel)
+		return false
+	}
+
+	if !validate.IsChangedSupportedValidationLabelValue(oldValue, newValue) {
+		log.Debugf("validation label: %s value not changed, omitting update namespace event", warden.NamespaceValidationLabel)
+		return false
+	}
+	return true
 }
