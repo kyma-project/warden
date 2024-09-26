@@ -62,8 +62,10 @@ func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 			With("newLabels", evt.ObjectNew.GetLabels()).
 			Debug("incoming update namespace event")
 
-		//TODO-CV: check if labels (also allow list, notary url, strict mode) for user validations was added or changed
+		//TODO-CV: check if annotations (also allow list, notary url, strict mode) for user validations was added or changed
 
+		//TODO-CV: check if validation label value was changed
+		
 		if nsValidationLabelSet(evt.ObjectOld.GetLabels()) {
 			ops.logger.Debugf("validation label '%s' already exists, omitting update namespace event",
 				warden.NamespaceValidationLabel)
