@@ -651,7 +651,6 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 
 			systemValidator := mocks.NewPodValidator(t)
 			systemValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout/10).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
 				Maybe().
 				Run(func(args mock.Arguments) {
@@ -661,7 +660,6 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 
 			userValidator := mocks.NewPodValidator(t)
 			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout/10).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
 				Maybe().
 				Run(func(args mock.Arguments) {
@@ -671,9 +669,7 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 
 			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
 			userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout / 10).
-				Return(userValidator).
-				Maybe()
+				Return(userValidator).Maybe()
 			defer userValidatorFactory.AssertExpectations(t)
 
 			webhook := NewDefaultingWebhook(client,
@@ -726,7 +722,6 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 		// system validator should be called
 		validationSvc := mocks.NewPodValidator(t)
 		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			After(timeout/2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 
@@ -782,13 +777,11 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 		// user validator and its factory should be called exactly once
 		userValidator := mocks.NewPodValidator(t)
 		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			After(timeout/10).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
 		userValidatorFactory := mocks.NewValidatorSvcFactory(t)
 		userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
-			After(timeout / 10).
 			Return(userValidator).Once()
 		defer userValidatorFactory.AssertExpectations(t)
 
@@ -900,15 +893,12 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 
 			userValidator := mocks.NewPodValidator(t)
 			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout/10).
-				Return(validate.ValidationResult{Status: validate.Valid}, nil).
-				Maybe()
+				Return(validate.ValidationResult{Status: validate.Valid}, nil).Maybe()
 			defer userValidator.AssertExpectations(t)
 
 			// user validator factory should be called with proper data
 			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
 			userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
-				After(timeout / 10).
 				Return(userValidator).
 				Maybe().
 				Run(func(args mock.Arguments) {
