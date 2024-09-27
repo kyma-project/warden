@@ -44,22 +44,19 @@ func TestTimeout(t *testing.T) {
 	timeout := time.Millisecond * 100
 
 	testNs := "test-namespace"
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: map[string]string{
-		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-	}}}
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs,
+		Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{Image: "test:test"}}},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 	}
 
 	raw, err := json.Marshal(pod)
 	require.NoError(t, err)
 
-	req := admission.Request{
-		AdmissionRequest: admissionv1.AdmissionRequest{
-			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-			Object: runtime.RawExtension{Raw: raw},
-		}}
+	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+		Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+		Object: runtime.RawExtension{Raw: raw},
+	}}
 	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 	t.Run("Success", func(t *testing.T) {
@@ -157,12 +154,10 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when valid image should return success", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
-		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
-			Return(nil)
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").Return(nil)
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
@@ -183,12 +178,10 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when valid image with annotation reject should return success and remove the annotation", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
-		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
-			Return(nil)
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").Return(nil)
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
@@ -210,9 +203,8 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when pod labeled by ns controller with pending label and annotation reject should remove the annotation", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		pod := newPodFix(nsName, map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending})
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Update)
@@ -231,9 +223,8 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when invalid image should return failed and annotation reject with images list", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
 		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
 			Return(pkg.NewValidationFailedErr(errors.New("validation failed")))
@@ -257,9 +248,8 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when service unavailable and strict mode on should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
@@ -283,9 +273,8 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when service unavailable and strict mode off should return pending", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-		}}}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockPodValidator := mocks.NewPodValidator(t)
 		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
@@ -309,16 +298,13 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when service unavailable and strict mode on for user validation should return pending and annotation reject", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   nsName,
-				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
-				Annotations: map[string]string{
-					pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(true),
-					pkg.NamespaceNotaryURLAnnotation:  "notary",
-				},
-			},
-		}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+			Annotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(true),
+				pkg.NamespaceNotaryURLAnnotation:  "notary"},
+		}}
 
 		systemValidator := mocks.NewPodValidator(t)
 		systemValidator.AssertNotCalled(t, "ValidatePod")
@@ -352,16 +338,13 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 
 	t.Run("when service unavailable and strict mode off for user validation should return pending", func(t *testing.T) {
 		//GIVEN
-		ns := corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:   nsName,
-				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
-				Annotations: map[string]string{
-					pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(false),
-					pkg.NamespaceNotaryURLAnnotation:  "notary",
-				},
-			},
-		}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:   nsName,
+			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+			Annotations: map[string]string{
+				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(false),
+				pkg.NamespaceNotaryURLAnnotation:  "notary"},
+		}}
 
 		systemValidator := mocks.NewPodValidator(t)
 		systemValidator.AssertNotCalled(t, "ValidatePod")
@@ -402,9 +385,8 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 	decoder := admission.NewDecoder(scheme)
 
 	nsName := "test-namespace"
-	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName, Labels: map[string]string{
-		pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-	}}}
+	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
+		Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 
 	type want struct {
 		shouldCallValidate bool
@@ -528,11 +510,11 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 			require.NotNil(t, res)
 			require.True(t, res.AdmissionResponse.Allowed)
 
+			expectedValidateCalls := 0
 			if tt.want.shouldCallValidate {
-				mockImageValidator.AssertNumberOfCalls(t, "Validate", 1)
-			} else {
-				mockImageValidator.AssertNumberOfCalls(t, "Validate", 0)
+				expectedValidateCalls = 1
 			}
+			mockImageValidator.AssertNumberOfCalls(t, "Validate", expectedValidateCalls)
 			require.Equal(t, tt.want.patches, res.Patches)
 		})
 	}
@@ -557,29 +539,26 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			namespaceLabels: map[string]string{},
 		},
 		{
-			name: "Namespace with unknown value of validation label - validation is not needed",
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: "unknown",
-			},
+			name:            "Namespace with unknown value of validation label - validation is not needed",
+			namespaceLabels: map[string]string{pkg.NamespaceValidationLabel: "unknown"},
 		},
 	}
 	for _, tt := range testsSkipValidation {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
 			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: tt.namespaceLabels}}
-			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: "test:test"}}},
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 			}
 
 			raw, err := json.Marshal(pod)
 			require.NoError(t, err)
 
-			req := admission.Request{
-				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: raw},
-				}}
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+				Object: runtime.RawExtension{Raw: raw},
+			}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 			validationSvc := mocks.NewPodValidator(t)
@@ -600,51 +579,42 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 	}
 
 	testsWithValidation := []struct {
-		name            string
-		namespaceLabels map[string]string
+		name                          string
+		namespaceValidationLabelValue string
 	}{
 		{
-			name: "Namespace with enabled validation - validation is needed",
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-			},
+			name:                          "Namespace with enabled validation - validation is needed",
+			namespaceValidationLabelValue: pkg.NamespaceValidationEnabled,
 		},
 		{
-			name: "Namespace with enabled (system) validation - validation is needed",
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
-			},
+			name:                          "Namespace with enabled (system) validation - validation is needed",
+			namespaceValidationLabelValue: pkg.NamespaceValidationSystem,
 		},
 		{
-			name: "Namespace with enabled (user) validation - validation is needed",
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-			},
+			name:                          "Namespace with enabled (user) validation - validation is needed",
+			namespaceValidationLabelValue: pkg.NamespaceValidationUser,
 		},
 	}
 	for _, tt := range testsWithValidation {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			ns := corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        testNs,
-					Labels:      tt.namespaceLabels,
-					Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
-				},
-			}
-			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: "test:test"}}},
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:        testNs,
+				Labels:      map[string]string{pkg.NamespaceValidationLabel: tt.namespaceValidationLabelValue},
+				Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
+			}}
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 			}
 
 			raw, err := json.Marshal(pod)
 			require.NoError(t, err)
 
-			req := admission.Request{
-				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: raw},
-				}}
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+				Object: runtime.RawExtension{Raw: raw},
+			}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 			podValidatorCallCount := 0
@@ -652,19 +622,17 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			systemValidator := mocks.NewPodValidator(t)
 			systemValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
-				Maybe().
 				Run(func(args mock.Arguments) {
 					podValidatorCallCount++
-				})
+				}).Maybe()
 			defer systemValidator.AssertExpectations(t)
 
 			userValidator := mocks.NewPodValidator(t)
 			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
-				Maybe().
 				Run(func(args mock.Arguments) {
 					podValidatorCallCount++
-				})
+				}).Maybe()
 			defer userValidator.AssertExpectations(t)
 
 			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
@@ -700,23 +668,20 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 
 	t.Run("Namespace with system validation", func(t *testing.T) {
 		//GIVEN
-		namespaceLabels := map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
-		}
+		namespaceLabels := map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem}
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: namespaceLabels}}
-		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Image: "test:test"}}},
+		pod := corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+			Spec:       corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 		}
 
 		raw, err := json.Marshal(pod)
 		require.NoError(t, err)
 
-		req := admission.Request{
-			AdmissionRequest: admissionv1.AdmissionRequest{
-				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-				Object: runtime.RawExtension{Raw: raw},
-			}}
+		req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+			Object: runtime.RawExtension{Raw: raw},
+		}}
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		// system validator should be called
@@ -744,29 +709,25 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 
 	t.Run("Namespace with user validation", func(t *testing.T) {
 		//GIVEN
-		namespaceLabels := map[string]string{
-			pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-		}
+		namespaceLabels := map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser}
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:        testNs,
 				Labels:      namespaceLabels,
-				Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
-			},
+				Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"}},
 		}
-		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-			Spec: corev1.PodSpec{
-				Containers: []corev1.Container{{Image: "test:test"}}},
+		pod := corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+			Spec:       corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 		}
 
 		raw, err := json.Marshal(pod)
 		require.NoError(t, err)
 
-		req := admission.Request{
-			AdmissionRequest: admissionv1.AdmissionRequest{
-				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-				Object: runtime.RawExtension{Raw: raw},
-			}}
+		req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+			Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+			Object: runtime.RawExtension{Raw: raw},
+		}}
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 		// system validator should not be called
@@ -851,9 +812,7 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			namespaceLabels := map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-			}
+			namespaceLabels := map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser}
 			namespaceAnnotations := map[string]string{}
 			expectedNotaryURL := ""
 			expectedAllowedRegistries := helpers.DefaultUserAllowedRegistries
@@ -872,18 +831,16 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			}
 			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs, Labels: namespaceLabels, Annotations: namespaceAnnotations}}
 			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: "test:test"}}},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 			}
 
 			raw, err := json.Marshal(pod)
 			require.NoError(t, err)
 
-			req := admission.Request{
-				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: raw},
-				}}
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+				Object: runtime.RawExtension{Raw: raw},
+			}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 			// system validator should not be called
@@ -900,7 +857,6 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
 			userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
 				Return(userValidator).
-				Maybe().
 				Run(func(args mock.Arguments) {
 					argNotaryURL := args.Get(0)
 					argAllowedRegistries := args.Get(1)
@@ -908,8 +864,7 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 					require.Equal(t, expectedNotaryURL, argNotaryURL)
 					require.Equal(t, expectedAllowedRegistries, argAllowedRegistries)
 					require.Equal(t, expectedNotaryTimeout, argNotaryTimeout)
-				})
-
+				}).Maybe()
 			defer userValidatorFactory.AssertExpectations(t)
 
 			webhook := NewDefaultingWebhook(client,
@@ -944,38 +899,29 @@ func TestHandleTimeout(t *testing.T) {
 	testNs := "test-namespace"
 
 	tests := []struct {
-		name                 string
-		systemStrictMode     bool
-		namespaceLabels      map[string]string
-		namespaceAnnotations map[string]string
-		expectedPatches      []jsonpatch.Operation
+		name                          string
+		systemStrictMode              bool
+		userStrictMode                bool // opposite value of system strict mode for the test if we get proper value
+		namespaceValidationLabelValue string
+		expectedPatches               []jsonpatch.Operation
 	}{
 		{
-			name:             "Handle timeout for system validation and strict mode off",
-			systemStrictMode: StrictModeOff,
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
-			},
-			namespaceAnnotations: map[string]string{
-				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOn),
-			},
+			name:                          "Handle timeout for system validation and strict mode off",
+			namespaceValidationLabelValue: pkg.NamespaceValidationSystem,
+			systemStrictMode:              StrictModeOff,
+			userStrictMode:                StrictModeOn,
 			expectedPatches: []jsonpatch.Operation{
 				{
 					Operation: "add",
 					Path:      "/metadata/labels",
 					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
-				},
-			},
+				}},
 		},
 		{
-			name:             "Handle timeout for system validation and strict mode on",
-			systemStrictMode: StrictModeOn,
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
-			},
-			namespaceAnnotations: map[string]string{
-				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOff),
-			},
+			name:                          "Handle timeout for system validation and strict mode on",
+			namespaceValidationLabelValue: pkg.NamespaceValidationSystem,
+			systemStrictMode:              StrictModeOn,
+			userStrictMode:                StrictModeOff,
 			expectedPatches: []jsonpatch.Operation{
 				{
 					Operation: "add",
@@ -986,35 +932,25 @@ func TestHandleTimeout(t *testing.T) {
 					Operation: "add",
 					Path:      "/metadata/annotations",
 					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate-reject": "reject"},
-				},
-			},
+				}},
 		},
 		{
-			name:             "Handle timeout for user validation and strict mode off",
-			systemStrictMode: StrictModeOn,
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-			},
-			namespaceAnnotations: map[string]string{
-				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOff),
-			},
+			name:                          "Handle timeout for user validation and strict mode off",
+			namespaceValidationLabelValue: pkg.NamespaceValidationUser,
+			systemStrictMode:              StrictModeOn,
+			userStrictMode:                StrictModeOff,
 			expectedPatches: []jsonpatch.Operation{
 				{
 					Operation: "add",
 					Path:      "/metadata/labels",
 					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate": "pending"},
-				},
-			},
+				}},
 		},
 		{
-			name:             "Handle timeout for user validation and strict mode on",
-			systemStrictMode: StrictModeOff,
-			namespaceLabels: map[string]string{
-				pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-			},
-			namespaceAnnotations: map[string]string{
-				pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(StrictModeOn),
-			},
+			name:                          "Handle timeout for user validation and strict mode on",
+			namespaceValidationLabelValue: pkg.NamespaceValidationUser,
+			systemStrictMode:              StrictModeOff,
+			userStrictMode:                StrictModeOn,
 			expectedPatches: []jsonpatch.Operation{
 				{
 					Operation: "add",
@@ -1025,33 +961,29 @@ func TestHandleTimeout(t *testing.T) {
 					Operation: "add",
 					Path:      "/metadata/annotations",
 					Value:     map[string]interface{}{"pods.warden.kyma-project.io/validate-reject": "reject"},
-				},
-			},
+				}},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			//GIVEN
-			ns := corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:        testNs,
-					Labels:      tt.namespaceLabels,
-					Annotations: tt.namespaceAnnotations,
-				},
-			}
-			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-				Spec: corev1.PodSpec{
-					Containers: []corev1.Container{{Image: "test:test"}}},
+			ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:        testNs,
+				Labels:      map[string]string{pkg.NamespaceValidationLabel: tt.namespaceValidationLabelValue},
+				Annotations: map[string]string{pkg.NamespaceStrictModeAnnotation: strconv.FormatBool(tt.userStrictMode)},
+			}}
+			pod := corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
+				Spec:       corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 			}
 
 			raw, err := json.Marshal(pod)
 			require.NoError(t, err)
 
-			req := admission.Request{
-				AdmissionRequest: admissionv1.AdmissionRequest{
-					Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-					Object: runtime.RawExtension{Raw: raw},
-				}}
+			req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+				Kind:   metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+				Object: runtime.RawExtension{Raw: raw},
+			}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
 			webhook := NewDefaultingWebhook(client,
@@ -1082,12 +1014,11 @@ func newRequestFix(t *testing.T, pod corev1.Pod, operation admissionv1.Operation
 	raw, err := json.Marshal(pod)
 	require.NoError(t, err)
 
-	req := admission.Request{
-		AdmissionRequest: admissionv1.AdmissionRequest{
-			Kind:      metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
-			Operation: operation,
-			Object:    runtime.RawExtension{Raw: raw},
-		}}
+	req := admission.Request{AdmissionRequest: admissionv1.AdmissionRequest{
+		Kind:      metav1.GroupVersionKind{Kind: PodType, Version: corev1.SchemeGroupVersion.Version},
+		Operation: operation,
+		Object:    runtime.RawExtension{Raw: raw},
+	}}
 	return req
 }
 
@@ -1097,8 +1028,7 @@ func newPodFix(nsName string, labels map[string]string) corev1.Pod {
 			Name: "pod", Namespace: nsName,
 			Labels: labels,
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{{Image: "test:test"}}},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
 	}
 	return pod
 }
