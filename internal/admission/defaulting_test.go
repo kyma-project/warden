@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/kyma-project/warden/internal/helpers"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -825,32 +825,32 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 	}{
 		{
 			name:      "User validation get notary url from namespace annotation",
-			notaryUrl: pointer.String("http://test.notary.url"),
+			notaryUrl: ptr.To("http://test.notary.url"),
 			success:   true,
 		},
 		{
 			name:              "User validation get allowed registries from namespace annotation",
-			notaryUrl:         pointer.String("http://test.notary.url"),
-			allowedRegistries: pointer.String("ala,ma,    \nkota"),
+			notaryUrl:         ptr.To("http://test.notary.url"),
+			allowedRegistries: ptr.To("ala,ma,    \nkota"),
 			success:           true,
 		},
 		{
 			name:          "User validation get notary timeout from namespace annotation",
-			notaryUrl:     pointer.String("http://test.notary.url"),
-			notaryTimeout: pointer.String("22s"),
+			notaryUrl:     ptr.To("http://test.notary.url"),
+			notaryTimeout: ptr.To("22s"),
 			success:       true,
 		},
 		{
 			name:              "User validation get all params from namespace annotation",
-			notaryUrl:         pointer.String("http://another.test.notary.url"),
-			allowedRegistries: pointer.String("maka,paka"),
-			notaryTimeout:     pointer.String("77h"),
+			notaryUrl:         ptr.To("http://another.test.notary.url"),
+			allowedRegistries: ptr.To("maka,paka"),
+			notaryTimeout:     ptr.To("77h"),
 			success:           true,
 		},
 		{
 			name:              "User validation return error for namespace without notary url annotation",
-			allowedRegistries: pointer.String("maka,paka"),
-			notaryTimeout:     pointer.String("77h"),
+			allowedRegistries: ptr.To("maka,paka"),
+			notaryTimeout:     ptr.To("77h"),
 			success:           false,
 			errorMessage:      "notary URL is not set",
 		},
