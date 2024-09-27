@@ -109,6 +109,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	reqUUID := uuid.New().String()
 	logger := r.baseLogger.With("req", req).With("req-id", reqUUID)
 	ctxLogger := helpers.LoggerToContext(ctx, logger)
+	logger.Debugf("reconciliation started")
 
 	var pod corev1.Pod
 	if err := r.client.Get(ctxLogger, req.NamespacedName, &pod); err != nil {

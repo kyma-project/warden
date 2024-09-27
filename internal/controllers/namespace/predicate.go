@@ -57,13 +57,34 @@ func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 			With("newLabels", newLabels).
 			Debug("incoming update namespace event")
 
-		//TODO-CV: check if annotations (also allow list, notary url, strict mode) for user validations was added or changed
+		oldAnnotations := evt.ObjectOld.GetAnnotations()
+		newAnnotations := evt.ObjectNew.GetAnnotations()
 
-		return checkValidationLabel(oldLabels, newLabels, ops.logger)
+		return validationLabelUpdated(oldLabels, newLabels, ops.logger) ||
+			userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels)
 	}
 }
 
-func checkValidationLabel(oldLabels map[string]string, newLabels map[string]string, log *zap.SugaredLogger) bool {
+func userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels map[string]string) bool {
+	if newLabels[warden.NamespaceValidationLabel] != warden.NamespaceValidationUser {
+		return false
+	}
+	for _, key := range []string{
+		warden.NamespaceNotaryURLAnnotation,
+		warden.NamespaceAllowedRegistriesAnnotation,
+		warden.NamespaceNotaryTimeoutAnnotation,
+		warden.NamespaceStrictModeAnnotation,
+	} {
+		oldValue := oldAnnotations[key]
+		newValue := newAnnotations[key]
+		if oldValue != newValue {
+			return true
+		}
+	}
+	return false
+}
+
+func validationLabelUpdated(oldLabels, newLabels map[string]string, log *zap.SugaredLogger) bool {
 	oldValue := oldLabels[warden.NamespaceValidationLabel]
 	newValue := newLabels[warden.NamespaceValidationLabel]
 
