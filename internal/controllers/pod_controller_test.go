@@ -174,9 +174,9 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			systemPodValidator := validate.NewPodValidator(systemImageValidator)
 
 			// user validator (factory) should not be called
-			validationSvcFactory := mocks.NewValidatorSvcFactory(t)
-			validationSvcFactory.AssertNotCalled(t, "NewValidatorSvc")
-			defer validationSvcFactory.AssertExpectations(t)
+			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
+			userValidatorFactory.AssertNotCalled(t, "NewValidatorSvc")
+			defer userValidatorFactory.AssertExpectations(t)
 
 			require.NoError(t, k8sClient.Create(context.TODO(), &tc.namespace))
 			defer deleteNamespace(t, k8sClient, &tc.namespace)
@@ -194,7 +194,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			}
 
 			ctrl := NewPodReconciler(k8sClient, scheme.Scheme,
-				systemPodValidator, validationSvcFactory,
+				systemPodValidator, userValidatorFactory,
 				PodReconcilerConfig{
 					RequeueAfter: requeueTime,
 				},
@@ -226,16 +226,16 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 		systemPodValidator := validate.NewPodValidator(systemImageValidator)
 
 		// user validator should be called
-		userValidationSvc := mocks.NewPodValidator(t)
-		userValidationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		userValidator := mocks.NewPodValidator(t)
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).
 			Once()
-		defer userValidationSvc.AssertExpectations(t)
+		defer userValidator.AssertExpectations(t)
 
-		validationSvcFactory := mocks.NewValidatorSvcFactory(t)
-		validationSvcFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
-			Return(userValidationSvc).Once()
-		defer validationSvcFactory.AssertExpectations(t)
+		userValidatorFactory := mocks.NewValidatorSvcFactory(t)
+		userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+			Return(userValidator).Once()
+		defer userValidatorFactory.AssertExpectations(t)
 
 		ns := corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -264,7 +264,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 		}
 
 		ctrl := NewPodReconciler(k8sClient, scheme.Scheme,
-			systemPodValidator, validationSvcFactory,
+			systemPodValidator, userValidatorFactory,
 			PodReconcilerConfig{
 				RequeueAfter: requeueTime,
 			},

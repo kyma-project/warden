@@ -27,7 +27,7 @@ const (
 const PodType = "Pod"
 
 type DefaultingWebHook struct {
-	systemValidationSvc      validate.PodValidator
+	systemValidator          validate.PodValidator
 	userValidationSvcFactory validate.ValidatorSvcFactory
 	timeout                  time.Duration
 	client                   k8sclient.Client
@@ -37,12 +37,12 @@ type DefaultingWebHook struct {
 }
 
 func NewDefaultingWebhook(client k8sclient.Client,
-	systemValidationSvc validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
+	systemValidator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	timeout time.Duration, strictMode bool,
 	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:                   client,
-		systemValidationSvc:      systemValidationSvc,
+		systemValidator:          systemValidator,
 		userValidationSvcFactory: userValidationSvcFactory,
 		baseLogger:               logger,
 		timeout:                  timeout,
@@ -81,16 +81,16 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return result
 	}
 
-	validationSvc := w.systemValidationSvc
+	validator := w.systemValidator
 	if validate.IsUserValidationForNS(ns) {
 		var err error
-		validationSvc, err = validate.NewUserValidationSvc(ns, w.userValidationSvcFactory)
+		validator, err = validate.NewUserValidationSvc(ns, w.userValidationSvcFactory)
 		if err != nil {
 			return admission.Errored(http.StatusInternalServerError, err)
 		}
 	}
 
-	result, err := validationSvc.ValidatePod(ctx, pod, ns)
+	result, err := validator.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
