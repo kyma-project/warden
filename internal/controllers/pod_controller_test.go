@@ -143,25 +143,15 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 	}{
 		{
 			name: "Reconcile pod with system (enabled) validator",
-			namespace: corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "warden-enabled",
-					Labels: map[string]string{
-						pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled,
-					},
-				},
-			},
+			namespace: corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:   "warden-enabled",
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}},
 		},
 		{
 			name: "Reconcile pod with system (system) validator",
-			namespace: corev1.Namespace{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "warden-system",
-					Labels: map[string]string{
-						pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem,
-					},
-				},
-			},
+			namespace: corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:   "warden-system",
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem}}},
 		},
 	}
 	for _, tc := range testCases {
@@ -193,12 +183,8 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 				Name:      pod.GetName()},
 			}
 
-			ctrl := NewPodReconciler(k8sClient, scheme.Scheme,
-				systemPodValidator, userValidatorFactory,
-				PodReconcilerConfig{
-					RequeueAfter: requeueTime,
-				},
-				testLogger.Sugar())
+			ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+				PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 			//WHEN
 			res, err := ctrl.Reconcile(context.TODO(), req)
@@ -228,8 +214,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 		// user validator should be called
 		userValidator := mocks.NewPodValidator(t)
 		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
-			Return(validate.ValidationResult{Status: validate.Valid}, nil).
-			Once()
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
 		userValidatorFactory := mocks.NewValidatorSvcFactory(t)
@@ -237,17 +222,11 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			Return(userValidator).Once()
 		defer userValidatorFactory.AssertExpectations(t)
 
-		ns := corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "warden-user",
-				Labels: map[string]string{
-					pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser,
-				},
-				Annotations: map[string]string{
-					pkg.NamespaceNotaryURLAnnotation: "notary",
-				},
-			},
-		}
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:        "warden-user",
+			Labels:      map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+			Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
+		}}
 		require.NoError(t, k8sClient.Create(context.TODO(), &ns))
 		defer deleteNamespace(t, k8sClient, &ns)
 
@@ -263,12 +242,8 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			Name:      pod.GetName()},
 		}
 
-		ctrl := NewPodReconciler(k8sClient, scheme.Scheme,
-			systemPodValidator, userValidatorFactory,
-			PodReconcilerConfig{
-				RequeueAfter: requeueTime,
-			},
-			testLogger.Sugar())
+		ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+			PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 		//WHEN
 		res, err := ctrl.Reconcile(context.TODO(), req)
