@@ -27,7 +27,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&corev1.Namespace{}).
 		WithEventFilter(predicate.And(
-			newWardenLabelsAdded(predicateOps{logger: r.Log}),
+			wardenPredicate(predicateOps{logger: r.Log}),
 		)).
 		Complete(r)
 }

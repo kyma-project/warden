@@ -37,8 +37,8 @@ func buildNsGenericReject(ops predicateOps) func(event.GenericEvent) bool {
 	}
 }
 
-// newWardenLabelsAdded creates predicate to check if validation label was added
-func newWardenLabelsAdded(ops predicateOps) predicate.Funcs {
+// wardenPredicate creates predicate to check if validation label was added
+func wardenPredicate(ops predicateOps) predicate.Funcs {
 	return predicate.Funcs{
 		CreateFunc:  buildNsCreateReject(ops),
 		DeleteFunc:  buildNsDeleteReject(ops),
@@ -52,20 +52,26 @@ func buildNsUpdated(ops predicateOps) func(event.UpdateEvent) bool {
 	return func(evt event.UpdateEvent) bool {
 		oldLabels := evt.ObjectOld.GetLabels()
 		newLabels := evt.ObjectNew.GetLabels()
+		oldAnnotations := evt.ObjectOld.GetAnnotations()
+		newAnnotations := evt.ObjectNew.GetAnnotations()
 		ops.logger.
 			With("oldLabels", oldLabels).
 			With("newLabels", newLabels).
+			With("oldAnnotations", oldAnnotations).
+			With("newAnnotations", newAnnotations).
 			Debug("incoming update namespace event")
 
-		oldAnnotations := evt.ObjectOld.GetAnnotations()
-		newAnnotations := evt.ObjectNew.GetAnnotations()
+		reconciliationNeeded := validationLabelUpdated(oldLabels, newLabels, ops.logger) ||
+			userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels, ops.logger)
+		if !reconciliationNeeded {
+			ops.logger.Debugf("omitting update namespace event")
+		}
 
-		return validationLabelUpdated(oldLabels, newLabels, ops.logger) ||
-			userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels)
+		return reconciliationNeeded
 	}
 }
 
-func userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels map[string]string) bool {
+func userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels map[string]string, log *zap.SugaredLogger) bool {
 	if newLabels[warden.NamespaceValidationLabel] != warden.NamespaceValidationUser {
 		return false
 	}
@@ -78,6 +84,7 @@ func userValidationAnnotationsUpdated(oldAnnotations, newAnnotations, newLabels 
 		oldValue := oldAnnotations[key]
 		newValue := newAnnotations[key]
 		if oldValue != newValue {
+			log.Debugf("validation annotation: %s was changed and reconciliation is needed", key)
 			return true
 		}
 	}
@@ -89,13 +96,14 @@ func validationLabelUpdated(oldLabels, newLabels map[string]string, log *zap.Sug
 	newValue := newLabels[warden.NamespaceValidationLabel]
 
 	if !validate.IsSupportedValidationLabelValue(newValue) {
-		log.Debugf("validation label: %s is removed or unsupported, omitting update namespace event", warden.NamespaceValidationLabel)
+		log.Debugf("validation label: %s is removed or unsupported", warden.NamespaceValidationLabel)
 		return false
 	}
 
 	if !validate.IsChangedSupportedValidationLabelValue(oldValue, newValue) {
-		log.Debugf("validation label: %s value not changed, omitting update namespace event", warden.NamespaceValidationLabel)
+		log.Debugf("validation label: %s value was not changed", warden.NamespaceValidationLabel)
 		return false
 	}
+	log.Debugf("validation label: %s was changed and reconciliation is needed", warden.NamespaceValidationLabel)
 	return true
 }
