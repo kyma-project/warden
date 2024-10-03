@@ -2,5 +2,8 @@
 
 CHART_VERSION=${CHART_VERSION?"Define CHART_VERSION env"}
 
-yq -i ".appVersion = \"${CHART_VERSION}\"" charts/warden/Chart.yaml
-yq -i ".version = \"${CHART_VERSION}\"" charts/warden/Chart.yaml 
+for c in $(find charts/warden -name Chart.yaml);
+do
+    yq -i ".appVersion = \"${CHART_VERSION}\"" $c
+    yq -i ".version = \"${CHART_VERSION}\"" $c
+done
