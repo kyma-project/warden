@@ -80,7 +80,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 		return err
 	}
 
-	shaImageBytes, shaManifestBytes, err := s.loggedGetImageDigestHash(ctx, image)
+	shaImageBytes, shaManifestBytes, err := s.loggedGetRepositoryDigestHash(ctx, image)
 	if err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 		return nil
 	}
 
-	if subtle.ConstantTimeCompare(shaManifestBytes, expectedShaBytes) == 1 {
+	if shaManifestBytes != nil && subtle.ConstantTimeCompare(shaManifestBytes, expectedShaBytes) == 1 {
 		logger.Warn("deprecated: manifest hash was used for verification")
 		return nil
 	}
@@ -107,14 +107,14 @@ func (s *notaryService) isImageAllowed(imgRepo string) bool {
 	return false
 }
 
-func (s *notaryService) loggedGetImageDigestHash(ctx context.Context, image string) ([]byte, []byte, error) {
+func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, image string) ([]byte, []byte, error) {
 	const message = "request to image registry"
 	closeLog := helpers.LogStartTime(ctx, message)
 	defer closeLog()
-	return s.getImageDigestHash(image)
+	return s.getRepositoryDigestHash(image)
 }
 
-func (s *notaryService) getImageDigestHash(image string) ([]byte, []byte, error) {
+func (s *notaryService) getRepositoryDigestHash(image string) ([]byte, []byte, error) {
 	if len(image) == 0 {
 		return []byte{}, []byte{}, pkg.NewValidationFailedErr(errors.New("empty image provided"))
 	}
@@ -123,6 +123,45 @@ func (s *notaryService) getImageDigestHash(image string) ([]byte, []byte, error)
 	if err != nil {
 		return []byte{}, []byte{}, pkg.NewValidationFailedErr(errors.Wrap(err, "ref parse"))
 	}
+
+	descriptor, err := remote.Get(ref)
+	if err != nil {
+		return []byte{}, []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "get image descriptor"))
+	}
+
+	if descriptor.MediaType.IsIndex() {
+		digest, err := getIndexDigestHash(ref)
+		if err != nil {
+			return []byte{}, []byte{}, err
+		}
+		return digest, []byte{}, nil
+	} else if descriptor.MediaType.IsImage() {
+		digest, manifest, err := getImageDigestHash(ref)
+		if err != nil {
+			return []byte{}, []byte{}, err
+		}
+		return digest, manifest, nil
+	}
+	return []byte{}, []byte{}, pkg.NewValidationFailedErr(errors.New("not an image or image list"))
+}
+
+func getIndexDigestHash(ref name.Reference) ([]byte, error) {
+	i, err := remote.Index(ref)
+	if err != nil {
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "get image"))
+	}
+	digest, err := i.Digest()
+	if err != nil {
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "image digest"))
+	}
+	digestBytes, err := hex.DecodeString(digest.Hex)
+	if err != nil {
+		return []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "checksum error: %w"))
+	}
+	return digestBytes, nil
+}
+
+func getImageDigestHash(ref name.Reference) ([]byte, []byte, error) {
 	i, err := remote.Image(ref)
 	if err != nil {
 		return []byte{}, []byte{}, pkg.NewUnknownResultErr(errors.Wrap(err, "get image"))
