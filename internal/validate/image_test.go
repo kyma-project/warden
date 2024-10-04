@@ -41,6 +41,12 @@ var (
 		// manifest hash
 		hash: []byte{157, 125, 211, 253, 79, 175, 129, 184, 184, 72, 163, 165, 92, 251, 19, 70, 92, 162, 125, 90, 135, 102, 39, 28, 194, 201, 221, 188, 72, 73, 136, 239},
 	}
+	trustedIndex = image{
+		name: "europe-docker.pkg.dev/kyma-project/prod/external/golang",
+		tag:  "1.22.2-alpine3.19",
+		// index hash
+		hash: []byte{205, 200, 109, 159, 54, 62, 135, 134, 132, 91, 234, 32, 64, 49, 43, 78, 250, 50, 27, 130, 138, 205, 235, 38, 243, 147, 250, 168, 100, 216, 135, 176},
+	}
 	differentHashImage = image{
 		name: "nginx",
 		tag:  "latest",
@@ -71,6 +77,15 @@ func Test_Validate_ProperImageLegacy_ShouldPass(t *testing.T) {
 
 	s := validate.NewImageValidator(&cfg, f)
 	err := s.Validate(context.TODO(), trustedImageLegacy.image())
+	require.NoError(t, err)
+}
+
+func Test_Validate_ProperIndex_ShouldPass(t *testing.T) {
+	cfg := validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{}}
+	f := setupMockFactory()
+
+	s := validate.NewImageValidator(&cfg, f)
+	err := s.Validate(context.TODO(), trustedIndex.image())
 	require.NoError(t, err)
 }
 
@@ -317,6 +332,10 @@ func setupMockFactory() validate.RepoFactory {
 		Hashes: map[string][]byte{"ignored": trustedImageLegacy.hash},
 		Length: 1}}
 
+	trustedImageIndex := client.TargetWithRole{Target: client.Target{Name: "ignored",
+		Hashes: map[string][]byte{"ignored": trustedIndex.hash},
+		Length: 1}}
+
 	unknown := client.TargetWithRole{Target: client.Target{Name: "ignored",
 		Hashes: map[string][]byte{"ignored": unknownImage.hash},
 		Length: 1}}
@@ -326,6 +345,7 @@ func setupMockFactory() validate.RepoFactory {
 
 	notaryClient.On("GetTargetByName", trustedImage.tag).Return(&trusted, nil)
 	notaryClient.On("GetTargetByName", trustedImageLegacy.tag).Return(&trustedLegacy, nil)
+	notaryClient.On("GetTargetByName", trustedIndex.tag).Return(&trustedImageIndex, nil)
 	notaryClient.On("GetTargetByName", differentHashImage.tag).Return(&different, nil)
 	notaryClient.On("GetTargetByName", unknownImage.tag).Return(&unknown, nil)
 	notaryClient.On("GetTargetByName", untrustedImage.tag).
