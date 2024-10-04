@@ -3,6 +3,8 @@ package validate
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -22,13 +24,48 @@ const (
 	NoAction           ValidationStatus = "NoAction"
 )
 
+//go:generate mockery --name ValidatorSvcFactory
+type ValidatorSvcFactory interface {
+	NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator
+}
+
+var _ ValidatorSvcFactory = &validatorSvcFactory{}
+
+type validatorSvcFactory struct {
+}
+
+func NewValidatorSvcFactory() ValidatorSvcFactory {
+	return &validatorSvcFactory{}
+}
+
+func (_ validatorSvcFactory) NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator {
+	repoFactory := NotaryRepoFactory{Timeout: notaryTimeout}
+	allowedRegistries := ParseAllowedRegistries(notaryAllowedRegistries)
+
+	validatorSvcConfig := ServiceConfig{
+		NotaryConfig:      NotaryConfig{Url: notaryURL},
+		AllowedRegistries: allowedRegistries,
+	}
+	podValidatorSvc := NewImageValidator(&validatorSvcConfig, repoFactory)
+	validatorSvc := NewPodValidator(podValidatorSvc)
+	return validatorSvc
+}
+
+func NewUserValidationSvc(ns *corev1.Namespace, validatorFactory ValidatorSvcFactory) (PodValidator, error) {
+	userValidationConfig, errGetUserValidation := helpers.GetUserValidationNotaryConfig(ns)
+	if errGetUserValidation != nil {
+		return nil, errGetUserValidation
+	}
+	validationSvc := validatorFactory.NewValidatorSvc(
+		userValidationConfig.NotaryURL,
+		userValidationConfig.AllowedRegistries,
+		userValidationConfig.NotaryTimeout)
+	return validationSvc, nil
+}
+
 //go:generate mockery --name PodValidator
 type PodValidator interface {
 	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error)
-}
-
-type NamespaceChecker interface {
-	IsValidationEnabledForNS(namespace string) bool
 }
 
 var _ PodValidator = &podValidator{}
@@ -67,10 +104,6 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	}
 
 	return ValidationResult{admitResult, invalidImages}, nil
-}
-
-func IsValidationEnabledForNS(ns *corev1.Namespace) bool {
-	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
 func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationStatus, error) {

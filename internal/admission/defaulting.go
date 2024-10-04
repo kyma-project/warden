@@ -27,22 +27,27 @@ const (
 const PodType = "Pod"
 
 type DefaultingWebHook struct {
-	validationSvc validate.PodValidator
-	timeout       time.Duration
-	client        k8sclient.Client
-	decoder       *admission.Decoder
-	baseLogger    *zap.SugaredLogger
-	strictMode    bool
+	systemValidator          validate.PodValidator
+	userValidationSvcFactory validate.ValidatorSvcFactory
+	timeout                  time.Duration
+	client                   k8sclient.Client
+	decoder                  *admission.Decoder
+	baseLogger               *zap.SugaredLogger
+	strictMode               bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client, ValidationSvc validate.PodValidator, timeout time.Duration, strictMode bool, decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
+func NewDefaultingWebhook(client k8sclient.Client,
+	systemValidator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
+	timeout time.Duration, strictMode bool,
+	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
-		client:        client,
-		validationSvc: ValidationSvc,
-		baseLogger:    logger,
-		timeout:       timeout,
-		strictMode:    strictMode,
-		decoder:       decoder,
+		client:                   client,
+		systemValidator:          systemValidator,
+		userValidationSvcFactory: userValidationSvcFactory,
+		baseLogger:               logger,
+		timeout:                  timeout,
+		strictMode:               strictMode,
+		decoder:                  decoder,
 	}
 }
 
@@ -76,19 +81,28 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		return result
 	}
 
-	result, err := w.validationSvc.ValidatePod(ctx, pod, ns)
+	validator := w.systemValidator
+	if validate.IsUserValidationForNS(ns) {
+		var err error
+		validator, err = validate.NewUserValidationSvc(ns, w.userValidationSvcFactory)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+	}
+
+	result, err := validator.ValidatePod(ctx, pod, ns)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 	if result.Status == validate.NoAction {
 		return admission.Allowed("validation is not enabled for pod")
 	}
-	res := w.createResponse(ctx, req, result, pod, logger)
+	res := w.createResponse(ctx, req, result, pod, ns, logger)
 	return res
 }
 
 func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, req admission.Request) admission.Response {
-	if enabled := isValidationEnabledForNS(ns); !enabled {
+	if enabled := validate.IsValidationEnabledForNS(ns); !enabled {
 		return admission.Allowed("validation is not needed for pod")
 	}
 	if removed := removeInternalAnnotation(ctx, pod.ObjectMeta.Annotations); removed {
@@ -110,13 +124,31 @@ func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, 
 	msg := fmt.Sprintf("request exceeded desired timeout: %s, reason: %s", w.timeout.String(), timeoutErr.Error())
 	logger := helpers.LoggerFromCtx(ctx)
 	logger.Info(msg)
-	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, logger)
+
+	ns := &corev1.Namespace{}
+	if err := w.client.Get(ctx, k8sclient.ObjectKey{Name: pod.Namespace}, ns); err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	res := w.createResponse(ctx, req, validate.ValidationResult{Status: validate.ServiceUnavailable}, pod, ns, logger)
 	res.Result = &metav1.Status{Message: msg}
 	return res
 }
 
-func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Request, result validate.ValidationResult, pod *corev1.Pod, logger *zap.SugaredLogger) admission.Response {
-	markedPod := markPod(ctx, result, pod, w.strictMode)
+func (w *DefaultingWebHook) createResponse(ctx context.Context,
+	req admission.Request, result validate.ValidationResult,
+	pod *corev1.Pod, ns *corev1.Namespace, logger *zap.SugaredLogger) admission.Response {
+
+	strictMode := w.strictMode
+	if validate.IsUserValidationForNS(ns) {
+		var err error
+		strictMode, err = helpers.GetUserValidationStrictMode(ns)
+		if err != nil {
+			return admission.Errored(http.StatusInternalServerError, err)
+		}
+	}
+
+	markedPod := markPod(ctx, result, pod, strictMode)
 	fBytes, err := json.Marshal(markedPod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
@@ -128,7 +160,7 @@ func (w *DefaultingWebHook) createResponse(ctx context.Context, req admission.Re
 
 func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, operation admissionv1.Operation) bool {
 	logger := helpers.LoggerFromCtx(ctx)
-	if enabled := isValidationEnabledForNS(ns); !enabled {
+	if enabled := validate.IsValidationEnabledForNS(ns); !enabled {
 		logger.Debugw("pod validation skipped because validation for namespace is not enabled")
 		return false
 	}
@@ -144,10 +176,6 @@ func isValidationNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespa
 
 func IsValidationNeededForOperation(operation admissionv1.Operation) bool {
 	return operation == admissionv1.Create
-}
-
-func isValidationEnabledForNS(ns *corev1.Namespace) bool {
-	return ns.GetLabels()[pkg.NamespaceValidationLabel] == pkg.NamespaceValidationEnabled
 }
 
 func isValidationEnabledForPodValidationLabel(pod *corev1.Pod) bool {

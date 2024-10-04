@@ -18,10 +18,11 @@ package controllers
 
 import (
 	"context"
-	"github.com/google/uuid"
-	"github.com/kyma-project/warden/internal/helpers"
 	"sort"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/kyma-project/warden/internal/helpers"
 
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/pkg"
@@ -40,20 +41,24 @@ type PodReconcilerConfig struct {
 
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
-	client     client.Client
-	scheme     *runtime.Scheme
-	validator  validate.PodValidator
-	baseLogger *zap.SugaredLogger
+	client                   client.Client
+	scheme                   *runtime.Scheme
+	systemValidator          validate.PodValidator
+	userValidationSvcFactory validate.ValidatorSvcFactory
+	baseLogger               *zap.SugaredLogger
 	PodReconcilerConfig
 }
 
-func NewPodReconciler(client client.Client, scheme *runtime.Scheme, validator validate.PodValidator, reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
+func NewPodReconciler(client client.Client, scheme *runtime.Scheme,
+	validator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
+	reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
 	return &PodReconciler{
-		client:              client,
-		scheme:              scheme,
-		validator:           validator,
-		baseLogger:          logger,
-		PodReconcilerConfig: reconcileCfg,
+		client:                   client,
+		scheme:                   scheme,
+		systemValidator:          validator,
+		userValidationSvcFactory: userValidationSvcFactory,
+		baseLogger:               logger,
+		PodReconcilerConfig:      reconcileCfg,
 	}
 }
 
@@ -104,6 +109,7 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	reqUUID := uuid.New().String()
 	logger := r.baseLogger.With("req", req).With("req-id", reqUUID)
 	ctxLogger := helpers.LoggerToContext(ctx, logger)
+	logger.Debugf("reconciliation started")
 
 	var pod corev1.Pod
 	if err := r.client.Get(ctxLogger, req.NamespacedName, &pod); err != nil {
@@ -137,7 +143,16 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		return validate.NoAction, err
 	}
 
-	result, err := r.validator.ValidatePod(ctx, pod, &ns)
+	validator := r.systemValidator
+	if validate.IsUserValidationForNS(&ns) {
+		var err error
+		validator, err = validate.NewUserValidationSvc(&ns, r.userValidationSvcFactory)
+		if err != nil {
+			return validate.NoAction, err
+		}
+	}
+
+	result, err := validator.ValidatePod(ctx, pod, &ns)
 	if err != nil {
 		return validate.NoAction, err
 	}

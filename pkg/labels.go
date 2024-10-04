@@ -1,8 +1,15 @@
 package pkg
 
 const (
-	NamespaceValidationLabel   = "namespaces.warden.kyma-project.io/validate"
-	NamespaceValidationEnabled = "enabled"
+	NamespaceValidationLabel = "namespaces.warden.kyma-project.io/validate"
+	// Deprecated: use "system" instead
+	NamespaceValidationEnabled           = "enabled"
+	NamespaceValidationSystem            = "system"
+	NamespaceValidationUser              = "user"
+	NamespaceNotaryURLAnnotation         = "namespaces.warden.kyma-project.io/notary-url"
+	NamespaceAllowedRegistriesAnnotation = "namespaces.warden.kyma-project.io/allowed-registries"
+	NamespaceNotaryTimeoutAnnotation     = "namespaces.warden.kyma-project.io/notary-timeout"
+	NamespaceStrictModeAnnotation        = "namespaces.warden.kyma-project.io/strict-mode"
 )
 
 const (

@@ -11,129 +11,275 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 )
 
-func Test_nsValidationLabelSet(t *testing.T) {
-	type args struct {
-		labels map[string]string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{
-			name: "namespace validation label not found - empty key",
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: "",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label not found - no key",
-			args: args{
-				labels: map[string]string{
-					"some": "label",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label not found - nil map",
-			args: args{
-				labels: nil,
-			},
-			want: false,
-		},
-		{
-			name: `namespace validation label not found - non "enabled" key value`,
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: "disabled",
-				},
-			},
-			want: false,
-		},
-		{
-			name: "namespace validation label found",
-			args: args{
-				labels: map[string]string{
-					warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled,
-				},
-			},
-			want: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := nsValidationLabelSet(tt.args.labels); got != tt.want {
-				t.Errorf("nsValidationLabelSet() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_nsUpdated(t *testing.T) {
-	type args struct {
-		event event.UpdateEvent
-	}
 	tests := []struct {
-		name string
-		args args
-		want bool
+		name  string
+		event event.UpdateEvent
+		want  bool
 	}{
 		{
-			name: "ns updated",
-			args: args{
-				event: event.UpdateEvent{
-					ObjectOld: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{},
-					},
-					ObjectNew: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled,
-							},
-						},
-					},
-				},
-			},
+			name: "ns updated - added validation label",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled}}}},
 			want: true,
 		},
 		{
-			name: "ns not updated - new obj has no validation label",
-			args: args{
-				event: event.UpdateEvent{
-					ObjectOld: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{},
-					},
-					ObjectNew: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								warden.NamespaceValidationLabel: "disable",
-							},
-						},
-					},
-				},
-			},
+			name: "ns not updated - added validation label with unsupported value",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: "disable"}}}},
 			want: false,
 		},
 		{
-			name: "ns not updated - old obj has validation label",
-			args: args{
-				event: event.UpdateEvent{
-					ObjectOld: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: map[string]string{
-								warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled,
-							},
-						},
-					},
-					ObjectNew: &corev1.Namespace{
-						ObjectMeta: metav1.ObjectMeta{},
-					},
-				},
-			},
+			name: "ns not updated - removed validation label",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{}}},
+			want: false,
+		},
+		{
+			name: "ns updated - changed validation label value (both supported)",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - changed validation label value from unsupported to supported",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: "disable"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem}}}},
+			want: true,
+		},
+		{
+			name: "ns not updated - changed validation label value from supported to unsupported",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: "disable"}}}},
+			want: false,
+		},
+		{
+			name: "ns updated - changed user validation annotations (notary url) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryURLAnnotation: "notary-url"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryURLAnnotation: "changed-notary-url"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - changed user validation annotations (allowed registries) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceAllowedRegistriesAnnotation: "another,allowed,registries"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - changed user validation annotations (notary timeout) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryTimeoutAnnotation: "33s"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryTimeoutAnnotation: "44s"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - changed user validation annotations (strict mode) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceStrictModeAnnotation: "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceStrictModeAnnotation: "false"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - added user validation annotations (notary url) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryURLAnnotation: "notary-url"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - added user validation annotations (allowed registries) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - added user validation annotations (notary timeout) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryTimeoutAnnotation: "33s"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - added user validation annotations (strict mode) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceStrictModeAnnotation: "true"}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - removed user validation annotations (notary url) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryURLAnnotation: "notary-url"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - removed user validation annotations (allowed registries) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - removed user validation annotations (notary timeout) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceNotaryTimeoutAnnotation: "33s"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}}},
+			want: true,
+		},
+		{
+			name: "ns updated - removed user validation annotations (strict mode) value for user validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels:      map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser},
+					Annotations: map[string]string{warden.NamespaceStrictModeAnnotation: "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationUser}}}},
+			want: true,
+		},
+		{
+			name: "ns not updated - changed user validation annotations value for system validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem},
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem},
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "another-notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "another,allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "44s",
+						warden.NamespaceStrictModeAnnotation:        "false"}}}},
+			want: false,
+		},
+		{
+			name: "ns not updated - removed user validation annotations value for system validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled},
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationEnabled}}}},
+			want: false,
+		},
+		{
+			name: "ns not updated - added user validation annotations value for system validation",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: warden.NamespaceValidationSystem},
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}}},
+			want: false,
+		},
+		{
+			name: "ns not updated - changed user validation annotations value for no validation label",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "another-notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "another,allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "44s",
+						warden.NamespaceStrictModeAnnotation:        "false"}}}},
+			want: false,
+		},
+		{
+			name: "ns not updated - removed user validation annotations value for no validation label",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: "disabled"},
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{warden.NamespaceValidationLabel: "unsupported"}}}},
+			want: false,
+		},
+		{
+			name: "ns not updated - added user validation annotations value for no validation label",
+			event: event.UpdateEvent{
+				ObjectOld: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{}},
+				ObjectNew: &corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						warden.NamespaceNotaryURLAnnotation:         "notary-url",
+						warden.NamespaceAllowedRegistriesAnnotation: "allowed,registries",
+						warden.NamespaceNotaryTimeoutAnnotation:     "33s",
+						warden.NamespaceStrictModeAnnotation:        "true"}}}},
 			want: false,
 		},
 	}
@@ -145,7 +291,7 @@ func Test_nsUpdated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			shouldBeTriggered := nsUpdate(tt.args.event)
+			shouldBeTriggered := nsUpdate(tt.event)
 			require.Equal(t, tt.want, shouldBeTriggered)
 		})
 	}

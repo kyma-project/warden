@@ -51,7 +51,7 @@ func Test_PodReconcile(t *testing.T) {
 
 	requeueTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
-	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, PodReconcilerConfig{
+	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 		RequeueAfter: requeueTime,
 	}, testLogger.Sugar())
 
@@ -130,8 +130,145 @@ func Test_PodReconcile(t *testing.T) {
 	}
 }
 
+func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
+	testEnv, k8sClient := test_suite.Setup(t)
+	defer test_suite.TearDown(t, testEnv)
+
+	requeueTime := 60 * time.Minute
+	testLogger := test_helpers.NewTestZapLogger(t)
+
+	testCases := []struct {
+		name      string
+		namespace corev1.Namespace
+	}{
+		{
+			name: "Reconcile pod with system (enabled) validator",
+			namespace: corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:   "warden-enabled",
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}},
+		},
+		{
+			name: "Reconcile pod with system (system) validator",
+			namespace: corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+				Name:   "warden-system",
+				Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationSystem}}},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			//GIVEN
+			// system validator should be called
+			systemImageValidator := mocks.NewImageValidatorService(t)
+			systemImageValidator.On("Validate", mock.Anything, mock.Anything).
+				Return(nil).Once()
+			systemPodValidator := validate.NewPodValidator(systemImageValidator)
+
+			// user validator (factory) should not be called
+			userValidatorFactory := mocks.NewValidatorSvcFactory(t)
+			userValidatorFactory.AssertNotCalled(t, "NewValidatorSvc")
+			defer userValidatorFactory.AssertExpectations(t)
+
+			require.NoError(t, k8sClient.Create(context.TODO(), &tc.namespace))
+			defer deleteNamespace(t, k8sClient, &tc.namespace)
+
+			pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+				Namespace: tc.namespace.GetName(),
+				Name:      "valid-pod"},
+				Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "image", Name: "container"}}},
+			}
+			require.NoError(t, k8sClient.Create(context.TODO(), &pod))
+			defer deletePod(t, k8sClient, &pod)
+			req := reconcile.Request{NamespacedName: types.NamespacedName{
+				Namespace: pod.GetNamespace(),
+				Name:      pod.GetName()},
+			}
+
+			ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+				PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
+
+			//WHEN
+			res, err := ctrl.Reconcile(context.TODO(), req)
+
+			//THEN
+			require.NoError(t, err)
+			assert.Equal(t, reconcile.Result{}, res)
+
+			key := ctrlclient.ObjectKeyFromObject(&pod)
+
+			finalPod := corev1.Pod{}
+			require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
+
+			labelValue, found := finalPod.Labels[pkg.PodValidationLabel]
+			require.True(t, found)
+			require.Equal(t, pkg.ValidationStatusSuccess, labelValue)
+		})
+	}
+
+	t.Run("Reconcile pod with user validator", func(t *testing.T) {
+		//GIVEN
+		// system validator should not be called
+		systemImageValidator := mocks.NewImageValidatorService(t)
+		systemImageValidator.AssertNotCalled(t, "Validate")
+		systemPodValidator := validate.NewPodValidator(systemImageValidator)
+
+		// user validator should be called
+		userValidator := mocks.NewPodValidator(t)
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
+		defer userValidator.AssertExpectations(t)
+
+		userValidatorFactory := mocks.NewValidatorSvcFactory(t)
+		userValidatorFactory.On("NewValidatorSvc", mock.Anything, mock.Anything, mock.Anything).
+			Return(userValidator).Once()
+		defer userValidatorFactory.AssertExpectations(t)
+
+		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{
+			Name:        "warden-user",
+			Labels:      map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationUser},
+			Annotations: map[string]string{pkg.NamespaceNotaryURLAnnotation: "notary"},
+		}}
+		require.NoError(t, k8sClient.Create(context.TODO(), &ns))
+		defer deleteNamespace(t, k8sClient, &ns)
+
+		pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns.GetName(),
+			Name:      "valid-pod"},
+			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "image", Name: "container"}}},
+		}
+		require.NoError(t, k8sClient.Create(context.TODO(), &pod))
+		defer deletePod(t, k8sClient, &pod)
+		req := reconcile.Request{NamespacedName: types.NamespacedName{
+			Namespace: pod.GetNamespace(),
+			Name:      pod.GetName()},
+		}
+
+		ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+			PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
+
+		//WHEN
+		res, err := ctrl.Reconcile(context.TODO(), req)
+
+		//THEN
+		require.NoError(t, err)
+		assert.Equal(t, reconcile.Result{}, res)
+
+		key := ctrlclient.ObjectKeyFromObject(&pod)
+
+		finalPod := corev1.Pod{}
+		require.NoError(t, k8sClient.Get(context.TODO(), key, &finalPod))
+
+		labelValue, found := finalPod.Labels[pkg.PodValidationLabel]
+		require.True(t, found)
+		require.Equal(t, pkg.ValidationStatusSuccess, labelValue)
+	})
+}
+
 func deletePod(t *testing.T, k8sClient ctrlclient.Client, pod *corev1.Pod) {
 	require.NoError(t, k8sClient.Delete(context.TODO(), pod))
+}
+
+func deleteNamespace(t *testing.T, k8sClient ctrlclient.Client, ns *corev1.Namespace) {
+	require.NoError(t, k8sClient.Delete(context.TODO(), ns))
 }
 
 type MockK8sClient struct {
@@ -176,7 +313,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}}}
 		require.NoError(t, mockK8Client.Create(context.TODO(), &pod))
 
-		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, PodReconcilerConfig{
+		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 			RequeueAfter: requeueTime,
 		}, testLogger.Sugar())
 		req := reconcile.Request{NamespacedName: types.NamespacedName{
