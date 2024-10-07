@@ -24,12 +24,15 @@ Before you start, ensure that you have:
    export NOTARY_URL=<notary-url>
    ```
 2. Enable Warden validation on a namespace by adding the required `namespaces.warden.kyma-project.io/notary-url` annotation and the `namespaces.warden.kyma-project.io/validate: user` label to the namespace.
+
    ```bash
    kubectl annotate namespace $NAMESPACE namespaces.warden.kyma-project.io/notary-url=$NOTARY_URL
    kubectl label namespace $NAMESPACE namespaces.warden.kyma-project.io/validate=user
    ```
-   > [!WARNING]
-   > If you add label before annotation, Warden will not validate images in the namespace.
+
+> [!WARNING]
+> If you add label before annotation, Warden will not validate images in the namespace.
+
 3. Create pod with signed image.
    ```bash
    kubectl run $SIGNED_POD_NAME --namespace $NAMESPACE --image $SIGNED_IMAGE
