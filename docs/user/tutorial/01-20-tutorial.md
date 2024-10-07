@@ -44,7 +44,7 @@ Before you start, ensure that you have:
    The output should be `success` if validation has succeeded.
 5. Try to create pod with unsigned image.
    ```bash
-    kubectl run $UNSIGNED_POD_NAME --namespace $NAMESPACE --image $UNSIGNED_IMAGE
+   kubectl run $UNSIGNED_POD_NAME --namespace $NAMESPACE --image $UNSIGNED_IMAGE
    ```
    You should get the following error:
    `Error from server (Forbidden): admission webhook "validation.webhook.warden.kyma-project.io" denied the request: Pod images nginx:latest validation failed`
