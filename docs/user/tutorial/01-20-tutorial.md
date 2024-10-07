@@ -14,28 +14,34 @@ Before you start, ensure that you have:
 
 ## Steps
 
-1. Enable Warden validation on a namespace by adding the required `namespaces.warden.kyma-project.io/notary-url` annotation and the `namespaces.warden.kyma-project.io/validate: user` label to the namespace.
+1. Set up folloiwng environment variables:
    ```bash
-   kubectl annotate namespace <namespace-name> namespaces.warden.kyma-project.io/notary-url=<notary-url>
-   kubectl label namespace <namespace-name> namespaces.warden.kyma-project.io/validate=user
+   export NAMESPACE=<namespace>
+   export SIGNED_POD_NAME=<signed-pod-name>
+   export SIGNED_IMAGE=<signed-image>
+   export UNSIGNED_POD_NAME=<unsigned-pod-name>
+   export UNSIGNED_IMAGE=<unsigned-image>
+   export NOTARY_URL=<notary-url>
+   ```
+2. Enable Warden validation on a namespace by adding the required `namespaces.warden.kyma-project.io/notary-url` annotation and the `namespaces.warden.kyma-project.io/validate: user` label to the namespace.
+   ```bash
+   kubectl annotate namespace $NAMESPACE namespaces.warden.kyma-project.io/notary-url=$NOTARY_URL
+   kubectl label namespace $NAMESPACE namespaces.warden.kyma-project.io/validate=user
    ```
    > [!WARNING]
    > If you add label before annotation, Warden will not validate images in the namespace.
-2. Create pod with signed image.
+3. Create pod with signed image.
    ```bash
-   kubectl run <pod-name>  --namespace <namespace-name> --image <signed-image>
+   kubectl run $SIGNED_POD_NAME --namespace $NAMESPACE --image $SIGNED_IMAGE
    ```
-3. Verify that the pod has the `pods.warden.kyma-project.io/validate: success` label.
+4. Verify that the pod has the `pods.warden.kyma-project.io/validate: success` label.
    ```bash
-   kubectl get pods <pod-name> --namespace <namespace-name> -o jsonpath='{.metadata.labels.pods\.warden\.kyma-project\.io/validate}'
+   kubectl get pods $SIGNED_POD_NAME --namespace $NAMESPACE -o jsonpath='{.metadata.labels.pods\.warden\.kyma-project\.io/validate}'
    ```
    The output should be `success` if validation has succeeded.
-4. Create pod with unsigned image.
+5. Try to create pod with unsigned image.
    ```bash
-    kubectl run <pod-name>  --namespace <namespace-name> --image <unsigned-image>
+    kubectl run $UNSIGNED_POD_NAME --namespace $NAMESPACE --image $UNSIGNED_IMAGE
    ```
-5. Verify that the pod has the `pods.warden.kyma-project.io/validate: failed` label.
-   ```bash
-   kubectl get pods <pod-name> --namespace <namespace-name> -o jsonpath='{.metadata.labels.pods\.warden\.kyma-project\.io/validate}'
-   ```
-   The output should be `failed` if validation has failed.
+   You should get the following error:
+   `Error from server (Forbidden): admission webhook "validation.webhook.warden.kyma-project.io" denied the request: Pod images nginx:latest validation failed`
