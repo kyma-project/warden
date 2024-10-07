@@ -31,7 +31,7 @@ Before you start, ensure that you have:
    ```
 
 > [!WARNING]
-> If you add label before annotation, Warden will not validate images in the namespace.
+> If you add label without the annotation, Warden will not validate images in the namespace.
 
 3. Create pod with signed image.
    ```bash
