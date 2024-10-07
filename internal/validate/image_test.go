@@ -47,6 +47,12 @@ var (
 		// index hash
 		hash: []byte{205, 200, 109, 159, 54, 62, 135, 134, 132, 91, 234, 32, 64, 49, 43, 78, 250, 50, 27, 130, 138, 205, 235, 38, 243, 147, 250, 168, 100, 216, 135, 176},
 	}
+	differentHashIndex = image{
+		name: "europe-docker.pkg.dev/kyma-project/prod/external/alpine",
+		tag:  "3.20.0",
+		// image hash instead of index hash
+		hash: []byte{33, 98, 102, 200, 111, 196, 220, 239, 86, 25, 147, 11, 211, 148, 36, 88, 36, 194, 175, 82, 253, 33, 186, 124, 111, 160, 230, 24, 101, 125, 76, 59},
+	}
 	differentHashImage = image{
 		name: "nginx",
 		tag:  "latest",
@@ -123,6 +129,19 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 			require.ErrorContains(t, err, tt.expectedErrMsg)
 		})
 	}
+}
+
+func Test_Validate_IndexWithDifferentHashInNotary_ShouldReturnError(t *testing.T) {
+	//GIVEN
+	cfg := validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{}}
+	f := setupMockFactory()
+	s := validate.NewImageValidator(&cfg, f)
+	//WHEN
+	err := s.Validate(context.TODO(), differentHashIndex.image())
+
+	//THEN
+	require.ErrorContains(t, err, "unexpected image hash value")
+	require.Equal(t, pkg.ValidationError, pkg.ErrorCode(err))
 }
 
 func Test_Validate_ImageWithDifferentHashInNotary_ShouldReturnError(t *testing.T) {
@@ -343,9 +362,14 @@ func setupMockFactory() validate.RepoFactory {
 	different := client.TargetWithRole{Target: client.Target{Name: "ignored",
 		Hashes: map[string][]byte{"ignored": differentHashImage.hash}}}
 
+	differentIndex := client.TargetWithRole{Target: client.Target{Name: "ignored",
+		Hashes: map[string][]byte{"ignored": differentHashIndex.hash},
+		Length: 1}}
+
 	notaryClient.On("GetTargetByName", trustedImage.tag).Return(&trusted, nil)
 	notaryClient.On("GetTargetByName", trustedImageLegacy.tag).Return(&trustedLegacy, nil)
 	notaryClient.On("GetTargetByName", trustedIndex.tag).Return(&trustedImageIndex, nil)
+	notaryClient.On("GetTargetByName", differentHashIndex.tag).Return(&differentIndex, nil)
 	notaryClient.On("GetTargetByName", differentHashImage.tag).Return(&different, nil)
 	notaryClient.On("GetTargetByName", unknownImage.tag).Return(&unknown, nil)
 	notaryClient.On("GetTargetByName", untrustedImage.tag).
