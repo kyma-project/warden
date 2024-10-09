@@ -14,7 +14,7 @@ Before you start, ensure that you have:
 
 ## Steps
 
-1. Set up folloiwng environment variables:
+1. Set up following environment variables:
    ```bash
    export NAMESPACE=<namespace>
    export SIGNED_POD_NAME=<signed-pod-name>
