@@ -20,6 +20,9 @@ Mutating webhook is responsible for adding the `pods.warden.kyma-project.io/vali
 It does the same operations like Pod controller but additionally could decide to reject the pod creation or update. For this purpose, it adds internal `pods.warden.kyma-project.io/validate-reject: reject` annotation to the pod.
 This webhook also use strictMode configuration to decide if pod should be rejected when Notary server is not available.
 
+Mutating webhook based on current status of the pod skips verification if pod is updating and status is `pending` or `failed`. 
+It do this because status was previously set by the Pod controller and it is not necessary to verify the pod again.
+
 ### Validating webhook
 
 Validation webhook only checks `pods.warden.kyma-project.io/validate-reject: reject` annotation and rejects the pod if it is present.

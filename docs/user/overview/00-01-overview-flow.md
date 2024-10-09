@@ -24,4 +24,11 @@ When a namespace has the `namespaces.warden.kyma-project.io/validate: user` labe
 
 When a protected namespace is updated, Warden will schedule a reconcile on all pods in the namespace. The [reconciliation process](#pod-reconciliation) is described above.
 
-See [available namespace labels and annotations](tutorial/01-10-configure-user.md) for a complete list of configuration options.
+See [available namespace labels and annotations](../tutorial/01-10-configure-user.md) for a complete list of configuration options.
+
+## Verification results
+
+Warden adds labels `pods.warden.kyma-project.io/validate` to pods to indicate the verification status:
+ * `success` - the pod passed the controller check.
+ * `failed` - the pod did not pass the controller check.
+ * `pending` - the verification status is unknown, and the pod is waiting for validation.
