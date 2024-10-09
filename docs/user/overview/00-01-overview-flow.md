@@ -6,7 +6,7 @@ Warden can work on pod create, and update operations. It can also reconcile pods
 
 Warden validates images in pods during pod create and update operations. It checks if the images are signed by a Notary server. If the images are not signed, Warden rejects the pod creation or update.
 
-![Pod create and update flow](../assets/user_operations.svg)
+![Pod create and update flow](../../assets/user_operations.svg)
 
 Strict mode determines if Warden should conditionally approve pod when the Notary server is not available. If strict mode is enabled, Warden rejects all images when the Notary server is unavailable. If strict mode is disabled, Warden adds the `pods.warden.kyma-project.io/validate: pending` label to the pod and retries validation later.
 
@@ -14,7 +14,7 @@ Strict mode determines if Warden should conditionally approve pod when the Notar
 
 Warden will periodically reconcile pods that are already running in the cluster. It checks if the images in the pods are signed by a Notary server. If the images are not signed, Warden adds the `pods.warden.kyma-project.io/validate: failed` label to the pod and retries validation later.
 
-![Pod reconciliation flow](../assets/user_reconcile.svg)
+![Pod reconciliation flow](../../assets/user_reconcile.svg)
 
 Reconciliation can be triggered periodically, or when the namespace is updated.
 
