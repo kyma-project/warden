@@ -11,9 +11,16 @@ Both of these modes are exclusive.
 
 For more information on how to configure modes, see the [configuration](../tutorial/01-10-configure.md) section.
 
+## How it works
+
+For general description see [here](../../user/overview/00-01-overview-flow.md).
+
+
 ## Pod create and update operations
 
-Warden validates images in pods during pod create and update operations. It checks if the images are signed by a Notary server. If the images are not signed, Warden rejects the pod creation or update.
+Warden validates images in pods during pod create and update operations. 
+It checks if the images are signed by a Notary server. 
+If the images are not signed, Warden rejects the pod creation or update.
 
 ![Pod create and update flow](../../assets/user_operations.svg)
 
