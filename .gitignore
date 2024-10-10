@@ -28,3 +28,6 @@ vendor
 # modularization generated files
 warden-manifest.yaml
 module-config.yaml
+
+# draw.io backup files
+*.svg.bkp
