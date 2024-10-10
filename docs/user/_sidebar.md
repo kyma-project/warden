@@ -1,10 +1,8 @@
 <!-- markdown-link-check-disable -->
 * [Back to Kyma Home](/)
-* [Warden Module](/warden/user/overview/README.md)
-* [Warden Overview](/warden/user/overview/00-00-overview-warden.md)
-* [Warden Flow](/warden/user/overview/00-01-overview-flow.md)
-* [Warden Architecture](/warden/user/overview/00-02-architecture.md)
+* [Warden Module](/warden/user/README.md)
+* [User Configuration](/warden/user/01-10-configure-user.md)
+* [Warden Flow](/warden/user/00-01-overview-flow.md)
 * [Tutorials](/warden/user/tutorials/README.md)
-  * [Warden configuration](/warden/user/tutorial/01-10-configure-user.md)
-  * [Use Warden on a user namespace](/warden/user/tutorial/01-20-tutorial.md)
+  * [Use Warden on a User Namespace](/warden/user/tutorials/01-20-use-warden-on-namespace.md)
 <!-- markdown-link-check-enable -->
