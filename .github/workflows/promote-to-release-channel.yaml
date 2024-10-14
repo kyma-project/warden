@@ -37,6 +37,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN }}
       
       - name: Bump sec-scanners-config.yaml
         run: ./.github/scripts/upgrade-sec-scanners-config.sh
