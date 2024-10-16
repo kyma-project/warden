@@ -1,18 +1,15 @@
 #!/bin/bash
 
-function get_kyma_status () {
-	local number=1
-	while [[ $number -le 100 ]] ; do
-		echo ">--> checking warden deployment status #$number"
-		local STATUS=$(kubectl get deployment warden-operator -n kyma-system -o jsonpath='{.status.conditions[0].status}')
-		echo "warden ready: ${STATUS:='UNKNOWN'}"
-		[[ "$STATUS" == "True" ]] && return 0
-		sleep 5
-        	((number = number + 1))
-	done
-
+get_all_and_fail() {
 	kubectl get all --all-namespaces
 	exit 1
 }
 
-get_kyma_status
+echo "waiting for deployment"
+kubectl wait -n kyma-system --for=condition=Available --timeout=1m deployment warden-operator || get_all_and_fail
+
+echo "waiting for operator"
+kubectl wait -n kyma-system --for=condition=Ready --timeout=1m pod --selector "app.kubernetes.io/component"="warden-operator" || get_all_and_fail
+
+echo "waiting for admission"
+kubectl wait -n kyma-system --for=condition=Ready --timeout=1m pod --selector "app.kubernetes.io/component"="warden-admission" || get_all_and_fail
