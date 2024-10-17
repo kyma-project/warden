@@ -54,4 +54,4 @@ webhooks:
     namespaceSelector:
       matchLabels:
         namespaces.warden.kyma-project.io/validate: enabled
-
+    reinvocationPolicy: IfNeeded
