@@ -87,7 +87,7 @@ func createMutatingWebhookConfiguration(config WebhookConfig) *admissionregistra
 func getFunctionMutatingWebhookCfg(config WebhookConfig) admissionregistrationv1.MutatingWebhook {
 	failurePolicy := admissionregistrationv1.Ignore
 	matchPolicy := admissionregistrationv1.Exact
-	reinvocationPolicy := admissionregistrationv1.NeverReinvocationPolicy
+	reinvocationPolicy := admissionregistrationv1.IfNeededReinvocationPolicy
 	scope := admissionregistrationv1.AllScopes
 	sideEffects := admissionregistrationv1.SideEffectClassNone
 
