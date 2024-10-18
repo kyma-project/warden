@@ -28,6 +28,26 @@ env:
 
 jobs:
 
+  create-tag:
+    name: Create tag
+    needs: upgrade-images
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.new_warden_tag }}
+          git push origin ${{ github.event.inputs.new_warden_tag }}
+
+      - name: Verify job status
+        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
+
   upgrade-images:
     name: Bump warden images references
     runs-on: ubuntu-latest
@@ -65,24 +85,7 @@ jobs:
           git commit --allow-empty -m "upgrade dependencies"
           git push origin ${{ github.ref_name }}
 
-  create-tag:
-    name: Create tag
-    needs: upgrade-images
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
-
-      - name: Create lightweight tag
-        run: |
-          git tag ${{ github.event.inputs.new_warden_tag }}
-          git push origin ${{ github.event.inputs.new_warden_tag }}
-
-      - name: Verify prow release jobs
+      - name: Verify job status
         run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
 
   promote-warden:
