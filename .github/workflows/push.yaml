@@ -17,4 +17,5 @@ jobs:
 
   upgrades:
     needs: builds
+    secrets: inherit 
     uses: ./.github/workflows/_upgrade-test.yaml
