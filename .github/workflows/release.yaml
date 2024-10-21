@@ -8,3 +8,5 @@ on:
 jobs:
   builds:
     uses: ./.github/workflows/_build.yaml
+    with:
+      tag: ${{ github.ref_name }}
