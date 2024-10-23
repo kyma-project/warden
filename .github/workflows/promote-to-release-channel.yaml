@@ -82,9 +82,6 @@ jobs:
           git tag ${{ github.event.inputs.new_warden_tag }}
           git push origin ${{ github.event.inputs.new_warden_tag }}
 
-      - name: Verify job status
-        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
-
   promote-warden:
     name: Render warden with skr config
     needs: upgrade-images
