@@ -1,4 +1,4 @@
-name: "Promote to release channel with config"
+name: promote to release channel
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ on:
         required: true
       channel:
         description: 'Module channel'
-        default: "fast"
+        default: "regular"
         required: true
 
 env:
@@ -28,15 +28,36 @@ env:
 
 jobs:
 
-  upgrade-images:
-    name: Bump warden images references
+  create-tag:
+    name: Create tag
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
+
+      - name: Create lightweight tag
+        run: |
+          git tag ${{ github.event.inputs.new_warden_tag }}
+          git push origin ${{ github.event.inputs.new_warden_tag }}
+
+      - name: Verify job status
+        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
+
+  upgrade-images:
+    name: Bump warden images references
+    needs: create-tag
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.BOT_TOKEN }}
       
       - name: Bump sec-scanners-config.yaml
         run: ./.github/scripts/upgrade-sec-scanners-config.sh
@@ -64,29 +85,12 @@ jobs:
           git commit --allow-empty -m "upgrade dependencies"
           git push origin ${{ github.ref_name }}
 
-  create-tag:
-    name: Create tag
-    needs: upgrade-images
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
-
-      - name: Create lightweight tag
-        run: |
-          git tag ${{ github.event.inputs.new_warden_tag }}
-          git push origin ${{ github.event.inputs.new_warden_tag }}
-
-      - name: Verify prow release jobs
+      - name: Verify job status
         run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
 
   promote-warden:
     name: Render warden with skr config
-    needs: create-tag
+    needs: upgrade-images
     runs-on: ubuntu-latest
   
     steps:
@@ -117,7 +121,7 @@ jobs:
           git config --global user.email "${BOT_EMAIL}"
           git config --global user.name "${BOT_USERNAME}"
           git clone "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@${GH_TOOLS_REPO_URL}/${BOT_USERNAME}/module-manifests.git"
-          git -C module-manifests remote add upstream "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@github.tools.sap/kyma/module-manifests.git"
+          git -C module-manifests remote add upstream "https://${BOT_USERNAME}:${GH_ENTERPRISE_TOKEN}@${GH_TOOLS_REPO_URL}/kyma/module-manifests.git"
 
       - name: Commit manifest
         working-directory: module-manifests
@@ -147,4 +151,4 @@ jobs:
             -H "${BOT_USERNAME}:${MODULE_VERSION}-${CHANNEL}" \
             -R "https://${GH_TOOLS_REPO_URL}/kyma/module-manifests/" \
             --title "Promote Warden ${MODULE_VERSION} to ${CHANNEL} channel" \
-            --body "${WARDEN_SKR_OVERRIDES_REPO_URL}/actions/runs/${{github.run_id}}"
+            --body "https://github.com/kyma-project/warden/actions/${{github.run_id}}"
