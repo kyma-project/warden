@@ -3,8 +3,9 @@ package namespace
 import (
 	"context"
 	"fmt"
-	"github.com/pkg/errors"
 	sysruntime "runtime"
+
+	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
@@ -45,7 +46,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	reqUUID := uuid.New().String()
 
 	logger := r.Log.With("req", req).With("req-id", reqUUID)
-	logger.Info("reconciliation started")
+	logger.Warnf("reconciliation started")
 
 	var instance corev1.Namespace
 	if err := r.Get(ctx, req.NamespacedName, &instance); err != nil {
@@ -58,7 +59,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	if !nsValidationLabelSet(instance.Labels) {
 		var result ctrl.Result
 		logger.With("result", result).
-			Debugf("validation lable: %s not found, omitting update namespace event", warden.NamespaceValidationLabel)
+			Warnf("validation lable: %s not found, omitting update namespace event", warden.NamespaceValidationLabel)
 		return result, nil
 	}
 
@@ -77,7 +78,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(err, "while fetching list of pods")
 		}
 
-		logger.With("pod-count", len(pods.Items)).Debug("pod fetching succeeded")
+		logger.With("pod-count", len(pods.Items)).Warn("pod fetching succeeded")
 		podCount += len(pods.Items)
 
 		// label all pods with validation pending; requeue in case any error
@@ -92,7 +93,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			loopLogger.With("name", pods.Items[i].Name).With("namespace", pods.Items[i].Namespace).
 				Debugf("pod labeling succeeded %d/%d", i, len(pods.Items))
 		}
-		logger.Debugf("pods.continue: `%s`; pods.remainingitemscount: %d", pods.Continue, pods.RemainingItemCount)
+		logger.Warnf("pods.continue: `%s`; pods.remainingitemscount: %d", pods.Continue, pods.RemainingItemCount)
 		// there is no more objects
 		if pods.Continue == "" {
 			break
@@ -101,7 +102,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	}
 	PrintMemUsage(fmt.Sprintf("OOM - after podList (%d)", reconciliation_count))
 
-	logger.Debugf("%d/%d pod[s] labeled", labelCount, podCount)
+	logger.Warnf("%d/%d pod[s] labeled", labelCount, podCount)
 
 	result := ctrl.Result{
 		//TODO: what it is mean?
