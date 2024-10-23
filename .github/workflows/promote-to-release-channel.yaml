@@ -76,6 +76,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
+          token: ${{ secrets.BOT_TOKEN }}
 
       - name: Create lightweight tag
         run: |
