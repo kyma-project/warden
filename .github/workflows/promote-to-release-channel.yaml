@@ -30,7 +30,6 @@ jobs:
 
   upgrade-images:
     name: Bump warden images references
-    needs: create-tag
     runs-on: ubuntu-latest
 
     steps:
@@ -68,6 +67,7 @@ jobs:
 
   create-tag:
     name: Create tag
+    needs: upgrade-images
     runs-on: ubuntu-latest
 
     steps:
@@ -85,7 +85,7 @@ jobs:
 
   promote-warden:
     name: Render warden with skr config
-    needs: upgrade-images
+    needs: create-tag
     runs-on: ubuntu-latest
   
     steps:
