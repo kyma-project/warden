@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/go-logr/zapr"
@@ -47,6 +48,7 @@ import (
 	ctrlmetrics "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	ctrlwebhook "sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
+	_ "net/http/pprof"
 )
 
 var (
@@ -60,6 +62,11 @@ func init() {
 }
 
 func main() {
+	go func() {
+		fmt.Printf("Starting pprof server on localhost:9666 (d)")
+		http.ListenAndServe("localhost:9666", nil)
+	}()
+
 	var configPath string
 	flag.StringVar(&configPath, "config-path", "./hack/config.yaml", "The path to the configuration file.")
 	opts := zapk8s.Options{
@@ -114,6 +121,14 @@ func main() {
 				&corev1.ConfigMap{}: {},
 			},
 		},
+		//Client: ctrlclient.Options{
+		//	Cache: &ctrlclient.CacheOptions{
+		//		DisableFor: []ctrlclient.Object{
+		//			&corev1.Pod{},
+		//		},
+		//		Unstructured: false,
+		//	},
+		//},
 	})
 	if err != nil {
 		logger.Error(err, "unable to start manager")

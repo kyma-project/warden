@@ -1,5 +1,5 @@
 # Build the manager binary
-FROM europe-docker.pkg.dev/kyma-project/prod/external/library/golang:1.23.1-alpine3.20 as builder
+FROM europe-docker.pkg.dev/kyma-project/prod/external/library/golang:1.23.2-alpine3.20 as builder
 ARG TARGETOS
 ARG TARGETARCH
 
@@ -26,7 +26,8 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -a -o op
 
 # Use distroless as minimal base image to package the manager binary
 # Refer to https://github.com/GoogleContainerTools/distroless for more details
-FROM gcr.io/distroless/static:nonroot
+FROM alpine:latest
+#FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /app/operator .
 USER 65532:65532

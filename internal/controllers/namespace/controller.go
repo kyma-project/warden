@@ -2,7 +2,9 @@ package namespace
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
+	sysruntime "runtime"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/google/uuid"
@@ -34,9 +36,12 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 //+kubebuilder:rbac:groups="",resources=pods,verbs=list;update
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=watch
 
+var reconciliation_count = 0
+
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	reconciliation_count++
 	reqUUID := uuid.New().String()
 
 	logger := r.Log.With("req", req).With("req-id", reqUUID)
@@ -57,35 +62,80 @@ func (r *Reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return result, nil
 	}
 
-	// fetch all the pods in the given namespace
-	var pods corev1.PodList
-	if err := r.List(ctx, &pods, &client.ListOptions{Namespace: req.Name}); err != nil {
-		return ctrl.Result{}, errors.Wrap(err, "while fetching list of pods")
-	}
-
-	logger.With("pod-count", len(pods.Items)).Debug("pod fetching succeeded")
-
+	PrintMemUsage(fmt.Sprintf("OOM - before podList (%d)", reconciliation_count))
 	var labelCount int
-	// label all pods with validation pending; requeue in case any error
-	for i, pod := range pods.Items {
-		loopLogger := logger.With("name", pod.Name).With("namespace", pod.Namespace)
-		if err := labelWithValidationPending(ctx, &pod, r.Patch); err != nil {
-			loopLogger.Errorf("pod labeling error: %s", err)
-			continue
+	var podCount int
+	// fetch all the pods in the given namespace
+	opts := &client.ListOptions{
+		Namespace: req.Name,
+		Limit:     17,
+	}
+	for {
+		var pods corev1.PodList
+		err := r.List(ctx, &pods, opts)
+		if err != nil {
+			return ctrl.Result{}, errors.Wrap(err, "while fetching list of pods")
 		}
 
-		labelCount++
-		loopLogger.With("name", pod.Name).With("namespace", pod.Namespace).
-			Debugf("pod labeling succeeded %d/%d", i, len(pods.Items))
-	}
+		logger.With("pod-count", len(pods.Items)).Debug("pod fetching succeeded")
+		podCount += len(pods.Items)
 
-	logger.Debugf("%d/%d pod[s] labeled", labelCount, len(pods.Items))
+		// label all pods with validation pending; requeue in case any error
+		for i := range pods.Items {
+			loopLogger := logger.With("name", pods.Items[i].Name).With("namespace", pods.Items[i].Namespace)
+			if err := labelWithValidationPending(ctx, &pods.Items[i], r.Patch); err != nil {
+				loopLogger.Errorf("pod labeling error: %s", err)
+				continue
+			}
+
+			labelCount++
+			loopLogger.With("name", pods.Items[i].Name).With("namespace", pods.Items[i].Namespace).
+				Debugf("pod labeling succeeded %d/%d", i, len(pods.Items))
+		}
+		logger.Debugf("pods.continue: `%s`; pods.remainingitemscount: %d", pods.Continue, pods.RemainingItemCount)
+		// there is no more objects
+		if pods.Continue == "" {
+			break
+		}
+		opts.Continue = pods.Continue
+	}
+	PrintMemUsage(fmt.Sprintf("OOM - after podList (%d)", reconciliation_count))
+
+	logger.Debugf("%d/%d pod[s] labeled", labelCount, podCount)
 
 	result := ctrl.Result{
-		Requeue: len(pods.Items) != labelCount,
+		//TODO: what it is mean?
+		Requeue: podCount != labelCount,
 	}
 
 	logger.With("result", result).Debug("reconciliation finished")
 
 	return result, nil
+}
+
+// PrintMemUsage outputs the current, total and OS memory being used. As well as the number
+// of garage collection cycles completed.
+func PrintMemUsage(message string) {
+	var m sysruntime.MemStats
+	sysruntime.ReadMemStats(&m)
+	// For info on each, see: https://golang.org/pkg/runtime/#MemStats
+	fmt.Printf("=====================================\n")
+	fmt.Printf("%s\n", message)
+	fmt.Printf("-------------------------\n")
+	fmt.Printf("Alloc = %v MiB\n", bToMb(m.Alloc))
+	fmt.Printf("\tStackInuse = %v\n", bToMb(m.StackInuse))
+	fmt.Printf("\tHeapInuse = %v\n", bToMb(m.HeapInuse))
+	fmt.Printf("\tHeapIdle = %v\n", bToMb(m.HeapIdle))
+	fmt.Printf("-------------------------\n")
+	fmt.Printf("Sys = %v MiB\n", bToMb(m.Sys))
+	fmt.Printf("\tHeapSys = %v MiB\n", bToMb(m.HeapSys))
+	fmt.Printf("\tStackSys = %v MiB\n", bToMb(m.StackSys))
+	fmt.Printf("\tOtherSys = %v MiB\n", bToMb(m.OtherSys))
+	fmt.Printf("-------------------------\n")
+	fmt.Printf("NumGC = %v\n", m.NumGC)
+	fmt.Printf("HeapObjects = %v\n", m.HeapObjects)
+	fmt.Printf("=====================================\n")
+}
+func bToMb(b uint64) uint64 {
+	return b / 1024 / 1024
 }

@@ -104,6 +104,9 @@ func (r *PodReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.R
 	reqUUID := uuid.New().String()
 	logger := r.baseLogger.With("req", req).With("req-id", reqUUID)
 	ctxLogger := helpers.LoggerToContext(ctx, logger)
+	//TODO-OOM: remove this
+	logger.Info("pod controller is disabled")
+	return ctrl.Result{}, nil
 
 	var pod corev1.Pod
 	if err := r.client.Get(ctxLogger, req.NamespacedName, &pod); err != nil {
