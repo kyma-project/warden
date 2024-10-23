@@ -30,7 +30,6 @@ jobs:
 
   upgrade-images:
     name: Bump warden images references
-    needs: create-tag
     runs-on: ubuntu-latest
 
     steps:
@@ -68,6 +67,7 @@ jobs:
 
   create-tag:
     name: Create tag
+    needs: upgrade-images
     runs-on: ubuntu-latest
 
     steps:
@@ -76,6 +76,7 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }} # fetching the latest changes (incl. the commit from previous job) from branch name
+          token: ${{ secrets.BOT_TOKEN }}
 
       - name: Create lightweight tag
         run: |
@@ -84,7 +85,7 @@ jobs:
 
   promote-warden:
     name: Render warden with skr config
-    needs: upgrade-images
+    needs: create-tag
     runs-on: ubuntu-latest
   
     steps:
