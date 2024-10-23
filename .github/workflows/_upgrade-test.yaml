@@ -1,0 +1,20 @@
+name: upgrade test
+
+on:
+  workflow_call:
+
+jobs:
+  upgrade-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/create-k3d-cluster
+      - uses: ./.github/actions/setup-go
+      - name: install latest warden operator from the release
+        run: |
+          helm install --set global.config.data.logging.level=debug --set admission.enabled=true warden https://github.com/kyma-project/warden/releases/latest/download/warden-chart.tgz
+      - name: install warden from the branch
+        run: |
+          make install
+      - name: run integration tests
+        run: make run-integration-tests
