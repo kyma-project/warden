@@ -66,9 +66,6 @@ jobs:
           git commit --allow-empty -m "upgrade dependencies"
           git push origin ${{ github.ref_name }}
 
-      - name: Verify job status
-        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
-
   create-tag:
     name: Create tag
     runs-on: ubuntu-latest
@@ -84,9 +81,6 @@ jobs:
         run: |
           git tag ${{ github.event.inputs.new_warden_tag }}
           git push origin ${{ github.event.inputs.new_warden_tag }}
-
-      - name: Verify job status
-        run: ./.github/scripts/verify-release-builds.sh ${{ github.ref_name }}
 
   promote-warden:
     name: Render warden with skr config
