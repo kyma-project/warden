@@ -8,7 +8,7 @@ on:
         default: ""
         required: true
       warden_skr_config_version:
-        description: 'Warden SKR config version (`y.y`)'
+        description: 'Warden SKR config version (`y.y.y`)'
         default: ""
         required: true
       channel:
