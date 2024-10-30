@@ -34,6 +34,7 @@ data:
       URL: {{ .Values.global.config.data.notary.URL }}
       timeout: {{ .Values.global.config.data.notary.timeout }}
       allowedRegistries: {{ $allowedRegistries }}
+      predefinedUserAllowedRegistries: {{ .Values.global.config.data.notary.predefinedUserAllowedRegistries }}
     operator:
       healthProbeBindAddress: {{ .Values.global.config.data.operator.healthProbeBindAddress }}
       metricsBindAddress: {{ .Values.global.config.data.operator.metricsBindAddress }}
