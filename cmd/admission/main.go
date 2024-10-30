@@ -161,9 +161,10 @@ func main() {
 		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation"), decoder),
 	})
 
+	predefinedUserAllowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.PredefinedUserAllowedRegistries)
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
 		Handler: admission.NewDefaultingWebhook(mgr.GetClient(),
-			validatorSvc, validate.NewValidatorSvcFactory(),
+			validatorSvc, validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),
 			appConfig.Admission.Timeout, appConfig.Admission.StrictMode,
 			decoder, logger.With("webhook", "defaulting")),
 	})
