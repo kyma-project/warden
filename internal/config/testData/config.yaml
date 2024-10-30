@@ -4,3 +4,6 @@ notary:
     test1,
     test2,
     test3
+  predefinedUserAllowedRegistries: |-
+    user1,
+    user2

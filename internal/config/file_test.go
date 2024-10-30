@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	testURL               = "https://signing-dev.repositories.cloud.sap"
-	testAllowedRegistries = "test1,\ntest2,\ntest3"
+	testURL                             = "https://signing-dev.repositories.cloud.sap"
+	testAllowedRegistries               = "test1,\ntest2,\ntest3"
+	testPredefinedUserAllowedRegistries = "user1,\nuser2"
 )
 
 func TestLoad(t *testing.T) {
@@ -22,6 +23,7 @@ func TestLoad(t *testing.T) {
 		cfg, err := Load(path)
 		require.NoError(t, err)
 		require.Equal(t, testAllowedRegistries, cfg.Notary.AllowedRegistries)
+		require.Equal(t, testPredefinedUserAllowedRegistries, cfg.Notary.PredefinedUserAllowedRegistries)
 		require.Equal(t, testURL, cfg.Notary.URL)
 	})
 
@@ -31,6 +33,7 @@ func TestLoad(t *testing.T) {
 		cfg, err := Load(path)
 		require.NoError(t, err)
 		require.Equal(t, testAllowedRegistries, cfg.Notary.AllowedRegistries)
+		require.Equal(t, testPredefinedUserAllowedRegistries, cfg.Notary.PredefinedUserAllowedRegistries)
 		require.Equal(t, testURL, cfg.Notary.URL)
 	})
 
