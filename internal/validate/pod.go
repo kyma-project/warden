@@ -32,15 +32,20 @@ type ValidatorSvcFactory interface {
 var _ ValidatorSvcFactory = &validatorSvcFactory{}
 
 type validatorSvcFactory struct {
+	predefinedAllowedRegistries []string
 }
 
-func NewValidatorSvcFactory() ValidatorSvcFactory {
-	return &validatorSvcFactory{}
+func NewValidatorSvcFactory(predefinedAllowedRegistries ...string) ValidatorSvcFactory {
+	return &validatorSvcFactory{
+		predefinedAllowedRegistries: predefinedAllowedRegistries,
+	}
 }
 
-func (_ validatorSvcFactory) NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator {
+func (f validatorSvcFactory) NewValidatorSvc(notaryURL string, notaryAllowedRegistries string, notaryTimeout time.Duration) PodValidator {
 	repoFactory := NotaryRepoFactory{Timeout: notaryTimeout}
-	allowedRegistries := ParseAllowedRegistries(notaryAllowedRegistries)
+	allowedRegistries := append(
+		ParseAllowedRegistries(notaryAllowedRegistries),
+		f.predefinedAllowedRegistries...)
 
 	validatorSvcConfig := ServiceConfig{
 		NotaryConfig:      NotaryConfig{Url: notaryURL},
