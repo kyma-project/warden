@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/internal/validate"
@@ -13,11 +17,8 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"strings"
-	"time"
 )
 
 const (
@@ -90,7 +91,10 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		}
 	}
 
-	result, err := validator.ValidatePod(ctx, pod, ns)
+	// TODO-cred: pass whole pod or jsut pod.Spec.ImagePullSecrets?
+	imagePullCredentials := helpers.GetRemotePullCredentials(w.client, pod)
+
+	result, err := validator.ValidatePod(ctx, pod, ns, imagePullCredentials)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}

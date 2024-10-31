@@ -152,7 +152,10 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		}
 	}
 
-	result, err := validator.ValidatePod(ctx, pod, &ns)
+	// TODO-cred: pass whole pod or jsut pod.Spec.ImagePullSecrets?
+	imagePullCredentials := helpers.GetRemotePullCredentials(r.client, pod)
+
+	result, err := validator.ValidatePod(ctx, pod, &ns, imagePullCredentials)
 	if err != nil {
 		return validate.NoAction, err
 	}

@@ -73,7 +73,7 @@ func Test_Validate_ProperImage_ShouldPass(t *testing.T) {
 	f := setupMockFactory()
 
 	s := validate.NewImageValidator(&cfg, f)
-	err := s.Validate(context.TODO(), trustedImage.image())
+	err := s.Validate(context.TODO(), trustedImage.image(), emptyAuthData)
 	require.NoError(t, err)
 }
 
@@ -82,7 +82,7 @@ func Test_Validate_ProperImageLegacy_ShouldPass(t *testing.T) {
 	f := setupMockFactory()
 
 	s := validate.NewImageValidator(&cfg, f)
-	err := s.Validate(context.TODO(), trustedImageLegacy.image())
+	err := s.Validate(context.TODO(), trustedImageLegacy.image(), emptyAuthData)
 	require.NoError(t, err)
 }
 
@@ -91,7 +91,7 @@ func Test_Validate_ProperIndex_ShouldPass(t *testing.T) {
 	f := setupMockFactory()
 
 	s := validate.NewImageValidator(&cfg, f)
-	err := s.Validate(context.TODO(), trustedIndex.image())
+	err := s.Validate(context.TODO(), trustedIndex.image(), emptyAuthData)
 	require.NoError(t, err)
 }
 
@@ -124,7 +124,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := validate.NewImageValidator(&cfg, f)
 
-			err := s.Validate(context.TODO(), tt.imageName)
+			err := s.Validate(context.TODO(), tt.imageName, emptyAuthData)
 
 			require.ErrorContains(t, err, tt.expectedErrMsg)
 		})
@@ -137,7 +137,7 @@ func Test_Validate_IndexWithDifferentHashInNotary_ShouldReturnError(t *testing.T
 	f := setupMockFactory()
 	s := validate.NewImageValidator(&cfg, f)
 	//WHEN
-	err := s.Validate(context.TODO(), differentHashIndex.image())
+	err := s.Validate(context.TODO(), differentHashIndex.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "unexpected image hash value")
@@ -150,7 +150,7 @@ func Test_Validate_ImageWithDifferentHashInNotary_ShouldReturnError(t *testing.T
 	f := setupMockFactory()
 	s := validate.NewImageValidator(&cfg, f)
 	//WHEN
-	err := s.Validate(context.TODO(), differentHashImage.image())
+	err := s.Validate(context.TODO(), differentHashImage.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "unexpected image hash value")
@@ -164,7 +164,7 @@ func Test_Validate_ImageWhichIsNotInNotary_ShouldReturnError(t *testing.T) {
 	s := validate.NewImageValidator(&cfg, f)
 
 	//WHEN
-	err := s.Validate(context.TODO(), untrustedImage.image())
+	err := s.Validate(context.TODO(), untrustedImage.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "does not have trust data for")
@@ -178,7 +178,7 @@ func Test_Validate_ImageWhichIsInNotaryButIsNotInRegistry_ShouldReturnError(t *t
 	s := validate.NewImageValidator(&cfg, f)
 
 	//WHEN
-	err := s.Validate(context.TODO(), unknownImage.image())
+	err := s.Validate(context.TODO(), unknownImage.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "MANIFEST_UNKNOWN: Failed to fetch")
@@ -193,7 +193,7 @@ func Test_Validate_WhenNotaryNotResponding_ShouldReturnError(t *testing.T) {
 	s := validate.NewImageValidator(&cfg, f)
 
 	//WHEN
-	err := s.Validate(context.TODO(), trustedImage.image())
+	err := s.Validate(context.TODO(), trustedImage.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "no such host")
@@ -213,7 +213,7 @@ func Test_Validate_WhenRegistryNotResponding_ShouldReturnError(t *testing.T) {
 	s := validate.NewImageValidator(&cfg, f)
 
 	//WHEN
-	err := s.Validate(context.TODO(), "some.unknown.registry/kyma-project/function-controller:unknown")
+	err := s.Validate(context.TODO(), "some.unknown.registry/kyma-project/function-controller:unknown", emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "no such host")
@@ -261,7 +261,7 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 			s := validate.NewImageValidator(&cfg, f)
 
 			//WHEN
-			err := s.Validate(context.TODO(), tt.imageName)
+			err := s.Validate(context.TODO(), tt.imageName, emptyAuthData)
 
 			//THEN
 			require.NoError(t, err)
@@ -293,7 +293,7 @@ func Test_Validate_WhenNotaryRespondAfterLongTime_ShouldReturnError(t *testing.T
 	validator := validate.NewImageValidator(sc, f)
 
 	//WHEN
-	err := validator.Validate(ctx, "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
+	err := validator.Validate(ctx, "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200", emptyAuthData)
 
 	//THEN
 	assert.ErrorContains(t, err, "context deadline exceeded")
@@ -320,7 +320,7 @@ func Test_Validate_WhenNotaryRespondWithError_ShouldReturnServiceNotAvailable(t 
 	validator := validate.NewImageValidator(sc, f)
 
 	//WHEN
-	err := validator.Validate(context.TODO(), "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200")
+	err := validator.Validate(context.TODO(), "europe-docker.pkg.dev/kyma-project/dev/bootstrap:PR-6200", emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "couldn't correctly connect to notary")
@@ -334,7 +334,7 @@ func Test_Validate_DEV(t *testing.T) {
 	s := validate.NewImageValidator(sc, validate.NotaryRepoFactory{})
 
 	//WHEN
-	err := s.Validate(context.TODO(), untrustedImage.image())
+	err := s.Validate(context.TODO(), untrustedImage.image(), emptyAuthData)
 
 	//THEN
 	require.ErrorContains(t, err, "something")

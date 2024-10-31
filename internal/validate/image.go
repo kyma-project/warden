@@ -22,6 +22,8 @@ import (
 	"encoding/hex"
 	"strings"
 
+	registryType "github.com/docker/docker/api/types/registry"
+	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/kyma-project/warden/internal/helpers"
@@ -35,7 +37,7 @@ const (
 
 //go:generate mockery --name=ImageValidatorService
 type ImageValidatorService interface {
-	Validate(ctx context.Context, image string) error
+	Validate(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) error
 }
 
 type ServiceConfig struct {
@@ -58,7 +60,7 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 	}
 }
 
-func (s *notaryService) Validate(ctx context.Context, image string) error {
+func (s *notaryService) Validate(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) error {
 	logger := helpers.LoggerFromCtx(ctx).With("image", image)
 	ctx = helpers.LoggerToContext(ctx, logger)
 	split := strings.Split(image, tagDelim)
@@ -80,7 +82,7 @@ func (s *notaryService) Validate(ctx context.Context, image string) error {
 		return err
 	}
 
-	shaImageBytes, shaManifestBytes, err := s.loggedGetRepositoryDigestHash(ctx, image)
+	shaImageBytes, shaManifestBytes, err := s.loggedGetRepositoryDigestHash(ctx, image, imagePullCredentials)
 	if err != nil {
 		return err
 	}
@@ -107,14 +109,14 @@ func (s *notaryService) isImageAllowed(imgRepo string) bool {
 	return false
 }
 
-func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, image string) ([]byte, []byte, error) {
+func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) ([]byte, []byte, error) {
 	const message = "request to image registry"
 	closeLog := helpers.LogStartTime(ctx, message)
 	defer closeLog()
-	return s.getRepositoryDigestHash(image)
+	return s.getRepositoryDigestHash(image, imagePullCredentials)
 }
 
-func (s *notaryService) getRepositoryDigestHash(image string) ([]byte, []byte, error) {
+func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentials map[string]registryType.AuthConfig) ([]byte, []byte, error) {
 	if len(image) == 0 {
 		return nil, nil, pkg.NewValidationFailedErr(errors.New("empty image provided"))
 	}
@@ -124,19 +126,27 @@ func (s *notaryService) getRepositoryDigestHash(image string) ([]byte, []byte, e
 		return nil, nil, pkg.NewValidationFailedErr(errors.Wrap(err, "ref parse"))
 	}
 
-	descriptor, err := remote.Get(ref)
+	remoteOptions := make([]remote.Option, 0)
+
+	// chceck if we have credentials for the registry, and use them
+	if credentials, ok := imagePullCredentials[ref.Context().RegistryStr()]; ok {
+		basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
+		remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
+	}
+
+	descriptor, err := remote.Get(ref, remoteOptions...)
 	if err != nil {
 		return nil, nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image descriptor"))
 	}
 
 	if descriptor.MediaType.IsIndex() {
-		digest, err := getIndexDigestHash(ref)
+		digest, err := getIndexDigestHash(ref, remoteOptions...)
 		if err != nil {
 			return nil, nil, err
 		}
 		return digest, nil, nil
 	} else if descriptor.MediaType.IsImage() {
-		digest, manifest, err := getImageDigestHash(ref)
+		digest, manifest, err := getImageDigestHash(ref, remoteOptions...)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -145,8 +155,8 @@ func (s *notaryService) getRepositoryDigestHash(image string) ([]byte, []byte, e
 	return nil, nil, pkg.NewValidationFailedErr(errors.New("not an image or image list"))
 }
 
-func getIndexDigestHash(ref name.Reference) ([]byte, error) {
-	i, err := remote.Index(ref)
+func getIndexDigestHash(ref name.Reference, remoteOptions ...remote.Option) ([]byte, error) {
+	i, err := remote.Index(ref, remoteOptions...)
 	if err != nil {
 		return nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image"))
 	}
@@ -161,8 +171,8 @@ func getIndexDigestHash(ref name.Reference) ([]byte, error) {
 	return digestBytes, nil
 }
 
-func getImageDigestHash(ref name.Reference) ([]byte, []byte, error) {
-	i, err := remote.Image(ref)
+func getImageDigestHash(ref name.Reference, remoteOptions ...remote.Option) ([]byte, []byte, error) {
+	i, err := remote.Image(ref, remoteOptions...)
 	if err != nil {
 		return nil, nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image"))
 	}
