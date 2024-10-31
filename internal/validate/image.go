@@ -130,21 +130,12 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 
 	// chceck if we have credentials for the registry, and use them
 	if credentials, ok := imagePullCredentials[ref.Context().RegistryStr()]; ok {
-		// TODO-cred: check other possible auth types
-		if credentials.Username != "" && credentials.Password != "" {
-			basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
-			remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
-		} else if credentials.RegistryToken != "" {
-			tokenCredentials := &authn.Bearer{Token: credentials.RegistryToken}
-			remoteOptions = append(remoteOptions, remote.WithAuth(tokenCredentials))
-		} else if credentials.Auth != "" {
-			// auth is in "username:password" format
-			auth := strings.Split(credentials.Auth, ":")
-			if len(auth) != 2 {
-				return nil, nil, pkg.NewValidationFailedErr(errors.New("invalid auth format"))
-			}
-			basicCredentials := &authn.Basic{Username: auth[0], Password: auth[1]}
-			remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
+		credentialOptions, err := parseCredentialsOption(credentials)
+		if err != nil {
+			return nil, nil, err
+		}
+		if credentialOptions != nil {
+			remoteOptions = append(remoteOptions, credentialOptions)
 		}
 	}
 
@@ -167,6 +158,26 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 		return digest, manifest, nil
 	}
 	return nil, nil, pkg.NewValidationFailedErr(errors.New("not an image or image list"))
+}
+
+func parseCredentialsOption(credentials cliType.AuthConfig) (remote.Option, error) {
+	// TODO-cred: check other possible auth types
+	if credentials.Username != "" && credentials.Password != "" {
+		basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
+		return remote.WithAuth(basicCredentials), nil
+	} else if credentials.RegistryToken != "" {
+		tokenCredentials := &authn.Bearer{Token: credentials.RegistryToken}
+		return remote.WithAuth(tokenCredentials), nil
+	} else if credentials.Auth != "" {
+		// auth is in "username:password" format
+		auth := strings.Split(credentials.Auth, ":")
+		if len(auth) != 2 {
+			return nil, pkg.NewValidationFailedErr(errors.New("invalid auth format"))
+		}
+		basicCredentials := &authn.Basic{Username: auth[0], Password: auth[1]}
+		return remote.WithAuth(basicCredentials), nil
+	}
+	return nil, nil
 }
 
 func getIndexDigestHash(ref name.Reference, remoteOptions ...remote.Option) ([]byte, error) {
