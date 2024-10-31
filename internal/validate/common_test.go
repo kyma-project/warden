@@ -1,7 +1,9 @@
 package validate_test
 
-import registryType "github.com/docker/docker/api/types/registry"
+import (
+	cliType "github.com/docker/cli/cli/config/types"
+)
 
 var (
-	emptyAuthData = map[string]registryType.AuthConfig{}
+	emptyAuthData = map[string]cliType.AuthConfig{}
 )

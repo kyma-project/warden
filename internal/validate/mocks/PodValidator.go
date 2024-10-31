@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	registry "github.com/docker/docker/api/types/registry"
+	types "github.com/docker/cli/cli/config/types"
 	mock "github.com/stretchr/testify/mock"
 
 	v1 "k8s.io/api/core/v1"
@@ -19,7 +19,7 @@ type PodValidator struct {
 }
 
 // ValidatePod provides a mock function with given fields: ctx, pod, ns, imagePullCredentials
-func (_m *PodValidator) ValidatePod(ctx context.Context, pod *v1.Pod, ns *v1.Namespace, imagePullCredentials map[string]registry.AuthConfig) (validate.ValidationResult, error) {
+func (_m *PodValidator) ValidatePod(ctx context.Context, pod *v1.Pod, ns *v1.Namespace, imagePullCredentials map[string]types.AuthConfig) (validate.ValidationResult, error) {
 	ret := _m.Called(ctx, pod, ns, imagePullCredentials)
 
 	if len(ret) == 0 {
@@ -28,16 +28,16 @@ func (_m *PodValidator) ValidatePod(ctx context.Context, pod *v1.Pod, ns *v1.Nam
 
 	var r0 validate.ValidationResult
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]registry.AuthConfig) (validate.ValidationResult, error)); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]types.AuthConfig) (validate.ValidationResult, error)); ok {
 		return rf(ctx, pod, ns, imagePullCredentials)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]registry.AuthConfig) validate.ValidationResult); ok {
+	if rf, ok := ret.Get(0).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]types.AuthConfig) validate.ValidationResult); ok {
 		r0 = rf(ctx, pod, ns, imagePullCredentials)
 	} else {
 		r0 = ret.Get(0).(validate.ValidationResult)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]registry.AuthConfig) error); ok {
+	if rf, ok := ret.Get(1).(func(context.Context, *v1.Pod, *v1.Namespace, map[string]types.AuthConfig) error); ok {
 		r1 = rf(ctx, pod, ns, imagePullCredentials)
 	} else {
 		r1 = ret.Error(1)

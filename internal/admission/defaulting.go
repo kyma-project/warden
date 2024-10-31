@@ -91,8 +91,11 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		}
 	}
 
-	// TODO-cred: pass whole pod or jsut pod.Spec.ImagePullSecrets?
-	imagePullCredentials := helpers.GetRemotePullCredentials(w.client, pod)
+	// TODO-cred: pass whole pod or just pod.Spec.ImagePullSecrets?
+	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, w.client, pod)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
 
 	result, err := validator.ValidatePod(ctx, pod, ns, imagePullCredentials)
 	if err != nil {

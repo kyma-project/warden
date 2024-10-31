@@ -22,7 +22,7 @@ import (
 	"encoding/hex"
 	"strings"
 
-	registryType "github.com/docker/docker/api/types/registry"
+	cliType "github.com/docker/cli/cli/config/types"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
@@ -37,7 +37,7 @@ const (
 
 //go:generate mockery --name=ImageValidatorService
 type ImageValidatorService interface {
-	Validate(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) error
+	Validate(ctx context.Context, image string, imagePullCredentials map[string]cliType.AuthConfig) error
 }
 
 type ServiceConfig struct {
@@ -60,7 +60,7 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 	}
 }
 
-func (s *notaryService) Validate(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) error {
+func (s *notaryService) Validate(ctx context.Context, image string, imagePullCredentials map[string]cliType.AuthConfig) error {
 	logger := helpers.LoggerFromCtx(ctx).With("image", image)
 	ctx = helpers.LoggerToContext(ctx, logger)
 	split := strings.Split(image, tagDelim)
@@ -109,14 +109,14 @@ func (s *notaryService) isImageAllowed(imgRepo string) bool {
 	return false
 }
 
-func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, image string, imagePullCredentials map[string]registryType.AuthConfig) ([]byte, []byte, error) {
+func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, image string, imagePullCredentials map[string]cliType.AuthConfig) ([]byte, []byte, error) {
 	const message = "request to image registry"
 	closeLog := helpers.LogStartTime(ctx, message)
 	defer closeLog()
 	return s.getRepositoryDigestHash(image, imagePullCredentials)
 }
 
-func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentials map[string]registryType.AuthConfig) ([]byte, []byte, error) {
+func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentials map[string]cliType.AuthConfig) ([]byte, []byte, error) {
 	if len(image) == 0 {
 		return nil, nil, pkg.NewValidationFailedErr(errors.New("empty image provided"))
 	}
@@ -130,8 +130,22 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 
 	// chceck if we have credentials for the registry, and use them
 	if credentials, ok := imagePullCredentials[ref.Context().RegistryStr()]; ok {
-		basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
-		remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
+		// TODO-cred: check other possible auth types
+		if credentials.Username != "" && credentials.Password != "" {
+			basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
+			remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
+		} else if credentials.RegistryToken != "" {
+			tokenCredentials := &authn.Bearer{Token: credentials.RegistryToken}
+			remoteOptions = append(remoteOptions, remote.WithAuth(tokenCredentials))
+		} else if credentials.Auth != "" {
+			// auth is in "username:password" format
+			auth := strings.Split(credentials.Auth, ":")
+			if len(auth) != 2 {
+				return nil, nil, pkg.NewValidationFailedErr(errors.New("invalid auth format"))
+			}
+			basicCredentials := &authn.Basic{Username: auth[0], Password: auth[1]}
+			remoteOptions = append(remoteOptions, remote.WithAuth(basicCredentials))
+		}
 	}
 
 	descriptor, err := remote.Get(ref, remoteOptions...)
