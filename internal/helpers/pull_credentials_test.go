@@ -177,7 +177,7 @@ func Test_GetRemotePullCredentials(t *testing.T) {
 				t.Errorf("GetRemotePullCredentials() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if err == nil && !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("GetRemotePullCredentials() = %v, want %v", got, tt.want)
 			}
 		})

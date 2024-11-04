@@ -19,6 +19,7 @@ package validate
 import (
 	"context"
 	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"strings"
 
@@ -128,14 +129,14 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 
 	remoteOptions := make([]remote.Option, 0)
 
-	// chceck if we have credentials for the registry, and use them
+	// check if we have credentials for the registry, and use them
 	if credentials, ok := imagePullCredentials[ref.Context().RegistryStr()]; ok {
-		credentialOptions, err := parseCredentialsOption(credentials)
+		credentials, err := parseCredentials(credentials)
 		if err != nil {
 			return nil, nil, err
 		}
-		if credentialOptions != nil {
-			remoteOptions = append(remoteOptions, credentialOptions)
+		if credentials != nil {
+			remoteOptions = append(remoteOptions, remote.WithAuth(credentials))
 		}
 	}
 
@@ -160,21 +161,26 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 	return nil, nil, pkg.NewValidationFailedErr(errors.New("not an image or image list"))
 }
 
-func parseCredentialsOption(credentials cliType.AuthConfig) (remote.Option, error) {
+func parseCredentials(credentials cliType.AuthConfig) (authn.Authenticator, error) {
 	if credentials.Username != "" && credentials.Password != "" {
 		basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
-		return remote.WithAuth(basicCredentials), nil
+		return basicCredentials, nil
 	} else if credentials.RegistryToken != "" {
 		tokenCredentials := &authn.Bearer{Token: credentials.RegistryToken}
-		return remote.WithAuth(tokenCredentials), nil
+		return tokenCredentials, nil
 	} else if credentials.Auth != "" {
-		// auth is in "username:password" format
-		auth := strings.Split(credentials.Auth, ":")
+		// auth is in base64-encoded "username:password" format
+		decodedCredentials, err := base64.StdEncoding.DecodeString(credentials.Auth)
+		if err != nil {
+			return nil, pkg.NewValidationFailedErr(errors.Wrap(err, "cannot decode base64 encoded auth"))
+		}
+
+		auth := strings.Split(string(decodedCredentials), ":")
 		if len(auth) != 2 {
 			return nil, pkg.NewValidationFailedErr(errors.New("invalid auth format, expected username:password form"))
 		}
 		basicCredentials := &authn.Basic{Username: auth[0], Password: auth[1]}
-		return remote.WithAuth(basicCredentials), nil
+		return basicCredentials, nil
 	}
 	return nil, pkg.NewValidationFailedErr(errors.New("unknown auth secret format"))
 }
