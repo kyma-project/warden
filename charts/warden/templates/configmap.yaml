@@ -1,9 +1,12 @@
+# TODO: move this logic to the GO code
 {{- $allowedRegistries := .Values.global.config.data.notary.allowedRegistries }}
 {{- if and .Values.global.config.data.notary.additionalAllowedRegistries .Values.global.config.data.notary.defaultAllowedRegistries -}}
 {{- $allowedRegistries = join ", " (concat .Values.global.config.data.notary.defaultAllowedRegistries  .Values.global.config.data.notary.additionalAllowedRegistries | uniq ) }}
 {{- else if .Values.global.config.data.notary.defaultAllowedRegistries -}}
 {{- $allowedRegistries = join ", " .Values.global.config.data.notary.defaultAllowedRegistries }}
 {{- end -}}
+
+{{- $predefinedUserAllowedRegistries := join ", " .Values.global.config.data.notary.predefinedUserAllowedRegistries }}
 
 apiVersion: v1
 kind: ConfigMap
@@ -34,6 +37,7 @@ data:
       URL: {{ .Values.global.config.data.notary.URL }}
       timeout: {{ .Values.global.config.data.notary.timeout }}
       allowedRegistries: {{ $allowedRegistries }}
+      predefinedUserAllowedRegistries: {{ $predefinedUserAllowedRegistries }}
     operator:
       healthProbeBindAddress: {{ .Values.global.config.data.operator.healthProbeBindAddress }}
       metricsBindAddress: {{ .Values.global.config.data.operator.metricsBindAddress }}

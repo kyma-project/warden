@@ -9,9 +9,10 @@ import (
 )
 
 type notary struct {
-	URL               string        `yaml:"URL"`
-	Timeout           time.Duration `yaml:"timeout"`
-	AllowedRegistries string        `yaml:"allowedRegistries"`
+	URL                             string        `yaml:"URL"`
+	Timeout                         time.Duration `yaml:"timeout"`
+	AllowedRegistries               string        `yaml:"allowedRegistries"`
+	PredefinedUserAllowedRegistries string        `yaml:"predefinedUserAllowedRegistries"`
 }
 
 type admission struct {

@@ -481,7 +481,7 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 			},
 		},
 		{
-			name:        "create pod with label Pending should pass wit validation",
+			name:        "create pod with label Pending should pass with validation",
 			operation:   admissionv1.Create,
 			inputLabels: map[string]string{pkg.PodValidationLabel: pkg.ValidationStatusPending},
 			want: want{

@@ -122,6 +122,7 @@ func main() {
 
 	repoFactory := validate.NotaryRepoFactory{Timeout: appConfig.Notary.Timeout}
 	allowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.AllowedRegistries)
+	predefinedUserAllowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.PredefinedUserAllowedRegistries)
 
 	notaryConfig := &validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: appConfig.Notary.URL}, AllowedRegistries: allowedRegistries}
 
@@ -132,7 +133,7 @@ func main() {
 		mgr.GetClient(),
 		mgr.GetScheme(),
 		podValidator,
-		validate.NewValidatorSvcFactory(),
+		validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),
 		controllers.PodReconcilerConfig{RequeueAfter: appConfig.Operator.PodReconcilerRequeueAfter},
 		logger.Named("pod-controller"),
 	)).SetupWithManager(mgr); err != nil {

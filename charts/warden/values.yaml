@@ -46,6 +46,7 @@ global:
         defaultAllowedRegistries: []
         # list of registries exceptionally allowed ( overidable ) per environment
         additionalAllowedRegistries: []
+        predefinedUserAllowedRegistries: []
       admission:
         timeout: 10s
         port: 8443
