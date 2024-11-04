@@ -15,7 +15,7 @@ func GetRemotePullCredentials(ctx context.Context, client k8sclient.Client, pod 
 	remoteSecrets := make(map[string]cliType.AuthConfig)
 	for _, imagePullSecret := range pod.Spec.ImagePullSecrets {
 		secret := &corev1.Secret{}
-		dockerConfig := []byte{}
+		var dockerConfig []byte
 		if err := client.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
 			continue
 		}
