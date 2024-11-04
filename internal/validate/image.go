@@ -161,7 +161,6 @@ func (s *notaryService) getRepositoryDigestHash(image string, imagePullCredentia
 }
 
 func parseCredentialsOption(credentials cliType.AuthConfig) (remote.Option, error) {
-	// TODO-cred: check other possible auth types
 	if credentials.Username != "" && credentials.Password != "" {
 		basicCredentials := &authn.Basic{Username: credentials.Username, Password: credentials.Password}
 		return remote.WithAuth(basicCredentials), nil
@@ -172,12 +171,12 @@ func parseCredentialsOption(credentials cliType.AuthConfig) (remote.Option, erro
 		// auth is in "username:password" format
 		auth := strings.Split(credentials.Auth, ":")
 		if len(auth) != 2 {
-			return nil, pkg.NewValidationFailedErr(errors.New("invalid auth format"))
+			return nil, pkg.NewValidationFailedErr(errors.New("invalid auth format, expected username:password form"))
 		}
 		basicCredentials := &authn.Basic{Username: auth[0], Password: auth[1]}
 		return remote.WithAuth(basicCredentials), nil
 	}
-	return nil, nil
+	return nil, pkg.NewValidationFailedErr(errors.New("unknown auth secret format"))
 }
 
 func getIndexDigestHash(ref name.Reference, remoteOptions ...remote.Option) ([]byte, error) {

@@ -17,24 +17,23 @@ func GetRemotePullCredentials(ctx context.Context, client k8sclient.Client, pod 
 		secret := &corev1.Secret{}
 		var dockerConfig []byte
 		if err := client.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
-			continue
+			return make(map[string]cliType.AuthConfig), errors.Wrap(err, "failed to get secret")
 		}
 		if dc, ok := secret.Data[".dockerconfigjson"]; ok {
 			dockerConfig = dc
 		} else if dc, ok := secret.Data["config.json"]; ok {
 			dockerConfig = dc
 		} else {
-			return nil, errors.New("no dockerconfigjson or config.json found in secret")
+			return make(map[string]cliType.AuthConfig), errors.New("no dockerconfigjson or config.json found in secret")
 		}
 
 		var config k8sconfig.ConfigFile
 		if err := json.Unmarshal(dockerConfig, &config); err != nil {
-			return nil, errors.Wrap(err, "failed to unmarshal dockerconfigjson")
+			return make(map[string]cliType.AuthConfig), errors.Wrap(err, "failed to unmarshal dockerconfigjson")
 		}
 		for authRepo, auth := range config.AuthConfigs {
 			remoteSecrets[authRepo] = auth
 		}
 	}
-	// TODO-cred
 	return remoteSecrets, nil
 }
