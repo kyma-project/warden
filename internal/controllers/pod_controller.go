@@ -152,7 +152,6 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		}
 	}
 
-	// TODO-cred: pass whole pod or just pod.Spec.ImagePullSecrets?
 	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, r.client, pod)
 	if err != nil {
 		return validate.NoAction, err

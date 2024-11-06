@@ -4,15 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/apimachinery/pkg/fields"
-	"os"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/zapr"
@@ -120,14 +118,14 @@ func main() {
 			KeyName:  certs.KeyFile,
 			Port:     appConfig.Admission.Port,
 		}),
-		Cache: cache.Options{
-			ByObject: map[client.Object]cache.ByObject{
-				&corev1.Secret{}: {
-					Field: fields.SelectorFromSet(fields.Set{"metadata.name": appConfig.Admission.SecretName,
-						"metadata.namespace": appConfig.Admission.SystemNamespace}),
-				},
-			},
-		},
+		// Cache: cache.Options{
+		// 	ByObject: map[client.Object]cache.ByObject{
+		// 		&corev1.Secret{}: {
+		// 			Field: fields.SelectorFromSet(fields.Set{"metadata.name": appConfig.Admission.SecretName,
+		// 				"metadata.namespace": appConfig.Admission.SystemNamespace}),
+		// 		},
+		// 	},
+		// },
 	})
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())

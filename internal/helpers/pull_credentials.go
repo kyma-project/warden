@@ -3,6 +3,8 @@ package helpers
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 
 	k8sconfig "github.com/docker/cli/cli/config/configfile"
 	cliType "github.com/docker/cli/cli/config/types"
@@ -17,7 +19,7 @@ func GetRemotePullCredentials(ctx context.Context, client k8sclient.Client, pod 
 		secret := &corev1.Secret{}
 		var dockerConfig []byte
 		if err := client.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
-			return nil, errors.Wrap(err, "failed to get secret")
+			return nil, errors.Wrap(err, fmt.Sprintf("can't get %s/%s", pod.Namespace, imagePullSecret.Name)) //"failed to get secret")
 		}
 		if dc, ok := secret.Data[".dockerconfigjson"]; ok {
 			dockerConfig = dc
@@ -32,7 +34,12 @@ func GetRemotePullCredentials(ctx context.Context, client k8sclient.Client, pod 
 			return nil, errors.Wrap(err, "failed to unmarshal dockerconfigjson")
 		}
 		for authRepo, auth := range config.AuthConfigs {
-			remoteSecrets[authRepo] = auth
+			// remove any protocol from authRepo string, and trailing slash
+			authRepoFragments := strings.Split(authRepo, "://")
+			repoURL := authRepoFragments[len(authRepoFragments)-1]
+			repoURL = strings.TrimRight(repoURL, "/")
+
+			remoteSecrets[repoURL] = auth
 		}
 	}
 	return remoteSecrets, nil
