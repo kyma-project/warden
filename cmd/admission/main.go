@@ -4,13 +4,13 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
+
 	"github.com/kyma-project/warden/internal/env"
 	"github.com/kyma-project/warden/internal/logging"
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
-	"k8s.io/apimachinery/pkg/fields"
-	"os"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -22,6 +22,7 @@ import (
 	"go.uber.org/zap"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -164,6 +165,7 @@ func main() {
 	predefinedUserAllowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.PredefinedUserAllowedRegistries)
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
 		Handler: admission.NewDefaultingWebhook(mgr.GetClient(),
+			mgr.GetAPIReader(),
 			validatorSvc, validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),
 			appConfig.Admission.Timeout, appConfig.Admission.StrictMode,
 			decoder, logger.With("webhook", "defaulting")),

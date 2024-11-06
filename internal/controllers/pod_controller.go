@@ -42,6 +42,7 @@ type PodReconcilerConfig struct {
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client                   client.Client
+	reader                   client.Reader
 	scheme                   *runtime.Scheme
 	systemValidator          validate.PodValidator
 	userValidationSvcFactory validate.ValidatorSvcFactory
@@ -49,11 +50,12 @@ type PodReconciler struct {
 	PodReconcilerConfig
 }
 
-func NewPodReconciler(client client.Client, scheme *runtime.Scheme,
+func NewPodReconciler(client client.Client, reader client.Reader, scheme *runtime.Scheme,
 	validator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
 	return &PodReconciler{
 		client:                   client,
+		reader:                   reader,
 		scheme:                   scheme,
 		systemValidator:          validator,
 		userValidationSvcFactory: userValidationSvcFactory,
@@ -152,7 +154,12 @@ func (r *PodReconciler) checkPod(ctx context.Context, pod *corev1.Pod) (validate
 		}
 	}
 
-	result, err := validator.ValidatePod(ctx, pod, &ns)
+	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, r.client, pod)
+	if err != nil {
+		return validate.NoAction, err
+	}
+
+	result, err := validator.ValidatePod(ctx, pod, &ns, imagePullCredentials)
 	if err != nil {
 		return validate.NoAction, err
 	}

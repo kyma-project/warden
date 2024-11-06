@@ -4,6 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/internal/validate"
@@ -13,11 +17,8 @@ import (
 	admissionv1 "k8s.io/api/admission/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"net/http"
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	"strings"
-	"time"
 )
 
 const (
@@ -31,17 +32,19 @@ type DefaultingWebHook struct {
 	userValidationSvcFactory validate.ValidatorSvcFactory
 	timeout                  time.Duration
 	client                   k8sclient.Client
+	reader                   k8sclient.Reader
 	decoder                  *admission.Decoder
 	baseLogger               *zap.SugaredLogger
 	strictMode               bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client,
+func NewDefaultingWebhook(client k8sclient.Client, reader k8sclient.Reader,
 	systemValidator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	timeout time.Duration, strictMode bool,
 	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:                   client,
+		reader:                   reader,
 		systemValidator:          systemValidator,
 		userValidationSvcFactory: userValidationSvcFactory,
 		baseLogger:               logger,
@@ -90,7 +93,12 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		}
 	}
 
-	result, err := validator.ValidatePod(ctx, pod, ns)
+	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, w.reader, pod)
+	if err != nil {
+		return admission.Errored(http.StatusInternalServerError, err)
+	}
+
+	result, err := validator.ValidatePod(ctx, pod, ns, imagePullCredentials)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}

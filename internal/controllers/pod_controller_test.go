@@ -2,10 +2,11 @@ package controllers
 
 import (
 	"context"
-	"github.com/stretchr/testify/assert"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/kyma-project/warden/internal/controllers/test_suite"
 	"github.com/kyma-project/warden/internal/test_helpers"
@@ -34,9 +35,9 @@ func Test_PodReconcile(t *testing.T) {
 	defer test_suite.TearDown(t, testEnv)
 
 	imageValidator := mocks.NewImageValidatorService(t)
-	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()
-	imageValidator.On("Validate", mock.Anything, invalidImage).Return(errors.New("")).Maybe()
-	imageValidator.On("Validate", mock.Anything, unavailableImage).Return(pkg.NewUnknownResultErr(errors.New(""))).Maybe()
+	imageValidator.On("Validate", mock.Anything, validImage, mock.Anything).Return(nil).Maybe()
+	imageValidator.On("Validate", mock.Anything, invalidImage, mock.Anything).Return(errors.New("")).Maybe()
+	imageValidator.On("Validate", mock.Anything, unavailableImage, mock.Anything).Return(pkg.NewUnknownResultErr(errors.New(""))).Maybe()
 
 	podValidator := validate.NewPodValidator(imageValidator)
 
@@ -51,7 +52,7 @@ func Test_PodReconcile(t *testing.T) {
 
 	requeueTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
-	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
+	ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 		RequeueAfter: requeueTime,
 	}, testLogger.Sugar())
 
@@ -159,7 +160,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			//GIVEN
 			// system validator should be called
 			systemImageValidator := mocks.NewImageValidatorService(t)
-			systemImageValidator.On("Validate", mock.Anything, mock.Anything).
+			systemImageValidator.On("Validate", mock.Anything, mock.Anything, mock.Anything).
 				Return(nil).Once()
 			systemPodValidator := validate.NewPodValidator(systemImageValidator)
 
@@ -183,7 +184,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 				Name:      pod.GetName()},
 			}
 
-			ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+			ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
 				PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 			//WHEN
@@ -213,7 +214,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 
 		// user validator should be called
 		userValidator := mocks.NewPodValidator(t)
-		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
@@ -242,7 +243,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			Name:      pod.GetName()},
 		}
 
-		ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+		ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
 			PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 		//WHEN
@@ -287,7 +288,7 @@ func (c *MockK8sClient) assertCalled(t *testing.T) {
 
 func TestReconcile_K8sOperationFails(t *testing.T) {
 	imageValidator := mocks.NewImageValidatorService(t)
-	imageValidator.On("Validate", mock.Anything, validImage).Return(nil).Maybe()
+	imageValidator.On("Validate", mock.Anything, validImage, mock.Anything).Return(nil).Maybe()
 	podValidator := validate.NewPodValidator(imageValidator)
 
 	validatableNs := "warden-enabled"
@@ -313,7 +314,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}}}
 		require.NoError(t, mockK8Client.Create(context.TODO(), &pod))
 
-		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
+		ctrl := NewPodReconciler(mockK8Client, mockK8Client, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 			RequeueAfter: requeueTime,
 		}, testLogger.Sugar())
 		req := reconcile.Request{NamespacedName: types.NamespacedName{

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	cliType "github.com/docker/cli/cli/config/types"
 	"github.com/kyma-project/warden/internal/helpers"
 	"github.com/kyma-project/warden/pkg"
 	corev1 "k8s.io/api/core/v1"
@@ -70,7 +71,7 @@ func NewUserValidationSvc(ns *corev1.Namespace, validatorFactory ValidatorSvcFac
 
 //go:generate mockery --name PodValidator
 type PodValidator interface {
-	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error)
+	ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, imagePullCredentials map[string]cliType.AuthConfig) (ValidationResult, error)
 }
 
 var _ PodValidator = &podValidator{}
@@ -85,7 +86,7 @@ func NewPodValidator(imageValidator ImageValidatorService) PodValidator {
 	}
 }
 
-func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace) (ValidationResult, error) {
+func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *corev1.Namespace, imagePullCredentials map[string]cliType.AuthConfig) (ValidationResult, error) {
 	logger := helpers.LoggerFromCtx(ctx)
 
 	if ns.Name != pod.Namespace {
@@ -99,7 +100,7 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	invalidImages := []string{}
 
 	for s := range images {
-		result, err := a.validateImage(ctx, s)
+		result, err := a.validateImage(ctx, s, imagePullCredentials)
 
 		if result != Valid {
 			admitResult = result
@@ -111,8 +112,8 @@ func (a *podValidator) ValidatePod(ctx context.Context, pod *corev1.Pod, ns *cor
 	return ValidationResult{admitResult, invalidImages}, nil
 }
 
-func (a *podValidator) validateImage(ctx context.Context, image string) (ValidationStatus, error) {
-	err := a.Validator.Validate(ctx, image)
+func (a *podValidator) validateImage(ctx context.Context, image string, imagePullCredentials map[string]cliType.AuthConfig) (ValidationStatus, error) {
+	err := a.Validator.Validate(ctx, image, imagePullCredentials)
 	if err != nil {
 		if pkg.ErrorCode(err) == pkg.UnknownResult {
 			return ServiceUnavailable, err

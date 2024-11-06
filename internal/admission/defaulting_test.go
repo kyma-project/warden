@@ -4,13 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/kyma-project/warden/internal/helpers"
-	"k8s.io/utils/ptr"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/kyma-project/warden/internal/helpers"
+	"k8s.io/utils/ptr"
 
 	"github.com/kyma-project/warden/internal/annotations"
 	"github.com/kyma-project/warden/internal/test_helpers"
@@ -62,11 +63,11 @@ func TestTimeout(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		//GIVEN
 		validationSvc := mocks.NewPodValidator(t)
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			After(timeout/2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			validationSvc, nil, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
@@ -80,11 +81,11 @@ func TestTimeout(t *testing.T) {
 
 	t.Run("Defaulting webhook timeout, allowed", func(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			After(timeout*2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			validationSvc, nil, timeout, StrictModeOff, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -99,11 +100,11 @@ func TestTimeout(t *testing.T) {
 
 	t.Run("Defaulting webhook timeout strict mode on, errored", func(t *testing.T) {
 		validationSvc := mocks.NewPodValidator(t)
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			After(timeout*2).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			validationSvc, nil, timeout, StrictModeOn, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -127,7 +128,7 @@ func TestTimeout(t *testing.T) {
 
 		validateImage := validate.NewImageValidator(&validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{Url: srv.URL}}, validate.NotaryRepoFactory{})
 		validationSvc := validate.NewPodValidator(validateImage)
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			validationSvc, nil, timeout, StrictModeOff, decoder, logger.Sugar())
 		//WHEN
 		res := webhook.Handle(context.TODO(), req)
@@ -157,13 +158,13 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
 			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
-		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").Return(nil)
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test", mock.Anything).Return(nil)
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			mockPodValidator, nil, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
@@ -181,14 +182,14 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
 			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
-		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").Return(nil)
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test", mock.Anything).Return(nil)
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			mockPodValidator, nil, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
@@ -209,7 +210,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod.ObjectMeta.Annotations = map[string]string{annotations.PodValidationRejectAnnotation: annotations.ValidationReject}
 		req := newRequestFix(t, pod, admissionv1.Update)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			nil, nil, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
@@ -226,14 +227,14 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
 			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockImageValidator := mocks.ImageValidatorService{}
-		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test").
+		mockImageValidator.Mock.On("Validate", mock.Anything, "test:test", mock.Anything).
 			Return(pkg.NewValidationFailedErr(errors.New("validation failed")))
 		mockPodValidator := validate.NewPodValidator(&mockImageValidator)
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			mockPodValidator, nil, timeout, false, decoder, logger.Sugar())
 
 		//WHEN
@@ -251,14 +252,14 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
 			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockPodValidator := mocks.NewPodValidator(t)
-		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
 		defer mockPodValidator.AssertExpectations(t)
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			mockPodValidator, nil, timeout, StrictModeOn, decoder, logger.Sugar())
 
 		//WHEN
@@ -276,14 +277,14 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: nsName,
 			Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 		mockPodValidator := mocks.NewPodValidator(t)
-		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		mockPodValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil)
 		defer mockPodValidator.AssertExpectations(t)
 
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			mockPodValidator, nil, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
@@ -311,7 +312,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		defer systemValidator.AssertExpectations(t)
 
 		userValidator := mocks.NewPodValidator(t)
-		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
@@ -323,7 +324,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			systemValidator, userValidatorFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
@@ -351,7 +352,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		defer systemValidator.AssertExpectations(t)
 
 		userValidator := mocks.NewPodValidator(t)
-		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.ServiceUnavailable}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
@@ -363,7 +364,7 @@ func TestFlow_OutputStatuses_ForPodValidationResult(t *testing.T) {
 		pod := newPodFix(nsName, nil)
 		req := newRequestFix(t, pod, admissionv1.Create)
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			systemValidator, userValidatorFactory, timeout, StrictModeOn, decoder, logger.Sugar())
 
 		//WHEN
@@ -500,7 +501,7 @@ func TestFlow_SomeInputStatuses_ShouldCallPodValidation(t *testing.T) {
 			req := newRequestFix(t, pod, tt.operation)
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 			timeout := time.Second
-			webhook := NewDefaultingWebhook(client,
+			webhook := NewDefaultingWebhook(client, client,
 				mockPodValidator, nil, timeout, false, decoder, logger.Sugar())
 
 			//WHEN
@@ -564,7 +565,7 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			validationSvc := mocks.NewPodValidator(t)
 			validationSvc.AssertNotCalled(t, "ValidatePod")
 			defer validationSvc.AssertExpectations(t)
-			webhook := NewDefaultingWebhook(client,
+			webhook := NewDefaultingWebhook(client, client,
 				validationSvc, nil, timeout, StrictModeOff, decoder, logger.Sugar())
 
 			//WHEN
@@ -620,7 +621,7 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			podValidatorCallCount := 0
 
 			systemValidator := mocks.NewPodValidator(t)
-			systemValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			systemValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
 				Run(func(args mock.Arguments) {
 					podValidatorCallCount++
@@ -628,7 +629,7 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 			defer systemValidator.AssertExpectations(t)
 
 			userValidator := mocks.NewPodValidator(t)
-			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).
 				Run(func(args mock.Arguments) {
 					podValidatorCallCount++
@@ -640,7 +641,7 @@ func TestFlow_NamespaceLabelsValidation(t *testing.T) {
 				Return(userValidator).Maybe()
 			defer userValidatorFactory.AssertExpectations(t)
 
-			webhook := NewDefaultingWebhook(client,
+			webhook := NewDefaultingWebhook(client, client,
 				systemValidator, userValidatorFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 			//WHEN
@@ -686,7 +687,7 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 
 		// system validator should be called
 		validationSvc := mocks.NewPodValidator(t)
-		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		validationSvc.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer validationSvc.AssertExpectations(t)
 
@@ -695,7 +696,7 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 		userValidatorFactory.AssertNotCalled(t, "NewValidatorSvc")
 		defer userValidatorFactory.AssertExpectations(t)
 
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			validationSvc, userValidatorFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
@@ -737,7 +738,7 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 
 		// user validator and its factory should be called exactly once
 		userValidator := mocks.NewPodValidator(t)
-		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+		userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 			Return(validate.ValidationResult{Status: validate.Valid}, nil).Once()
 		defer userValidator.AssertExpectations(t)
 
@@ -746,7 +747,7 @@ func TestFlow_UseSystemOrUserValidator(t *testing.T) {
 			Return(userValidator).Once()
 		defer userValidatorFactory.AssertExpectations(t)
 
-		webhook := NewDefaultingWebhook(client,
+		webhook := NewDefaultingWebhook(client, client,
 			systemValidator, userValidatorFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 		//WHEN
@@ -849,7 +850,7 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 			defer systemValidator.AssertExpectations(t)
 
 			userValidator := mocks.NewPodValidator(t)
-			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything).
+			userValidator.On("ValidatePod", mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(validate.ValidationResult{Status: validate.Valid}, nil).Maybe()
 			defer userValidator.AssertExpectations(t)
 
@@ -867,7 +868,7 @@ func TestFlow_UserValidatorGetValuesFromNamespaceAnnotations(t *testing.T) {
 				}).Maybe()
 			defer userValidatorFactory.AssertExpectations(t)
 
-			webhook := NewDefaultingWebhook(client,
+			webhook := NewDefaultingWebhook(client, client,
 				systemValidator, userValidatorFactory, timeout, StrictModeOff, decoder, logger.Sugar())
 
 			//WHEN
@@ -986,7 +987,7 @@ func TestHandleTimeout(t *testing.T) {
 			}}
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&ns).Build()
 
-			webhook := NewDefaultingWebhook(client,
+			webhook := NewDefaultingWebhook(client, client,
 				nil, nil, timeout, tt.systemStrictMode, decoder, logger.Sugar())
 
 			//WHEN
@@ -1005,7 +1006,7 @@ func TestHandleTimeout(t *testing.T) {
 
 func setupValidatorMock() *mocks.ImageValidatorService {
 	mockValidator := mocks.ImageValidatorService{}
-	mockValidator.Mock.On("Validate", mock.Anything, "test:test").
+	mockValidator.Mock.On("Validate", mock.Anything, "test:test", mock.Anything).
 		Return(nil)
 	return &mockValidator
 }

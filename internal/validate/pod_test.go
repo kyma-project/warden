@@ -37,7 +37,7 @@ func TestValidatePod(t *testing.T) {
 		podValidator := validate.NewPodValidator(nil)
 
 		//WHEN
-		_, err := podValidator.ValidatePod(context.TODO(), pod, ns)
+		_, err := podValidator.ValidatePod(context.TODO(), pod, ns, emptyAuthData)
 		//THEN
 		require.Error(t, err)
 		require.ErrorContains(t, err, "namespace mismatch")
@@ -152,14 +152,14 @@ func TestValidatePod(t *testing.T) {
 				}}}
 
 			validatorSvcMock := mocks.ImageValidatorService{}
-			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage).Return(errors.New("Invalid image"))
-			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage2).Return(errors.New("Invalid image"))
-			validatorSvcMock.Mock.On("Validate", mock.Anything, validImage).Return(nil)
-			validatorSvcMock.Mock.On("Validate", mock.Anything, longResp).Return(pkg.NewUnknownResultErr(nil))
+			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage, mock.Anything).Return(errors.New("Invalid image"))
+			validatorSvcMock.Mock.On("Validate", mock.Anything, invalidImage2, mock.Anything).Return(errors.New("Invalid image"))
+			validatorSvcMock.Mock.On("Validate", mock.Anything, validImage, mock.Anything).Return(nil)
+			validatorSvcMock.Mock.On("Validate", mock.Anything, longResp, mock.Anything).Return(pkg.NewUnknownResultErr(nil))
 
 			podValidator := validate.NewPodValidator(&validatorSvcMock)
 			//WHEN
-			result, err := podValidator.ValidatePod(context.TODO(), testCase.pod, ns)
+			result, err := podValidator.ValidatePod(context.TODO(), testCase.pod, ns, emptyAuthData)
 
 			//THEN
 			require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestNewValidatorSvc(t *testing.T) {
 	t.Run("create new validator svc", func(t *testing.T) {
 		validatorSvc := validate.NewValidatorSvcFactory().
 			NewValidatorSvc("notaryURL", "allowed,registries", time.Second)
-		result, err := validatorSvc.ValidatePod(context.Background(), &v1.Pod{}, &v1.Namespace{})
+		result, err := validatorSvc.ValidatePod(context.Background(), &v1.Pod{}, &v1.Namespace{}, emptyAuthData)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		require.Equal(t, validate.Valid, result.Status)
