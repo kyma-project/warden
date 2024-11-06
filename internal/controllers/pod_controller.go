@@ -42,6 +42,7 @@ type PodReconcilerConfig struct {
 // PodReconciler reconciles a Pod object
 type PodReconciler struct {
 	client                   client.Client
+	reader                   client.Reader
 	scheme                   *runtime.Scheme
 	systemValidator          validate.PodValidator
 	userValidationSvcFactory validate.ValidatorSvcFactory
@@ -49,11 +50,12 @@ type PodReconciler struct {
 	PodReconcilerConfig
 }
 
-func NewPodReconciler(client client.Client, scheme *runtime.Scheme,
+func NewPodReconciler(client client.Client, reader client.Reader, scheme *runtime.Scheme,
 	validator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	reconcileCfg PodReconcilerConfig, logger *zap.SugaredLogger) *PodReconciler {
 	return &PodReconciler{
 		client:                   client,
+		reader:                   reader,
 		scheme:                   scheme,
 		systemValidator:          validator,
 		userValidationSvcFactory: userValidationSvcFactory,

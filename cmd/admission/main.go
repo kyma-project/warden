@@ -11,6 +11,8 @@ import (
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/kyma-project/warden/internal/webhook"
 	"go.uber.org/zap/zapcore"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 
 	"github.com/go-logr/zapr"
@@ -20,6 +22,7 @@ import (
 	"go.uber.org/zap"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -118,14 +121,14 @@ func main() {
 			KeyName:  certs.KeyFile,
 			Port:     appConfig.Admission.Port,
 		}),
-		// Cache: cache.Options{
-		// 	ByObject: map[client.Object]cache.ByObject{
-		// 		&corev1.Secret{}: {
-		// 			Field: fields.SelectorFromSet(fields.Set{"metadata.name": appConfig.Admission.SecretName,
-		// 				"metadata.namespace": appConfig.Admission.SystemNamespace}),
-		// 		},
-		// 	},
-		// },
+		Cache: cache.Options{
+			ByObject: map[client.Object]cache.ByObject{
+				&corev1.Secret{}: {
+					Field: fields.SelectorFromSet(fields.Set{"metadata.name": appConfig.Admission.SecretName,
+						"metadata.namespace": appConfig.Admission.SystemNamespace}),
+				},
+			},
+		},
 	})
 	if err != nil {
 		logger.Error("failed to start manager", err.Error())
@@ -162,6 +165,7 @@ func main() {
 	predefinedUserAllowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.PredefinedUserAllowedRegistries)
 	whs.Register(admission.DefaultingPath, &ctrlwebhook.Admission{
 		Handler: admission.NewDefaultingWebhook(mgr.GetClient(),
+			mgr.GetAPIReader(),
 			validatorSvc, validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),
 			appConfig.Admission.Timeout, appConfig.Admission.StrictMode,
 			decoder, logger.With("webhook", "defaulting")),

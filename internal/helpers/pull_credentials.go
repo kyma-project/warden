@@ -13,12 +13,12 @@ import (
 	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func GetRemotePullCredentials(ctx context.Context, client k8sclient.Client, pod *corev1.Pod) (map[string]cliType.AuthConfig, error) {
+func GetRemotePullCredentials(ctx context.Context, reader k8sclient.Reader, pod *corev1.Pod) (map[string]cliType.AuthConfig, error) {
 	remoteSecrets := make(map[string]cliType.AuthConfig)
 	for _, imagePullSecret := range pod.Spec.ImagePullSecrets {
 		secret := &corev1.Secret{}
 		var dockerConfig []byte
-		if err := client.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
+		if err := reader.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
 			return nil, errors.Wrap(err, fmt.Sprintf("can't get %s/%s", pod.Namespace, imagePullSecret.Name)) //"failed to get secret")
 		}
 		if dc, ok := secret.Data[".dockerconfigjson"]; ok {

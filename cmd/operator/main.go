@@ -131,6 +131,7 @@ func main() {
 
 	if err = (controllers.NewPodReconciler(
 		mgr.GetClient(),
+		mgr.GetAPIReader(),
 		mgr.GetScheme(),
 		podValidator,
 		validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),

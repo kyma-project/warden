@@ -32,17 +32,19 @@ type DefaultingWebHook struct {
 	userValidationSvcFactory validate.ValidatorSvcFactory
 	timeout                  time.Duration
 	client                   k8sclient.Client
+	reader                   k8sclient.Reader
 	decoder                  *admission.Decoder
 	baseLogger               *zap.SugaredLogger
 	strictMode               bool
 }
 
-func NewDefaultingWebhook(client k8sclient.Client,
+func NewDefaultingWebhook(client k8sclient.Client, reader k8sclient.Reader,
 	systemValidator validate.PodValidator, userValidationSvcFactory validate.ValidatorSvcFactory,
 	timeout time.Duration, strictMode bool,
 	decoder *admission.Decoder, logger *zap.SugaredLogger) *DefaultingWebHook {
 	return &DefaultingWebHook{
 		client:                   client,
+		reader:                   reader,
 		systemValidator:          systemValidator,
 		userValidationSvcFactory: userValidationSvcFactory,
 		baseLogger:               logger,
@@ -91,8 +93,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 		}
 	}
 
-	// TODO-cred: pass whole pod or just pod.Spec.ImagePullSecrets?
-	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, w.client, pod)
+	imagePullCredentials, err := helpers.GetRemotePullCredentials(ctx, w.reader, pod)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}

@@ -52,7 +52,7 @@ func Test_PodReconcile(t *testing.T) {
 
 	requeueTime := 60 * time.Minute
 	testLogger := test_helpers.NewTestZapLogger(t)
-	ctrl := NewPodReconciler(k8sClient, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
+	ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 		RequeueAfter: requeueTime,
 	}, testLogger.Sugar())
 
@@ -184,7 +184,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 				Name:      pod.GetName()},
 			}
 
-			ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+			ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
 				PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 			//WHEN
@@ -243,7 +243,7 @@ func Test_PodReconcileForSystemOrUserValidation(t *testing.T) {
 			Name:      pod.GetName()},
 		}
 
-		ctrl := NewPodReconciler(k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
+		ctrl := NewPodReconciler(k8sClient, k8sClient, scheme.Scheme, systemPodValidator, userValidatorFactory,
 			PodReconcilerConfig{RequeueAfter: requeueTime}, testLogger.Sugar())
 
 		//WHEN
@@ -314,7 +314,7 @@ func TestReconcile_K8sOperationFails(t *testing.T) {
 			Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: validImage, Name: "container"}}}}
 		require.NoError(t, mockK8Client.Create(context.TODO(), &pod))
 
-		ctrl := NewPodReconciler(mockK8Client, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
+		ctrl := NewPodReconciler(mockK8Client, mockK8Client, scheme.Scheme, podValidator, nil, PodReconcilerConfig{
 			RequeueAfter: requeueTime,
 		}, testLogger.Sugar())
 		req := reconcile.Request{NamespacedName: types.NamespacedName{
