@@ -250,6 +250,20 @@ func Test_Validate_ImageWhichIsNotInNotaryButIsInAllowedList_ShouldPass(t *testi
 				"some-registry/allowed-image-3",
 			},
 		},
+		{
+			name:      "image name has no colon delimiters but is allowed anyway",
+			imageName: "nginx",
+			allowedRegistries: []string{
+				"nginx",
+			},
+		},
+		{
+			name:      "image name has two colon delimiters but is allowed anyway",
+			imageName: "public.ecr.aws/dynatrace/dynatrace-operator:v1.3.2@sha256:f8ecdcd87d7d84b87e645074084dd7f57dd62c76e120bb21e5abde158755be56",
+			allowedRegistries: []string{
+				"public.ecr.aws/dynatrace/dynatrace-operator",
+			},
+		},
 	}
 	f := &mocks.RepoFactory{}
 	f.On("NewRepoClient", mock.Anything, mock.Anything).Return(nil, errors.New("Should be called"))

@@ -64,6 +64,12 @@ func NewImageValidator(sc *ServiceConfig, notaryClientFactory RepoFactory) Image
 func (s *notaryService) Validate(ctx context.Context, image string, imagePullCredentials map[string]cliType.AuthConfig) error {
 	logger := helpers.LoggerFromCtx(ctx).With("image", image)
 	ctx = helpers.LoggerToContext(ctx, logger)
+
+	if allowed := s.isImageAllowed(image); allowed {
+		logger.Info("image validation skipped, because it's allowed")
+		return nil
+	}
+
 	split := strings.Split(image, tagDelim)
 
 	if len(split) != 2 {
@@ -72,11 +78,6 @@ func (s *notaryService) Validate(ctx context.Context, image string, imagePullCre
 
 	imgRepo := split[0]
 	imgTag := split[1]
-
-	if allowed := s.isImageAllowed(imgRepo); allowed {
-		logger.Info("image validation skipped, because it's allowed")
-		return nil
-	}
 
 	expectedShaBytes, err := s.loggedGetNotaryImageDigestHash(ctx, imgRepo, imgTag)
 	if err != nil {
