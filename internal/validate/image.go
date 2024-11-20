@@ -66,19 +66,10 @@ func (s *notaryService) Validate(ctx context.Context, image string, imagePullCre
 		return nil
 	}
 
-	if len(image) == 0 {
-		return pkg.NewValidationFailedErr(errors.New("empty image provided"))
-	}
-
-	ref, err := name.ParseReference(image)
+	// strict validation requires image name to contain domain and a tag, and/or sha256
+	ref, err := name.ParseReference(image, name.StrictValidation)
 	if err != nil {
 		return pkg.NewValidationFailedErr(errors.Wrap(err, "image name could not be parsed"))
-	}
-
-	// name.ParseReference() uses default `latest` tag when no tag/digest was provided
-	// we want to block all images with no explicit tag/digest provided
-	if !imageContainsTag(image, ref) {
-		return pkg.NewValidationFailedErr(errors.New("image is missing tag or hash"))
 	}
 
 	expectedShaBytes, err := s.loggedGetNotaryImageDigestHash(ctx, ref)
@@ -101,10 +92,6 @@ func (s *notaryService) Validate(ctx context.Context, image string, imagePullCre
 	}
 
 	return pkg.NewValidationFailedErr(errors.New("unexpected image hash value"))
-}
-
-func imageContainsTag(image string, ref name.Reference) bool {
-	return strings.Contains(image, ref.Identifier())
 }
 
 func (s *notaryService) isImageAllowed(imgRepo string) bool {

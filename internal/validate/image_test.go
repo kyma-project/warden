@@ -107,7 +107,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		{
 			name:           "image name without semicolon",
 			imageName:      "makapaka",
-			expectedErrMsg: "image is missing tag or hash",
+			expectedErrMsg: "image name could not be parsed",
 		},
 		{
 			name:           "",
@@ -116,7 +116,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		},
 		{
 			name:           "image name with more than two semicolon", //TODO: IMO it's proper image name, but now is not allowed
-			imageName:      "repo:port/image-name:tag:hash",
+			imageName:      "repo.com:123/image-name:tag:hash",
 			expectedErrMsg: "image name could not be parsed",
 		},
 	}
