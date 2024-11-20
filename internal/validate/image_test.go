@@ -54,12 +54,12 @@ var (
 		hash: []byte{33, 98, 102, 200, 111, 196, 220, 239, 86, 25, 147, 11, 211, 148, 36, 88, 36, 194, 175, 82, 253, 33, 186, 124, 111, 160, 230, 24, 101, 125, 76, 59},
 	}
 	differentHashImage = image{
-		name: "nginx",
+		name: "docker.io/library/nginx",
 		tag:  "latest",
 		hash: []byte{1, 2, 3, 4},
 	}
 	untrustedImage = image{
-		name: "nginx",
+		name: "docker.io/library/nginx",
 		tag:  "untrusted",
 	}
 	unknownImage = image{
@@ -98,26 +98,31 @@ func Test_Validate_ProperIndex_ShouldPass(t *testing.T) {
 func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 	cfg := validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{}}
 	f := setupMockFactory()
+	expectedErrMsg := "image name could not be parsed"
 
 	tests := []struct {
-		name           string
-		imageName      string
-		expectedErrMsg string
+		name      string
+		imageName string
 	}{
 		{
-			name:           "image name without semicolon",
-			imageName:      "makapaka",
-			expectedErrMsg: "image name is not formatted correctly",
+			name:      "image name without tag and domain",
+			imageName: "makapaka",
 		},
 		{
-			name:           "",
-			imageName:      ":",
-			expectedErrMsg: "empty arguments provided",
+			name:      "image name without domain",
+			imageName: "makapaka:latest",
 		},
 		{
-			name:           "image name with more than one semicolon", //TODO: IMO it's proper image name, but now is not allowed
-			imageName:      "repo:port/image-name:tag",
-			expectedErrMsg: "image name is not formatted correctly",
+			name:      "image name without tag",
+			imageName: "domain.com/makapaka",
+		},
+		{
+			name:      "",
+			imageName: ":",
+		},
+		{
+			name:      "image name with more than two semicolon in hash",
+			imageName: "repo.com:123/image-name:tag:hash",
 		},
 	}
 	for _, tt := range tests {
@@ -126,7 +131,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 
 			err := s.Validate(context.TODO(), tt.imageName, emptyAuthData)
 
-			require.ErrorContains(t, err, tt.expectedErrMsg)
+			require.ErrorContains(t, err, expectedErrMsg)
 		})
 	}
 }
