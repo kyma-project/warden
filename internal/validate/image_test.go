@@ -54,12 +54,12 @@ var (
 		hash: []byte{33, 98, 102, 200, 111, 196, 220, 239, 86, 25, 147, 11, 211, 148, 36, 88, 36, 194, 175, 82, 253, 33, 186, 124, 111, 160, 230, 24, 101, 125, 76, 59},
 	}
 	differentHashImage = image{
-		name: "nginx",
+		name: "docker.io/library/nginx",
 		tag:  "latest",
 		hash: []byte{1, 2, 3, 4},
 	}
 	untrustedImage = image{
-		name: "nginx",
+		name: "docker.io/library/nginx",
 		tag:  "untrusted",
 	}
 	unknownImage = image{
@@ -107,17 +107,17 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 		{
 			name:           "image name without semicolon",
 			imageName:      "makapaka",
-			expectedErrMsg: "image name is not formatted correctly",
+			expectedErrMsg: "image is missing tag or hash",
 		},
 		{
 			name:           "",
 			imageName:      ":",
-			expectedErrMsg: "empty arguments provided",
+			expectedErrMsg: "image name could not be parsed",
 		},
 		{
-			name:           "image name with more than one semicolon", //TODO: IMO it's proper image name, but now is not allowed
-			imageName:      "repo:port/image-name:tag",
-			expectedErrMsg: "image name is not formatted correctly",
+			name:           "image name with more than two semicolon", //TODO: IMO it's proper image name, but now is not allowed
+			imageName:      "repo:port/image-name:tag:hash",
+			expectedErrMsg: "image name could not be parsed",
 		},
 	}
 	for _, tt := range tests {
