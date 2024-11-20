@@ -98,26 +98,31 @@ func Test_Validate_ProperIndex_ShouldPass(t *testing.T) {
 func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 	cfg := validate.ServiceConfig{NotaryConfig: validate.NotaryConfig{}}
 	f := setupMockFactory()
+	expectedErrMsg := "image name could not be parsed"
 
 	tests := []struct {
-		name           string
-		imageName      string
-		expectedErrMsg string
+		name      string
+		imageName string
 	}{
 		{
-			name:           "image name without semicolon",
-			imageName:      "makapaka",
-			expectedErrMsg: "image name could not be parsed",
+			name:      "image name without tag and domain",
+			imageName: "makapaka",
 		},
 		{
-			name:           "",
-			imageName:      ":",
-			expectedErrMsg: "image name could not be parsed",
+			name:      "image name without domain",
+			imageName: "makapaka:latest",
 		},
 		{
-			name:           "image name with more than two semicolon", //TODO: IMO it's proper image name, but now is not allowed
-			imageName:      "repo.com:123/image-name:tag:hash",
-			expectedErrMsg: "image name could not be parsed",
+			name:      "image name without tag",
+			imageName: "domain.com/makapaka",
+		},
+		{
+			name:      "",
+			imageName: ":",
+		},
+		{
+			name:      "image name with more than two semicolon in hash",
+			imageName: "repo.com:123/image-name:tag:hash",
 		},
 	}
 	for _, tt := range tests {
@@ -126,7 +131,7 @@ func Test_Validate_InvalidImageName_ShouldReturnError(t *testing.T) {
 
 			err := s.Validate(context.TODO(), tt.imageName, emptyAuthData)
 
-			require.ErrorContains(t, err, tt.expectedErrMsg)
+			require.ErrorContains(t, err, expectedErrMsg)
 		})
 	}
 }
