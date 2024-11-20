@@ -48,7 +48,7 @@ func TestTimeout(t *testing.T) {
 	ns := corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: testNs,
 		Labels: map[string]string{pkg.NamespaceValidationLabel: pkg.NamespaceValidationEnabled}}}
 	pod := corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod", Namespace: testNs},
-		Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "test:test"}}},
+		Spec: corev1.PodSpec{Containers: []corev1.Container{{Image: "eu-gcr.io/test:test"}}},
 	}
 
 	raw, err := json.Marshal(pod)
