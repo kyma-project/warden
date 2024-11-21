@@ -67,7 +67,7 @@ func (w *DefaultingWebHook) handle(ctx context.Context, req admission.Request) a
 	}
 
 	pod := &corev1.Pod{}
-	if err := w.decoder.Decode(req, pod); err != nil {
+	if err := (*w.decoder).Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
@@ -125,7 +125,7 @@ func cleanAnnotationIfNeeded(ctx context.Context, pod *corev1.Pod, ns *corev1.Na
 
 func (w DefaultingWebHook) handleTimeout(ctx context.Context, timeoutErr error, req admission.Request) admission.Response {
 	pod := &corev1.Pod{}
-	if err := w.decoder.Decode(req, pod); err != nil {
+	if err := (*w.decoder).Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 

@@ -2,10 +2,11 @@ package webhook
 
 import (
 	"context"
-	corev1 "k8s.io/api/core/v1"
 	"os"
 	"path"
 	"time"
+
+	corev1 "k8s.io/api/core/v1"
 
 	"go.uber.org/zap"
 
@@ -68,19 +69,19 @@ func SetupResourcesController(ctx context.Context, mgr ctrl.Manager, serviceName
 		return errors.Wrap(err, "failed to create webhook-config-controller")
 	}
 
-	if err := c.Watch(source.Kind(mgr.GetCache(), &admissionregistrationv1.ValidatingWebhookConfiguration{}),
-		&handler.EnqueueRequestForObject{},
+	if err := c.Watch(source.Kind(mgr.GetCache(), &admissionregistrationv1.ValidatingWebhookConfiguration{},
+		&handler.TypedEnqueueRequestForObject[*admissionregistrationv1.ValidatingWebhookConfiguration]{}),
 	); err != nil {
 		return errors.Wrap(err, "failed to watch ValidatingWebhookConfiguration")
 	}
 
-	if err := c.Watch(source.Kind(mgr.GetCache(), &admissionregistrationv1.MutatingWebhookConfiguration{}),
-		&handler.EnqueueRequestForObject{},
+	if err := c.Watch(source.Kind(mgr.GetCache(), &admissionregistrationv1.MutatingWebhookConfiguration{},
+		&handler.TypedEnqueueRequestForObject[*admissionregistrationv1.MutatingWebhookConfiguration]{}),
 	); err != nil {
 		return errors.Wrap(err, "failed to watch MutatingWebhookConfiguration")
 	}
-	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{}),
-		&handler.EnqueueRequestForObject{},
+	if err := c.Watch(source.Kind(mgr.GetCache(), &corev1.Secret{},
+		&handler.TypedEnqueueRequestForObject[*corev1.Secret]{}),
 	); err != nil {
 		return errors.Wrap(err, "failed to watch Secrets")
 	}

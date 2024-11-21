@@ -24,7 +24,7 @@ func TestValidationWebhook(t *testing.T) {
 	scheme := runtime.NewScheme()
 	decoder := admission.NewDecoder(scheme)
 	log := test_helpers.NewTestZapLogger(t).Sugar()
-	webhook := NewValidationWebhook(log, decoder)
+	webhook := NewValidationWebhook(log, &decoder)
 
 	testCases := []struct {
 		name            string
@@ -93,7 +93,7 @@ func TestValidationWebhook_Errors(t *testing.T) {
 	scheme := runtime.NewScheme()
 	decoder := admission.NewDecoder(scheme)
 	log := test_helpers.NewTestZapLogger(t).Sugar()
-	webhook := NewValidationWebhook(log, decoder)
+	webhook := NewValidationWebhook(log, &decoder)
 	testCases := []struct {
 		name            string
 		req             admission.Request
