@@ -47,7 +47,7 @@ func (w *ValidationWebhook) handle(ctx context.Context, req admission.Request) a
 	}
 
 	pod := &corev1.Pod{}
-	if err := w.decoder.Decode(req, pod); err != nil {
+	if err := (*w.decoder).Decode(req, pod); err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 

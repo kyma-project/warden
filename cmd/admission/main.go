@@ -159,7 +159,7 @@ func main() {
 	whs := mgr.GetWebhookServer()
 	decoder := ctrladmission.NewDecoder(mgr.GetScheme())
 	whs.Register(admission.ValidationPath, &ctrlwebhook.Admission{
-		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation"), decoder),
+		Handler: admission.NewValidationWebhook(logger.With("webhook", "validation"), &decoder),
 	})
 
 	predefinedUserAllowedRegistries := validate.ParseAllowedRegistries(appConfig.Notary.PredefinedUserAllowedRegistries)
@@ -168,7 +168,7 @@ func main() {
 			mgr.GetAPIReader(),
 			validatorSvc, validate.NewValidatorSvcFactory(predefinedUserAllowedRegistries...),
 			appConfig.Admission.Timeout, appConfig.Admission.StrictMode,
-			decoder, logger.With("webhook", "defaulting")),
+			&decoder, logger.With("webhook", "defaulting")),
 	})
 
 	logger.Info("starting the controller-manager")
