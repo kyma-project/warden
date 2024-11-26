@@ -13,7 +13,7 @@ require (
 	github.com/google/go-containerregistry v0.20.2
 	github.com/google/uuid v1.6.0
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/theupdateframework/notary v0.7.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.31.0
