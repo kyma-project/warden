@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"context"
+
 	"github.com/kyma-project/warden/internal/validate"
 	"github.com/pkg/errors"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -34,6 +35,7 @@ func (r *Reconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 //+kubebuilder:rbac:groups="",resources=pods,verbs=list;update
 //+kubebuilder:rbac:groups="",resources=namespaces,verbs=watch
+//+kubebuilder:rbac:groups="",resources=secrets,verbs=get;list
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
