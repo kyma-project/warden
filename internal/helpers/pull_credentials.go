@@ -19,7 +19,10 @@ func GetRemotePullCredentials(ctx context.Context, reader k8sclient.Reader, pod 
 		secret := &corev1.Secret{}
 		var dockerConfig []byte
 		if err := reader.Get(ctx, k8sclient.ObjectKey{Namespace: pod.Namespace, Name: imagePullSecret.Name}, secret); err != nil {
-			return nil, errors.Wrap(err, fmt.Sprintf("can't get %s/%s", pod.Namespace, imagePullSecret.Name)) //"failed to get secret")
+			if k8sclient.IgnoreNotFound(err) != nil {
+				return nil, errors.Wrap(err, fmt.Sprintf("can't get %s/%s", pod.Namespace, imagePullSecret.Name)) //"failed to get secret")
+			}
+			return remoteSecrets, nil
 		}
 		if dc, ok := secret.Data[".dockerconfigjson"]; ok {
 			dockerConfig = dc
@@ -39,6 +42,7 @@ func GetRemotePullCredentials(ctx context.Context, reader k8sclient.Reader, pod 
 			repoURL := authRepoFragments[len(authRepoFragments)-1]
 			repoURL = strings.TrimRight(repoURL, "/")
 
+			// technically, you could get a slice of authConfigs for each repoURL
 			remoteSecrets[repoURL] = auth
 		}
 	}
