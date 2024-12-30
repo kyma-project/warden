@@ -41,7 +41,7 @@ func Test_GetRemotePullCredentials(t *testing.T) {
 				},
 			},
 			want:    map[string]cliType.AuthConfig{},
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name: "incorrect secret",

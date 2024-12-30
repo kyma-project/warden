@@ -114,20 +114,30 @@ func (s *notaryService) loggedGetRepositoryDigestHash(ctx context.Context, ref n
 func (s *notaryService) getRepositoryDigestHash(ref name.Reference, imagePullCredentials map[string]cliType.AuthConfig) ([]byte, []byte, error) {
 	remoteOptions := make([]remote.Option, 0)
 
-	// check if we have credentials for the registry, and use them
-	if credentials, ok := imagePullCredentials[ref.Context().RegistryStr()]; ok {
-		credentials, err := parseCredentials(credentials)
-		if err != nil {
-			return nil, nil, err
-		}
-		if credentials != nil {
-			remoteOptions = append(remoteOptions, remote.WithAuth(credentials))
-		}
-	}
+	credentials, credentialsOk := imagePullCredentials[ref.Context().RegistryStr()]
 
-	descriptor, err := remote.Get(ref, remoteOptions...)
+	//try to get image info without credentials, mimicking Kuberenetes behavior
+	descriptor, err := remote.Get(ref)
 	if err != nil {
-		return nil, nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image descriptor"))
+		if !credentialsOk {
+			// no fitting credentials, and no public access, return error
+			return nil, nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image descriptor anonymously"))
+		} else {
+			// to to authenticate to the registry
+
+			credentials, err := parseCredentials(credentials)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if credentials != nil {
+				remoteOptions = append(remoteOptions, remote.WithAuth(credentials))
+			}
+			descriptor, err = remote.Get(ref, remoteOptions...)
+			if err != nil {
+				return nil, nil, pkg.NewUnknownResultErr(errors.Wrap(err, "get image descriptor"))
+			}
+		}
 	}
 
 	if descriptor.MediaType.IsIndex() {
