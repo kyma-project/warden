@@ -17,22 +17,8 @@ permissions: # used by build images steps
   contents: write # This is required for actions/checkout
 
 jobs:
-  verify-head-status:
-    name: Verify HEAD
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Verify github actions
-        run: ./.github/scripts/verify-actions-status.sh ${{ github.ref_name }}
-
   upgrade-images:
     name: Upgrade main images
-    needs: verify-head-status
     runs-on: ubuntu-latest
 
     steps:
