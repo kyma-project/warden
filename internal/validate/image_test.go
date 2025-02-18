@@ -63,7 +63,7 @@ var (
 		tag:  "untrusted",
 	}
 	unknownImage = image{
-		name: "eu.gcr.io/kyma-project/function-controller",
+		name: "europe-docker.pkg.dev/kyma-project/prod/function-controller",
 		tag:  "unknow",
 	}
 )
