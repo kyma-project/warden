@@ -1,11 +1,16 @@
 module-name: warden
+kind: kyma
 rc-tag: 0.13.0
-protecode:
+bdba:
   - europe-docker.pkg.dev/kyma-project/prod/warden/operator:main
   - europe-docker.pkg.dev/kyma-project/prod/warden/admission:main
-whitesource:
+mend:
   language: golang-mod
-  subprojects: false
+  exclude:
+    - "**/test/**"
+    - "**/*_test.go"
+checkmarx-one:
+  preset: go-default
   exclude:
     - "**/test/**"
     - "**/*_test.go"
