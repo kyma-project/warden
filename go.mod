@@ -17,7 +17,7 @@ require (
 	github.com/theupdateframework/notary v0.7.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.35.0
-	gomodules.xyz/jsonpatch/v2 v2.4.0
+	gomodules.xyz/jsonpatch/v2 v2.5.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.31.6
 	k8s.io/apiextensions-apiserver v0.31.6
