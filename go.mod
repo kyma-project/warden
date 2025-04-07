@@ -8,7 +8,7 @@ require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
 	github.com/docker/cli v28.0.4+incompatible
 	github.com/docker/distribution v2.8.3+incompatible
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-logr/zapr v1.3.0
 	github.com/google/go-containerregistry v0.20.3
 	github.com/google/uuid v1.6.0
