@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: {{ .Values.global.replica }}
+  replicas: {{ .Values.global.replicas }}
   selector:
     matchLabels:
       app: {{ .Values.global.name }}
