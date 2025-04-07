@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: {{ .Values.replicaCount }}
+  replicas: {{ .Values.global.replica }}
   selector:
     matchLabels:
       app: {{ .Values.global.name }}
@@ -68,10 +68,10 @@ spec:
           emptyDir: { }
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
       nodeSelector:
-        {{- toYaml .Values.nodeSelector | nindent 8 }}
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
       affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
+        {{- toYaml .Values.global.affinity | nindent 8 }}
       topologySpreadConstraints:
-        {{- toYaml .Values.topologySpreadConstraints | nindent 8 }}
+        {{- toYaml .Values.global.topologySpreadConstraints | nindent 8 }}
       tolerations:
-        {{- toYaml .Values.tolerations | nindent 8 }}
+        {{- toYaml .Values.global.tolerations | nindent 8 }}
