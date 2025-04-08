@@ -14,6 +14,11 @@ global:
   name: warden
   wardenPriorityClassName: warden-priority
   wardenPriorityClassValue: 2000000
+  replicas: 1
+  nodeSelector: {}
+  topologySpreadConstraints: []
+  tolerations: []
+  affinity: {}
   operator:
     image: 'europe-docker.pkg.dev/kyma-project/prod/warden/operator:main'
     resources:

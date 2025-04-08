@@ -13,7 +13,7 @@ metadata:
     app.kubernetes.io/part-of: {{ .Values.global.name }}
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
+  replicas: {{ .Values.global.replicas }}
   selector:
     matchLabels:
       app: {{ .Values.global.name }}
@@ -67,3 +67,11 @@ spec:
         - name: notary-tmp
           emptyDir: { }
       priorityClassName: {{ .Values.global.wardenPriorityClassName }}
+      nodeSelector:
+        {{- toYaml .Values.global.nodeSelector | nindent 8 }}
+      affinity:
+        {{- toYaml .Values.global.affinity | nindent 8 }}
+      topologySpreadConstraints:
+        {{- toYaml .Values.global.topologySpreadConstraints | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.global.tolerations | nindent 8 }}
