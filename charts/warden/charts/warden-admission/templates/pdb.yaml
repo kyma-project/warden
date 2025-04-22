@@ -1,0 +1,28 @@
+{{- if .Values.global.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.global.name }}
+    app.kubernetes.io/name: {{ .Values.global.name }}
+    app.kubernetes.io/instance: {{ .Chart.Name }}-poddisrubtionpudget
+    app.kubernetes.io/component: {{ .Chart.Name }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.global.name }}
+      app.kubernetes.io/part-of: {{ .Values.global.name }}
+      app.kubernetes.io/component: {{ .Chart.Name }}
+
+  {{- if not (or (hasKey .Values.global.podDisruptionBudget "minAvailable") (hasKey .Values.podDisruptionBudget "maxUnavailable")) }}
+  minAvailable: 1 # Default value because minAvailable and maxUnavailable are not set
+  {{- end }}
+  {{- if hasKey .Values.global.podDisruptionBudget "minAvailable" }}
+  minAvailable: {{ .Values.global.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if hasKey .Values.global.podDisruptionBudget "maxUnavailable" }}
+  maxUnavailable: {{ .Values.global.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+{{- end }}

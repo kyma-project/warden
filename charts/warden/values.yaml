@@ -19,6 +19,10 @@ global:
   topologySpreadConstraints: []
   tolerations: []
   affinity: {}
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    maxUnavailable: 1
   operator:
     image: 'europe-docker.pkg.dev/kyma-project/prod/warden/operator:main'
     resources:
