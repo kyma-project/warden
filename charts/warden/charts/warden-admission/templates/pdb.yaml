@@ -7,7 +7,7 @@ metadata:
   labels:
     app: {{ .Values.global.name }}
     app.kubernetes.io/name: {{ .Values.global.name }}
-    app.kubernetes.io/instance: {{ .Chart.Name }}-poddisrubtionbudget
+    app.kubernetes.io/instance: {{ .Chart.Name }}-poddisruptionbudget
     app.kubernetes.io/component: {{ .Chart.Name }}
 spec:
   selector:
