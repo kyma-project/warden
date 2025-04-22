@@ -21,8 +21,8 @@ global:
   affinity: {}
   podDisruptionBudget:
     enabled: false
-    minAvailable: 1
-    maxUnavailable: 1
+    #minAvailable: 1
+    #maxUnavailable: 1
   operator:
     image: 'europe-docker.pkg.dev/kyma-project/prod/warden/operator:main'
     resources:
