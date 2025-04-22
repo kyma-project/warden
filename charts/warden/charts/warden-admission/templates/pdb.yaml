@@ -16,7 +16,7 @@ spec:
       app.kubernetes.io/part-of: {{ .Values.global.name }}
       app.kubernetes.io/component: {{ .Chart.Name }}
 
-  {{- if not (or (hasKey .Values.global.podDisruptionBudget "minAvailable") (hasKey .Values.podDisruptionBudget "maxUnavailable")) }}
+  {{- if not (or (hasKey .Values.global.podDisruptionBudget "minAvailable") (hasKey .Values.global.podDisruptionBudget "maxUnavailable")) }}
   minAvailable: 1 # Default value because minAvailable and maxUnavailable are not set
   {{- end }}
   {{- if hasKey .Values.global.podDisruptionBudget "minAvailable" }}
