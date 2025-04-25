@@ -24,7 +24,7 @@ global:
     #minAvailable: 1
     #maxUnavailable: 1
   operator:
-    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/operator:main'
+    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/operator:0.17.0'
     resources:
       requests:
         cpu: 10m
@@ -33,7 +33,7 @@ global:
         cpu: 300m
         memory: 500Mi
   admission:
-    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/admission:main'
+    image: 'europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.17.0'
     resources:
       requests:
         cpu: 10m
