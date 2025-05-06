@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"os"
 
+	"crypto/tls"
+
 	"github.com/go-logr/zapr"
 	"github.com/kyma-project/warden/internal/logging"
 	corev1 "k8s.io/api/core/v1"
@@ -103,6 +105,11 @@ func main() {
 		},
 		WebhookServer: ctrlwebhook.NewServer(ctrlwebhook.Options{
 			Port: 9443,
+			TLSOpts: []func(*tls.Config){
+				func(cfg *tls.Config) {
+					cfg.MinVersion = tls.VersionTLS13
+				},
+			},
 		}),
 		HealthProbeBindAddress: appConfig.Operator.HealthProbeBindAddress,
 		LeaderElection:         appConfig.Operator.LeaderElect,

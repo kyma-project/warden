@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"os"
@@ -120,6 +121,11 @@ func main() {
 			CertName: certs.CertFile,
 			KeyName:  certs.KeyFile,
 			Port:     appConfig.Admission.Port,
+			TLSOpts: []func(*tls.Config){
+				func(cfg *tls.Config) {
+					cfg.MinVersion = tls.VersionTLS13
+				},
+			},
 		}),
 		Cache: cache.Options{
 			ByObject: map[client.Object]cache.ByObject{
