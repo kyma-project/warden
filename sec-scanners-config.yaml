@@ -1,6 +1,5 @@
 module-name: warden
 kind: kyma
-rc-tag: 0.13.0
 bdba:
   - europe-docker.pkg.dev/kyma-project/prod/warden/operator:main
   - europe-docker.pkg.dev/kyma-project/prod/warden/admission:main
