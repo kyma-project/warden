@@ -16,7 +16,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -82,7 +81,7 @@ func TestEnsureWebhookSecret(t *testing.T) {
 
 	t.Run("can ensure the secret is updated if it exists", func(t *testing.T) {
 		secret := &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      testSecretName,
 				Namespace: testNamespaceName,
 				Labels: map[string]string{
@@ -112,7 +111,7 @@ func TestEnsureWebhookSecret(t *testing.T) {
 
 	t.Run("can ensure the secret is updated if it's missing a value", func(t *testing.T) {
 		secret := &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      testSecretName,
 				Namespace: testNamespaceName,
 				Labels: map[string]string{
@@ -147,7 +146,7 @@ func TestEnsureWebhookSecret(t *testing.T) {
 
 	t.Run("doesn't update the secret if it's ok", func(t *testing.T) {
 		secret := &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      testSecretName,
 				Namespace: testNamespaceName,
 				Labels: map[string]string{
@@ -188,7 +187,7 @@ func TestEnsureWebhookSecret(t *testing.T) {
 		require.NoError(t, err)
 
 		secret := &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      testSecretName,
 				Namespace: testNamespaceName,
 				Labels: map[string]string{
@@ -229,7 +228,7 @@ func TestEnsureWebhookSecret(t *testing.T) {
 		require.NoError(t, err)
 
 		secret := &corev1.Secret{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      testSecretName,
 				Namespace: testNamespaceName,
 				Labels: map[string]string{
@@ -297,7 +296,7 @@ func Test_buildOwnerRefs(t *testing.T) {
 	t.Run("build owner reference for deployment", func(t *testing.T) {
 		namespace := "default"
 		deploy := &appsv1.Deployment{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-deploy",
 				Namespace: namespace,
 				UID:       "72b54330-6695-11ee-8c99-0242ac120002",
