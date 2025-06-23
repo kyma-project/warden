@@ -1,6 +1,15 @@
 name: kyma-project.io/module/warden
-channel: <this-will-be-autofilled>
-version: <this-will-be-autofilled>
+version:
 manifest: warden.yaml
-moduleRepo: https://github.com/kyma-project/warden.git
+repository: https://github.com/kyma-project/warden.git
 mandatory: true
+security: sec-scanners-config.yaml
+manager:
+  name: warden-operator
+  group: apps
+  version: v1
+  kind: Deployment
+associatedResources:
+    - group: operator.kyma-project.io
+      kind: Warden
+      version: v1alpha1
