@@ -13,3 +13,7 @@ associatedResources:
     - group: operator.kyma-project.io
       kind: Warden
       version: v1alpha1
+icons:
+  - name: module-icon
+    # TODO: provide warden icon
+    link: https://raw.githubusercontent.com/kyma-project/kyma/refs/heads/main/docs/assets/logo_icon.svg
