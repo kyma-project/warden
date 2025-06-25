@@ -125,8 +125,8 @@ jobs:
           git checkout -B "${MODULE_VERSION}-${CHANNEL}" upstream/main
 
           mkdir -p modules/warden/${CHANNEL}
-          cp ../warden.yaml modules/warden/${CHANNEL}/${MODULE_VERSION}/warden.yaml
-          cp ../module-config.yaml modules/warden/${CHANNEL}/${MODULE_VERSION}/module-config.yaml
+          cp ../warden.yaml modules/warden/${MODULE_VERSION}/warden.yaml
+          cp ../module-config.yaml modules/warden/${MODULE_VERSION}/module-config.yaml
 
           git add .
           git commit -m "promote warden ${MODULE_VERSION} to ${CHANNEL} channel"
