@@ -9,10 +9,6 @@ manager:
   group: apps
   version: v1
   kind: Deployment
-associatedResources:
-    - group: operator.kyma-project.io
-      kind: Warden
-      version: v1alpha1
 icons:
   - name: module-icon
     # TODO: provide warden icon
