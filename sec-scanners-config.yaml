@@ -1,8 +1,8 @@
 module-name: warden
 kind: kyma
 bdba:
-  - europe-docker.pkg.dev/kyma-project/prod/warden/operator:main
-  - europe-docker.pkg.dev/kyma-project/prod/warden/admission:main
+  - europe-docker.pkg.dev/kyma-project/prod/warden/operator:0.17.0
+  - europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.17.0
 mend:
   language: golang-mod
   exclude:
@@ -13,6 +13,3 @@ checkmarx-one:
   exclude:
     - "**/test/**"
     - "**/*_test.go"
-protecode:
-  - europe-docker.pkg.dev/kyma-project/prod/warden/operator:0.17.0
-  - europe-docker.pkg.dev/kyma-project/prod/warden/admission:0.17.0
