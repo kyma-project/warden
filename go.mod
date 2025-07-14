@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
-	github.com/docker/cli v28.2.2+incompatible
+	github.com/docker/cli v28.3.2+incompatible
 	github.com/docker/distribution v2.8.3+incompatible
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/go-logr/zapr v1.3.0
